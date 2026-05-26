@@ -2,3 +2,10 @@
 .venv
 __pycache__
 *.pyc
+
+# JWT Keys
+*.pem
+# OR specifically
+app/core/security/private.pem
+app/core/security/public.pem
+
