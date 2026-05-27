@@ -7,6 +7,10 @@ from app.routers.user import router as user_router
 from app.core.config import SESSION_SECRET_KEY
 
 from starlette.middleware.sessions import SessionMiddleware
+from app.routers.interview import router as interview_router
+
+from app.routers.resume import router as resume_router
+
 
 load_dotenv()
 
@@ -35,6 +39,8 @@ async def home(db: AsyncIOMotorDatabase = Depends(get_db)):
 
 
 app.include_router(user_router)
+app.include_router(resume_router)
+app.include_router(interview_router)
 
 
 if __name__ == "__main__":
