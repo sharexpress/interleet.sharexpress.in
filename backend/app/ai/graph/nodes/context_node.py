@@ -5,8 +5,10 @@ async def context_node(state: InterviewState):
     topic = state.get("current_topic") or state.get("last_answer_topic", "")
     is_intro = topic == "self_introduction"
     covered_topics = list(state.get("covered_topics", []))
-    if topic and not is_intro and topic not in covered_topics:
-        covered_topics.append(topic)
+    if not is_intro:
+        for covered_topic in _detect_covered_topics(state, topic):
+            if covered_topic not in covered_topics:
+                covered_topics.append(covered_topic)
 
     remaining_topics = [
         item for item in state.get("target_topics", []) if item not in covered_topics
@@ -31,3 +33,24 @@ async def context_node(state: InterviewState):
         "last_answer": "",
         "last_answer_topic": "",
     }
+
+
+def _detect_covered_topics(state: InterviewState, generated_topic: str) -> list[str]:
+    target_topics = state.get("target_topics", [])
+    haystack = " ".join(
+        [
+            generated_topic,
+            state.get("current_question", ""),
+            state.get("last_answer", ""),
+        ]
+    ).lower()
+
+    matched = [
+        topic
+        for topic in target_topics
+        if topic.lower() in haystack or haystack in topic.lower()
+    ]
+
+    if matched:
+        return matched
+    return [generated_topic] if generated_topic else []

@@ -43,6 +43,15 @@ class SessionService:
             except Exception:
                 pass
 
+    @classmethod
+    async def delete_session(cls, session_id: str) -> None:
+        cls._memory.pop(session_id, None)
+        if Redis_client is not None:
+            try:
+                Redis_client.delete(cls._key(session_id))
+            except Exception:
+                pass
+
     @staticmethod
     def _key(session_id: str) -> str:
         return f"interview:session:{session_id}"

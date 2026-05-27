@@ -48,9 +48,14 @@ async def answer_question(payload: dict):
     state["last_answer"] = answer
     state["last_answer_topic"] = payload.get("topic", state.get("current_topic", ""))
     state = await run_interview_graph(state)
-    await SessionService.update_session(session_id, state)
+    report = None
+    if state.get("completed"):
+        report = InterviewReportService.build_report(state)
+        await SessionService.delete_session(session_id)
+    else:
+        await SessionService.update_session(session_id, state)
 
-    return {
+    response = {
         "session_id": session_id,
         "completed": state.get("completed", False),
         "completion_reason": state.get("completion_reason", ""),
@@ -64,6 +69,9 @@ async def answer_question(payload: dict):
         "covered_topics": state.get("covered_topics", []),
         "remaining_topics": state.get("remaining_topics", []),
     }
+    if report is not None:
+        response["report"] = report
+    return response
 
 
 @router.get("/{session_id}")
@@ -79,7 +87,9 @@ async def get_interview_report(session_id: str):
     state = await SessionService.get_session(session_id)
     if state is None:
         raise HTTPException(status_code=404, detail="Interview session not found")
-    return InterviewReportService.build_report(state)
+    report = InterviewReportService.build_report(state)
+    await SessionService.delete_session(session_id)
+    return report
 
 
 @router.websocket("/ws/{session_id}")
@@ -116,11 +126,13 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
             await SessionService.update_session(session_id, state)
 
             if state.get("completed"):
+                report = InterviewReportService.build_report(state)
+                await SessionService.delete_session(session_id)
                 await websocket.send_json(
                     {
                         "type": "completed",
                         "completion_reason": state.get("completion_reason", ""),
-                        "report": InterviewReportService.build_report(state),
+                        "report": report,
                     }
                 )
                 await websocket.close()

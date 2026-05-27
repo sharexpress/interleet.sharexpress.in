@@ -32,6 +32,8 @@ Target topics: {state.get("target_topics", [])}
 Covered topics: {state.get("covered_topics", [])}
 Remaining topics: {state.get("remaining_topics", [])}
 Weak topics: {state.get("weak_topics", [])}
+Assessment dimensions: {(state.get("metadata") or {}).get("assessment_dimensions", [])}
+Question budget remaining: {max(0, int(state.get("max_questions", 8)) - len(state.get("questions_asked", [])))}
 Previous questions: {state.get("questions_asked", [])}
 Last candidate answer: {state.get("turns", [])[-1] if state.get("turns") else None}
 Last evaluation: {state.get("last_evaluation")}

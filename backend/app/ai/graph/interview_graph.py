@@ -29,13 +29,15 @@ def build_initial_state(payload: dict[str, Any]) -> InterviewState:
     )
     experience = _as_list(parsed_resume.get("experience"))
     jd = mock_test.get("jd") or mock_test.get("job_description") or payload.get("jd", "")
-    target_topics = _dedupe(
-        [
-            *_as_list(mock_test.get("topics")),
-            *skills,
-            *technologies,
-            interview_type,
-        ]
+    max_questions = int(mock_test.get("max_questions", payload.get("max_questions", 8)))
+    min_questions = int(mock_test.get("min_questions", payload.get("min_questions", 5)))
+    explicit_topics = _as_list(mock_test.get("topics"))
+    target_topics = _select_target_topics(
+        explicit_topics=explicit_topics,
+        skills=skills,
+        technologies=technologies,
+        interview_type=interview_type,
+        max_questions=max_questions,
     )
 
     if not target_topics:
@@ -55,9 +57,13 @@ def build_initial_state(payload: dict[str, Any]) -> InterviewState:
         experience=experience,
         target_topics=target_topics,
         remaining_topics=target_topics,
-        max_questions=int(mock_test.get("max_questions", payload.get("max_questions", 8))),
-        min_questions=int(mock_test.get("min_questions", payload.get("min_questions", 5))),
-        metadata={"mock_test": mock_test},
+        max_questions=max_questions,
+        min_questions=min_questions,
+        metadata={
+            "mock_test": mock_test,
+            "question_budget_includes_intro": True,
+            "assessment_dimensions": _assessment_dimensions(interview_type),
+        },
     )
     return model.model_dump(mode="json")
 
@@ -172,10 +178,10 @@ def _dedupe(values: list[str]) -> list[str]:
 
 def _default_topics(interview_type: str) -> list[str]:
     presets = {
-        "frontend": ["JavaScript", "React", "state management", "performance", "accessibility"],
-        "backend": ["API design", "databases", "caching", "concurrency", "observability"],
+        "frontend": ["frontend architecture", "state management", "performance", "accessibility", "collaboration"],
+        "backend": ["API design", "data modeling", "caching", "reliability", "communication"],
         "devops": ["CI/CD", "containers", "cloud infrastructure", "monitoring", "incident response"],
-        "system_design": ["requirements", "capacity", "data model", "scaling", "tradeoffs"],
+        "system_design": ["requirements", "data model", "scaling", "tradeoffs", "risk handling"],
         "behavioral": ["ownership", "conflict", "failure", "leadership", "communication"],
         "hr": ["motivation", "collaboration", "strengths", "role fit", "career goals"],
     }
@@ -190,3 +196,33 @@ def _normalize_interview_type(value: Any) -> str:
         "behavior": "behavioral",
     }
     return aliases.get(normalized, normalized)
+
+
+def _select_target_topics(
+    *,
+    explicit_topics: list[str],
+    skills: list[str],
+    technologies: list[str],
+    interview_type: str,
+    max_questions: int,
+) -> list[str]:
+    topic_budget = max(2, max_questions - 1)
+    if explicit_topics:
+        return _dedupe(explicit_topics)[:topic_budget]
+
+    source_topics = _default_topics(interview_type)
+    evidence = [*skills[:2], *technologies[:2]]
+    return _dedupe([*source_topics, *evidence])[:topic_budget]
+
+
+def _assessment_dimensions(interview_type: str) -> list[str]:
+    common = ["communication clarity", "structured thinking", "role fit"]
+    if interview_type in {"hr", "behavioral"}:
+        return [*common, "self-awareness", "ownership", "collaboration", "emotional intelligence"]
+    return [
+        *common,
+        "technical depth",
+        "systems reasoning",
+        "tradeoff analysis",
+        "problem solving under ambiguity",
+    ]

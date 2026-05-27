@@ -9,8 +9,8 @@ async def completion_node(state: InterviewState):
             if turn.get("topic") != "self_introduction"
         ]
     )
-    max_questions = int(state.get("max_questions", 8))
-    min_questions = int(state.get("min_questions", 5))
+    max_questions = max(1, int(state.get("max_questions", 8)) - 1)
+    min_questions = max(1, int(state.get("min_questions", 5)) - 1)
     remaining_topics = state.get("remaining_topics", [])
 
     if turn_count >= max_questions:
