@@ -7,7 +7,9 @@ from app.core.config import (
 )
 
 oauth = OAuth()
-
+# =========================================
+# GOOGLE
+# =========================================
 oauth.register(
     name="google",
     client_id=GOOGLE_CLIENT_ID,
@@ -17,7 +19,12 @@ oauth.register(
     ),
     client_kwargs={"scope": "openid email profile"},
 )
+# =========================================
+# GITHUB
+# =========================================
 
+print(GITHUB_CLIENT_ID)
+print(GITHUB_CLIENT_SECRET)
 oauth.register(
     name="github",
     client_id=GITHUB_CLIENT_ID,

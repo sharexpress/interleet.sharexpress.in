@@ -337,11 +337,12 @@ class UserController:
             redirect_response = RedirectResponse(url=redirect_url)
             generate_token(existing_user["user_id"], redirect_response)
             return redirect_response
-        except OAuthError:
-            raise HTTPException(status_code=400, detail="GitHub OAuth failed")
-        except Exception:
-            logger.exception("GitHub callback failed")
-            raise HTTPException(status_code=500, detail="Internal server error")
+        except OAuthError as e:
+            print("GITHUB OAUTH ERROR =", e)
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            print("FULL GITHUB ERROR =", repr(e))
+            raise HTTPException(status_code=400, detail=str(e))
 
     @staticmethod
     async def logout(response: Response):
