@@ -25,6 +25,8 @@ class UserModel(BaseModel):
 
     role: str = "user"
 
+    auth_provider = Optional[str] = None
+
     frontend_rating: int = 0
 
     backend_rating: int = 0

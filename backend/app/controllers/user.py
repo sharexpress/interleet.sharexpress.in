@@ -14,6 +14,11 @@ from app.utils.JWT import (
     generate_token,
 )
 from app.lib.generateOTP import generateOTP
+from app.core.oauth import oauth
+from authlib.integrations.base_client.errors import OAuthError
+
+
+from fastapi.responses import RedirectResponse
 
 
 logger = logging.getLogger(__name__)
@@ -129,4 +134,102 @@ class UserController:
             raise
         except Exception as e:
             logger.exception(f"Verify OTP failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @staticmethod
+    async def google_login(request: Request):
+        try:
+            redirect_uri = "http://localhost:8000/auth/google/callback"
+            return await oauth.google.authorize_redirect(
+                request,
+                redirect_uri,
+                prompt="select_account consent",
+                access_type="offline",
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            print(f"Error in redirect_to_uri: {e}")
+            raise HTTPException(
+                status_code=500, detail="Failed to initiate Google login"
+            )
+
+    async def google_callback(request: Request):
+        try:
+            token = await oauth.google.authorize_access_token(request)
+            user_info = token.get("userinfo")
+            if not user_info:
+                raise HTTPException(
+                    status_code=400, detail="Google authentication failed"
+                )
+
+            email = user_info.get("email")
+            avatar = user_info.get("picture")
+            google_sub = user_info.get("sub")
+            if not email:
+                raise HTTPException(
+                    status_code=400, detail="Email not provided by Google"
+                )
+
+            existing_user = await db.users.find_one({"email": email})
+
+            if not existing_user:
+                user_id = str(uuid4())
+                new_user = {
+                    "user_id": user_id,
+                    "email": email,
+                    "username": None,
+                    "full_name": None,
+                    "avatar": avatar,
+                    "google_sub": google_sub,
+                    "auth_provider": "google",
+                    "onboarding_completed": False,
+                    "role": "user",
+                    "frontend_rating": 0,
+                    "backend_rating": 0,
+                    "fullstack_rating": 0,
+                    "devops_rating": 0,
+                    "overall_rating": 0,
+                    "solved_problems": [],
+                    "badges": [],
+                    "streak_count": 0,
+                    "is_verified": True,
+                    "is_active": True,
+                    "is_locked": False,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                    "last_login": datetime.utcnow(),
+                }
+                await db.users.insert_one(new_user)
+                response = RedirectResponse(url="http://localhost:5173/onboarding")
+                generate_token(user_id, response)
+                return response
+
+            if existing_user.get("is_locked"):
+                raise HTTPException(status_code=403, detail="Account is locked")
+            if not existing_user.get("is_active", True):
+                raise HTTPException(status_code=403, detail="Account is inactive")
+
+            await db.users.update_one(
+                {"email": email},
+                {
+                    "$set": {
+                        "updated_at": datetime.utcnow(),
+                        "last_login": datetime.utcnow(),
+                        "avatar": avatar,
+                    }
+                },
+            )
+
+            redirect_url = "http://localhost:5173"
+            if not existing_user.get("onboarding_completed"):
+                redirect_url = "http://localhost:5173/onboarding"
+            response = RedirectResponse(url=redirect_url)
+            generate_token(existing_user["user_id"], response)
+            return response
+        except OAuthError:
+            raise HTTPException(status_code=400, detail="Google OAuth failed")
+        except Exception as e:
+            logger.exception(f"Google callback failed: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
