@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
 from app.ai.graph.interview_graph import build_initial_state, run_interview_graph
+from app.ai.services.report_repository import InterviewReportRepository
 from app.ai.services.report_service import InterviewReportService
 from app.ai.services.session_service import SessionService
 
@@ -51,6 +52,11 @@ async def answer_question(payload: dict):
     report = None
     if state.get("completed"):
         report = InterviewReportService.build_report(state)
+        await InterviewReportRepository.save_report(
+            session_id=session_id,
+            report=report,
+            state=state,
+        )
         await SessionService.delete_session(session_id)
     else:
         await SessionService.update_session(session_id, state)
@@ -86,10 +92,23 @@ async def get_interview_session(session_id: str):
 async def get_interview_report(session_id: str):
     state = await SessionService.get_session(session_id)
     if state is None:
-        raise HTTPException(status_code=404, detail="Interview session not found")
+        saved_report = await InterviewReportRepository.get_report(session_id)
+        if saved_report is None:
+            raise HTTPException(status_code=404, detail="Interview report not found")
+        return saved_report
     report = InterviewReportService.build_report(state)
+    await InterviewReportRepository.save_report(
+        session_id=session_id,
+        report=report,
+        state=state,
+    )
     await SessionService.delete_session(session_id)
     return report
+
+
+@router.get("/reports/recent")
+async def list_interview_reports(user_id: str | None = None, limit: int = 20):
+    return await InterviewReportRepository.list_reports(user_id=user_id, limit=limit)
 
 
 @router.websocket("/ws/{session_id}")
@@ -127,6 +146,11 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
 
             if state.get("completed"):
                 report = InterviewReportService.build_report(state)
+                await InterviewReportRepository.save_report(
+                    session_id=session_id,
+                    report=report,
+                    state=state,
+                )
                 await SessionService.delete_session(session_id)
                 await websocket.send_json(
                     {
