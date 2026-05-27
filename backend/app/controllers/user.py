@@ -155,6 +155,7 @@ class UserController:
                 status_code=500, detail="Failed to initiate Google login"
             )
 
+    @staticmethod
     async def google_callback(request: Request):
         try:
             token = await oauth.google.authorize_access_token(request)
@@ -172,7 +173,14 @@ class UserController:
                     status_code=400, detail="Email not provided by Google"
                 )
 
-            existing_user = await db.users.find_one({"email": email})
+            existing_user = await db.users.find_one(
+                {
+                    "$or": [
+                        {"email": email},
+                        {"google_sub": google_sub},
+                    ]
+                }
+            )
 
             if not existing_user:
                 user_id = str(uuid4())
@@ -232,4 +240,128 @@ class UserController:
             raise HTTPException(status_code=400, detail="Google OAuth failed")
         except Exception as e:
             logger.exception(f"Google callback failed: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @staticmethod
+    async def github_login(request: Request):
+        try:
+            redirect_uri = "http://localhost:8000/auth/github/callback"
+            return await oauth.github.authorize_redirect(request, redirect_uri)
+        except Exception:
+            logger.exception("GitHub login failed")
+            raise HTTPException(
+                status_code=500, detail="Failed to initiate GitHub login"
+            )
+
+    @staticmethod
+    async def github_callback(request: Request):
+        try:
+            token = await oauth.github.authorize_access_token(request)
+
+            response = await oauth.github.get("user", token=token)
+            github_user = response.json()
+            github_id = str(github_user.get("id"))
+            github_username = github_user.get("login")
+            avatar = github_user.get("avatar_url")
+            full_name = github_user.get("name")
+
+            email_response = await oauth.github.get("user/emails", token=token)
+            emails = email_response.json()
+            primary_email = None
+            for email_data in emails:
+                if email_data.get("primary") and email_data.get("verified"):
+                    primary_email = email_data.get("email")
+                    break
+            if not primary_email:
+                raise HTTPException(status_code=400, detail="GitHub email not found")
+
+            existing_user = await db.users.find_one(
+                {"$or": [{"email": primary_email}, {"github_id": github_id}]}
+            )
+
+            if not existing_user:
+                user_id = str(uuid4())
+                new_user = {
+                    "user_id": user_id,
+                    "email": primary_email,
+                    "username": None,
+                    "full_name": full_name,
+                    "avatar": avatar,
+                    "github_id": github_id,
+                    "github_username": github_username,
+                    "auth_provider": "github",
+                    "onboarding_completed": False,
+                    "role": "user",
+                    "frontend_rating": 0,
+                    "backend_rating": 0,
+                    "fullstack_rating": 0,
+                    "devops_rating": 0,
+                    "overall_rating": 0,
+                    "solved_problems": [],
+                    "badges": [],
+                    "streak_count": 0,
+                    "is_verified": True,
+                    "is_active": True,
+                    "is_locked": False,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                    "last_login": datetime.utcnow(),
+                }
+                await db.users.insert_one(new_user)
+                redirect_response = RedirectResponse(
+                    url="http://localhost:5173/onboarding"
+                )
+                generate_token(user_id, redirect_response)
+                return redirect_response
+
+            if existing_user.get("is_locked"):
+                raise HTTPException(status_code=403, detail="Account is locked")
+            if not existing_user.get("is_active", True):
+                raise HTTPException(status_code=403, detail="Account is inactive")
+
+            await db.users.update_one(
+                {"_id": existing_user["_id"]},
+                {
+                    "$set": {
+                        "github_id": github_id,
+                        "github_username": github_username,
+                        "avatar": avatar,
+                        "updated_at": datetime.utcnow(),
+                        "last_login": datetime.utcnow(),
+                    }
+                },
+            )
+            redirect_url = "http://localhost:5173"
+            if not existing_user.get("onboarding_completed"):
+                redirect_url = "http://localhost:5173/onboarding"
+            redirect_response = RedirectResponse(url=redirect_url)
+            generate_token(existing_user["user_id"], redirect_response)
+            return redirect_response
+        except OAuthError:
+            raise HTTPException(status_code=400, detail="GitHub OAuth failed")
+        except Exception:
+            logger.exception("GitHub callback failed")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @staticmethod
+    async def logout(response: Response):
+        try:
+            response.delete_cookie(
+                key="user",
+                httponly=True,
+                secure=is_prod,
+                samesite="none" if is_prod else "lax",
+                path="/",
+            )
+
+            response.delete_cookie(
+                key="guest_session",
+                httponly=True,
+                secure=is_prod,
+                samesite="none" if is_prod else "lax",
+                path="/",
+            )
+            return {"success": True, "message": "Logged out successfully"}
+        except Exception:
+            logger.exception("Logout failed")
             raise HTTPException(status_code=500, detail="Internal server error")

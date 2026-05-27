@@ -1,14 +1,27 @@
-from fastapi import APIRouter, Response, Request, Depends
-from app.models.users import UserModel as User
-from app.models.users import OTPverify
+from fastapi import (
+    APIRouter,
+    Response,
+    Request,
+    Depends,
+)
+from app.models.users import (
+    UserModel as User,
+    OTPverify,
+)
+from app.controllers.user import (
+    UserController,
+)
+from app.utils.JWT import (
+    check_token,
+)
 
-from app.controllers.user import UserController
-from app.utils.JWT import check_token
+router = APIRouter(
+    prefix="/auth",
+    tags=["Authentication"],
+)
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-
-@router.post("/sendOTP")
+@router.post("/send-otp")
 async def send_otp(
     user: User,
     _: None = Depends(check_token),
@@ -16,11 +29,50 @@ async def send_otp(
     return await UserController.send_otp(user)
 
 
-@router.post("/verify")
+@router.post("/verify-otp")
 async def verify_otp(
-    OTP: OTPverify,
-    Response: Response,
-    Request: Request,
+    otp: OTPverify,
+    response: Response,
+    request: Request,
     _: None = Depends(check_token),
 ):
-    return await UserController.verify_otp(OTP, Response, Request)
+    return await UserController.verify_otp(
+        otp,
+        response,
+        request,
+    )
+
+
+@router.get("/google/login")
+async def google_login(
+    request: Request,
+):
+    return await UserController.google_login(request)
+
+
+@router.get("/google/callback")
+async def google_callback(
+    request: Request,
+):
+    return await UserController.google_callback(request)
+
+
+@router.get("/github/login")
+async def github_login(
+    request: Request,
+):
+    return await UserController.github_login(request)
+
+
+@router.get("/github/callback")
+async def github_callback(
+    request: Request,
+):
+    return await UserController.github_callback(request)
+
+
+@router.post("/logout")
+async def logout(
+    response: Response,
+):
+    return await UserController.logout(response)
