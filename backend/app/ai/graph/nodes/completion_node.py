@@ -19,6 +19,7 @@ async def completion_node(state: InterviewState):
             "status": "completed",
             "interview_phase": "completed",
             "completion_reason": "max_questions_reached",
+            "closing_message": _closing_message(state, "max_questions_reached"),
         }
 
     if turn_count >= min_questions and not remaining_topics:
@@ -27,10 +28,27 @@ async def completion_node(state: InterviewState):
             "status": "completed",
             "interview_phase": "completed",
             "completion_reason": "topic_coverage_complete",
+            "closing_message": _closing_message(state, "topic_coverage_complete"),
         }
 
     return {
         "completed": False,
         "status": "active",
         "completion_reason": "",
+        "closing_message": "",
     }
+
+
+def _closing_message(state: InterviewState, reason: str) -> str:
+    role = state.get("role") or "this role"
+    if reason == "max_questions_reached":
+        return (
+            f"That brings us to the end of the {role} mock interview. "
+            "Thanks for working through the questions. I have enough signal now, "
+            "and your report card is ready."
+        )
+
+    return (
+        f"We have covered the main areas I wanted to assess for the {role} interview. "
+        "I will wrap it here, and your report card is ready."
+    )

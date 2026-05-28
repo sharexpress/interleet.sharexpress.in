@@ -27,6 +27,7 @@ class InterviewReportService:
 
         strengths = _top_items(evaluations, "strengths")
         concerns = _top_items(evaluations, "concerns")
+        performance_matrix = _performance_matrix(evaluations)
 
         return {
             "session_id": state.get("session_id"),
@@ -37,6 +38,7 @@ class InterviewReportService:
             "intro_answer": state.get("candidate_introduction", ""),
             "average_score": average_score,
             "topic_scores": topic_summary,
+            "performance_matrix": performance_matrix,
             "covered_topics": state.get("covered_topics", []),
             "remaining_topics": state.get("remaining_topics", []),
             "weak_topics": state.get("weak_topics", []),
@@ -58,6 +60,29 @@ def _top_items(evaluations: list[dict[str, Any]], key: str) -> list[str]:
                 seen.add(marker)
                 items.append(normalized)
     return items[:8]
+
+
+def _performance_matrix(evaluations: list[dict[str, Any]]) -> dict[str, float]:
+    metrics = [
+        "correctness",
+        "depth",
+        "communication",
+        "confidence",
+        "structure",
+        "clarity",
+        "role_fit",
+        "reasoning",
+        "emotional_intelligence",
+    ]
+    result: dict[str, float] = {}
+    for metric in metrics:
+        values = [
+            float(evaluation.get(metric, 0))
+            for evaluation in evaluations
+            if evaluation.get(metric) is not None
+        ]
+        result[metric] = round(sum(values) / len(values), 2) if values else 0
+    return result
 
 
 def _recommendation(score: float) -> str:
