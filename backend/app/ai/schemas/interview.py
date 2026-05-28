@@ -38,6 +38,12 @@ class AnswerEvaluation(BaseModel):
     correctness: float = Field(ge=0, le=10)
     depth: float = Field(ge=0, le=10)
     communication: float = Field(ge=0, le=10)
+    confidence: float = Field(default=5, ge=0, le=10)
+    structure: float = Field(default=5, ge=0, le=10)
+    clarity: float = Field(default=5, ge=0, le=10)
+    role_fit: float = Field(default=5, ge=0, le=10)
+    reasoning: float = Field(default=5, ge=0, le=10)
+    emotional_intelligence: float = Field(default=5, ge=0, le=10)
     concerns: list[str] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
     follow_up_needed: bool = False
@@ -47,6 +53,8 @@ class AnswerEvaluation(BaseModel):
 class GeneratedQuestion(BaseModel):
     preamble: str = ""
     question: str
+    affect: str = "curious"
+    answer_guidance: str = ""
     topic: str
     difficulty: Difficulty
     intent: str = ""
@@ -56,6 +64,8 @@ class GeneratedQuestion(BaseModel):
 class OpeningQuestion(BaseModel):
     preamble: str = ""
     question: str
+    affect: str = "welcoming"
+    answer_guidance: str = ""
     tone: str = "professional"
 
 
@@ -80,10 +90,13 @@ class InterviewStateModel(BaseModel):
     weak_topics: list[str] = Field(default_factory=list)
     current_question: str = ""
     current_preamble: str = ""
+    current_affect: str = ""
+    current_answer_guidance: str = ""
     current_topic: str = ""
     current_intent: str = ""
     current_question_index: int = 0
     questions_asked: list[str] = Field(default_factory=list)
+    interviewer_messages: list[str] = Field(default_factory=list)
     turns: list[InterviewTurn] = Field(default_factory=list)
     evaluations: list[AnswerEvaluation] = Field(default_factory=list)
     last_answer: str = ""
@@ -93,6 +106,7 @@ class InterviewStateModel(BaseModel):
     min_questions: int = 5
     completed: bool = False
     completion_reason: str = ""
+    closing_message: str = ""
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
