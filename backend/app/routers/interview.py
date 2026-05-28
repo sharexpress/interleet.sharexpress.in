@@ -28,6 +28,8 @@ async def start_interview(payload: dict):
         "message": _interviewer_message(state),
         "question": state.get("current_question", ""),
         "preamble": state.get("current_preamble", ""),
+        "affect": state.get("current_affect", ""),
+        "answer_guidance": state.get("current_answer_guidance", ""),
         "topic": state.get("current_topic", ""),
         "difficulty": state.get("difficulty", "medium"),
         "interview_phase": state.get("interview_phase", "intro"),
@@ -65,9 +67,16 @@ async def answer_question(payload: dict):
         "session_id": session_id,
         "completed": state.get("completed", False),
         "completion_reason": state.get("completion_reason", ""),
-        "message": "" if state.get("completed") else _interviewer_message(state),
+        "message": state.get("closing_message", "")
+        if state.get("completed")
+        else _interviewer_message(state),
+        "closing_message": state.get("closing_message", ""),
         "question": "" if state.get("completed") else state.get("current_question", ""),
         "preamble": "" if state.get("completed") else state.get("current_preamble", ""),
+        "affect": "" if state.get("completed") else state.get("current_affect", ""),
+        "answer_guidance": ""
+        if state.get("completed")
+        else state.get("current_answer_guidance", ""),
         "topic": "" if state.get("completed") else state.get("current_topic", ""),
         "difficulty": state.get("difficulty", "medium"),
         "interview_phase": state.get("interview_phase", "adaptive_questions"),
@@ -126,6 +135,8 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
             "question": state.get("current_question", ""),
             "message": _interviewer_message(state),
             "preamble": state.get("current_preamble", ""),
+            "affect": state.get("current_affect", ""),
+            "answer_guidance": state.get("current_answer_guidance", ""),
             "topic": state.get("current_topic", ""),
             "difficulty": state.get("difficulty", "medium"),
         }
@@ -156,6 +167,8 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                     {
                         "type": "completed",
                         "completion_reason": state.get("completion_reason", ""),
+                        "message": state.get("closing_message", ""),
+                        "closing_message": state.get("closing_message", ""),
                         "report": report,
                     }
                 )
@@ -168,6 +181,8 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
                     "question": state.get("current_question", ""),
                     "message": _interviewer_message(state),
                     "preamble": state.get("current_preamble", ""),
+                    "affect": state.get("current_affect", ""),
+                    "answer_guidance": state.get("current_answer_guidance", ""),
                     "topic": state.get("current_topic", ""),
                     "difficulty": state.get("difficulty", "medium"),
                     "evaluation": state.get("last_evaluation"),
