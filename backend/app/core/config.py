@@ -6,14 +6,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-PROJECT_ENVIRONMENT = "DEVELOPMENT"
+PROJECT_ENVIRONMENT = os.getenv("PROJECT_ENVIRONMENT", "DEVELOPMENT")
 
 # DATABASE CONFIGURATION
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
 
 
-SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY")
+SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "interleet-dev-session-secret")
 
 
 # REDIS CONFIGURATION
@@ -23,9 +23,21 @@ REDIS_PORT = os.getenv("REDIS_PORT", None)
 
 
 # JWT
-JWT_SECRET = os.getenv("JWT_SECRET")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM")
+JWT_SECRET = os.getenv("JWT_SECRET", "interleet-dev-jwt-secret")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRES = int(os.getenv("JWT_EXPIRES", 7))
+
+
+# FRONTEND / CORS
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+BACKEND_CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv(
+        "BACKEND_CORS_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
+    if origin.strip()
+]
 
 
 # GOOGLE OAUTH CLIENT
@@ -56,3 +68,10 @@ AI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", 30))
 AI_MAX_RETRIES = int(os.getenv("AI_MAX_RETRIES", 2))
 
 INTERVIEW_SESSION_TTL_SECONDS = int(os.getenv("INTERVIEW_SESSION_TTL_SECONDS", 60 * 60 * 6))
+
+
+# CODE EXECUTION / JUDGE0
+JUDGE0_API_URL = os.getenv("JUDGE0_API_URL", "https://judge0-ce.p.rapidapi.com")
+JUDGE0_API_KEY = os.getenv("JUDGE0_API_KEY", "")
+JUDGE0_RAPIDAPI_HOST = os.getenv("JUDGE0_RAPIDAPI_HOST", "judge0-ce.p.rapidapi.com")
+JUDGE0_CALLBACK_URL = os.getenv("JUDGE0_CALLBACK_URL", "")

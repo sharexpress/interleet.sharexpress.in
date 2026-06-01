@@ -1,17 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { systemDesignTopics as mockSystemDesignTopics } from "@/lib/mock";
 
-
-
-
-
-
-
-
-
-
 const initialState = {
-  topics: mockSystemDesignTopics
+  topics: mockSystemDesignTopics,
 };
 
 const systemDesignSlice = createSlice({
@@ -20,8 +11,8 @@ const systemDesignSlice = createSlice({
   reducers: {
     updateTopics: (state, action) => {
       state.topics = action.payload;
-    }
-  }
+    },
+  },
 });
 
 export const { updateTopics } = systemDesignSlice.actions;

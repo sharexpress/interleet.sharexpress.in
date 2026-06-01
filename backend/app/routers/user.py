@@ -7,6 +7,8 @@ from fastapi import (
 from app.models.users import (
     UserModel as User,
     OTPverify,
+    RegisterUser,
+    LoginUser,
 )
 from app.controllers.user import (
     UserController,
@@ -29,6 +31,21 @@ async def send_otp(
     _: None = Depends(check_token),
 ):
     return await UserController.send_otp(user)
+
+
+@router.post("/register")
+async def register(user: RegisterUser, response: Response):
+    return await UserController.register(user, response)
+
+
+@router.post("/login")
+async def login(user: LoginUser, response: Response):
+    return await UserController.login(user, response)
+
+
+@router.get("/me")
+async def me(current_user=Depends(User_Middleware.me)):
+    return current_user
 
 
 @router.post("/verify-otp")

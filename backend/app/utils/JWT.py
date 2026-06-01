@@ -3,22 +3,22 @@ from jose import jwt, JWTError
 from fastapi import Response, Request, HTTPException
 from pathlib import Path
 from typing import Optional
-from app.core.config import (
-    PROJECT_ENVIRONMENT,
-    JWT_EXPIRES,
-    JWT_ALGORITHM,
-)
+import os
+from app.core.config import PROJECT_ENVIRONMENT, JWT_EXPIRES, JWT_ALGORITHM, JWT_SECRET
 
 
 is_prod = PROJECT_ENVIRONMENT == "PRODUCTION"
 
-BASE_DIR = Path(__file__).resolve().parent
 try:
+    BASE_DIR = Path(__file__).resolve().parent
     SECURITY_DIR = BASE_DIR.parent / "core" / "security"
     PRIVATE_KEY = (SECURITY_DIR / "private.pem").read_text()
     PUBLIC_KEY = (SECURITY_DIR / "public.pem").read_text()
-except FileNotFoundError as e:
-    raise RuntimeError(f"JWT key files not found: {e}")
+    TOKEN_ALGORITHM = os.getenv("JWT_ALGORITHM", "RS256")
+except FileNotFoundError:
+    PRIVATE_KEY = JWT_SECRET
+    PUBLIC_KEY = JWT_SECRET
+    TOKEN_ALGORITHM = JWT_ALGORITHM
 
 
 def generate_token(user_id: str, response: Response) -> bool:
@@ -31,7 +31,7 @@ def generate_token(user_id: str, response: Response) -> bool:
         token = jwt.encode(
             payload,
             PRIVATE_KEY,
-            algorithm=JWT_ALGORITHM,
+            algorithm=TOKEN_ALGORITHM,
         )
         response.set_cookie(
             key="user",
@@ -52,7 +52,7 @@ def verify_token(token: str) -> Optional[dict]:
         payload = jwt.decode(
             token,
             PUBLIC_KEY,
-            algorithms=[JWT_ALGORITHM],
+            algorithms=[TOKEN_ALGORITHM],
         )
         return payload
     except JWTError as e:
@@ -67,7 +67,7 @@ async def check_token(request: Request):
         return
 
     try:
-        jwt.decode(token, PUBLIC_KEY, algorithms=[JWT_ALGORITHM])
+        jwt.decode(token, PUBLIC_KEY, algorithms=[TOKEN_ALGORITHM])
         raise HTTPException(status_code=400, detail="You are already logged in")
 
     except JWTError:

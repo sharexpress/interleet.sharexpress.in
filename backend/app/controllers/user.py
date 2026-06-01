@@ -2,6 +2,8 @@ from fastapi import HTTPException, Response, Request
 from datetime import datetime
 from uuid import uuid4
 import logging
+import hashlib
+import secrets
 from app.models.users import UserModel as User
 from app.models.users import OTPverify as OTP
 from app.core.db import get_db
@@ -29,6 +31,84 @@ db = get_db()
 
 
 class UserController:
+    @staticmethod
+    def _hash_password(password: str, salt: str | None = None) -> tuple[str, str]:
+        salt = salt or secrets.token_hex(16)
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 120000)
+        return salt, digest.hex()
+
+    @staticmethod
+    def _public_user(user: dict) -> dict:
+        public = dict(user)
+        public.pop("_id", None)
+        public.pop("password_hash", None)
+        public.pop("password_salt", None)
+        return public
+
+    @staticmethod
+    async def register(payload, response: Response):
+        existing = await db.users.find_one({"email": payload.email})
+        if existing:
+            raise HTTPException(status_code=409, detail="Email is already registered")
+
+        user_id = str(uuid4())
+        salt, password_hash = UserController._hash_password(payload.password)
+        full_name = " ".join(
+            part for part in [payload.first_name, payload.last_name] if part
+        ).strip() or None
+        username = payload.username or payload.email.split("@")[0]
+        new_user = {
+            "user_id": user_id,
+            "email": payload.email,
+            "username": username,
+            "full_name": full_name,
+            "role": "user",
+            "auth_provider": "password",
+            "password_salt": salt,
+            "password_hash": password_hash,
+            "frontend_rating": 0,
+            "backend_rating": 0,
+            "fullstack_rating": 0,
+            "devops_rating": 0,
+            "overall_rating": 1200,
+            "solved_problems": [],
+            "badges": [],
+            "streak_count": 0,
+            "is_verified": True,
+            "is_active": True,
+            "is_locked": False,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "last_login": datetime.utcnow(),
+        }
+        await db.users.insert_one(new_user)
+        generate_token(user_id, response)
+        return {"success": True, "user": UserController._public_user(new_user)}
+
+    @staticmethod
+    async def login(payload, response: Response):
+        existing_user = await db.users.find_one({"email": payload.email})
+        if not existing_user:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        salt = existing_user.get("password_salt")
+        expected = existing_user.get("password_hash")
+        if not salt or not expected:
+            raise HTTPException(status_code=400, detail="Use your original sign-in provider")
+        _, actual = UserController._hash_password(payload.password, salt)
+        if not secrets.compare_digest(actual, expected):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        if existing_user.get("is_locked"):
+            raise HTTPException(status_code=403, detail="Account is locked")
+        if not existing_user.get("is_active", True):
+            raise HTTPException(status_code=403, detail="Account is inactive")
+
+        await db.users.update_one(
+            {"email": payload.email},
+            {"$set": {"updated_at": datetime.utcnow(), "last_login": datetime.utcnow()}},
+        )
+        generate_token(existing_user["user_id"], response)
+        return {"success": True, "user": UserController._public_user(existing_user)}
+
     @staticmethod
     async def send_otp(user: User):
         try:
