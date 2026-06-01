@@ -6,6 +6,7 @@ import activityReducer from "./slices/activitySlice";
 import interviewsReducer from "./slices/interviewsSlice";
 import systemDesignReducer from "./slices/systemDesignSlice";
 import candidatesReducer from "./slices/candidatesSlice";
+import simulatorReducer from "./slices/simulatorSlice";
 
 export const store = configureStore({
   reducer: {
@@ -15,6 +16,7 @@ export const store = configureStore({
     activity: activityReducer,
     interviews: interviewsReducer,
     systemDesign: systemDesignReducer,
-    candidates: candidatesReducer
-  }
+    candidates: candidatesReducer,
+    simulator: simulatorReducer,
+  },
 });
