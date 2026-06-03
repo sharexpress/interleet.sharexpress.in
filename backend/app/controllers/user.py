@@ -30,6 +30,19 @@ db = get_db()
 
 class UserController:
     @staticmethod
+    def _public_user(user: dict):
+        if not user:
+            return None
+
+        public_user = dict(user)
+
+        public_user.pop("_id", None)
+        public_user.pop("password_hash", None)
+        public_user.pop("password_salt", None)
+
+        return public_user
+
+    @staticmethod
     async def send_otp(user: User):
         try:
             if not user.email:
@@ -377,6 +390,7 @@ class UserController:
         user: dict,
     ):
         try:
+            user = user.get("user")
             current_user = await db.users.find_one(
                 {
                     "user_id": user["user_id"],
