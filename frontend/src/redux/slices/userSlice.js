@@ -1,185 +1,283 @@
-import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
-const API = "http://localhost:8000";
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-export const sendOTP = createAsyncThunk("user/sendOTP", async (email, thunkAPI) => {
+import { API } from "@/api/api";
+
+const initialState = {
+  loading: false,
+  error: null,
+  success: false,
+
+  user: null,
+
+  email: "",
+  transactionID: null,
+
+  authStep: "email",
+
+  isAuthenticated: false,
+  onboardingCompleted: false,
+};
+
+export const SendOTP = createAsyncThunk("AUTH/SEND_OTP", async (email, { rejectWithValue }) => {
   try {
-    const response = await axios.post(`${API}/auth/send-otp`, { email });
+    const response = await API.post("/auth/send-otp", {
+      email,
+    });
+
     return response.data;
   } catch (error) {
-    return thunkAPI.rejectWithValue(error.response?.data || { message: "Failed to send OTP" });
-  }
-});
-
-export const verifyOTP = createAsyncThunk("user/verifyOTP", async (payload, thunkAPI) => {
-  try {
-    const response = await axios.post(
-      `${API}/auth/verify-otp`,
-      { transactionID: payload.transactionID, OTP: payload.otp },
-      { withCredentials: true },
+    return rejectWithValue(
+      error.response?.data || {
+        message: "SEND OTP FAILED",
+      },
     );
-    return response.data;
-  } catch (error) {
-    return thunkAPI.rejectWithValue(error.response?.data || { message: "OTP verification failed" });
   }
 });
 
-export const googleLogin = createAsyncThunk("user/googleLogin", async (_, thunkAPI) => {
-  try {
-    window.location.href = `${API}/auth/google/login`;
-  } catch (error) {
-    return thunkAPI.rejectWithValue(error.response?.data || { message: "Google login failed" });
-  }
-});
-
-export const githubLogin = createAsyncThunk("user/githubLogin", async (_, thunkAPI) => {
-  try {
-    window.location.href = `${API}/auth/github/login`;
-  } catch (error) {
-    return thunkAPI.rejectWithValue(error.response?.data || { message: "GitHub login failed" });
-  }
-});
-
-export const getCurrentUser = createAsyncThunk("user/getCurrentUser", async (_, thunkAPI) => {
-  try {
-    const response = await axios.get(`${API}/auth/me`, { withCredentials: true });
-    return response.data;
-  } catch (error) {
-    return thunkAPI.rejectWithValue(error.response?.data || { message: "Failed to fetch user" });
-  }
-});
-
-export const completeOnboarding = createAsyncThunk(
-  "user/completeOnboarding",
-  async (payload, thunkAPI) => {
+export const VerifyOTP = createAsyncThunk(
+  "AUTH/VERIFY_OTP",
+  async ({ transactionID, otp }, { dispatch, rejectWithValue }) => {
     try {
-      const response = await axios.patch(`${API}/user/onboarding`, payload, {
-        withCredentials: true,
+      const response = await API.post("/auth/verify-otp", {
+        transactionID,
+        OTP: otp,
       });
+
+      await dispatch(GetCurrentUser());
+
       return response.data;
     } catch (error) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data || { message: "Failed to complete onboarding" },
+      return rejectWithValue(
+        error.response?.data || {
+          message: "VERIFY OTP FAILED",
+        },
       );
     }
   },
 );
 
-export const logoutUser = createAsyncThunk("user/logoutUser", async (_, thunkAPI) => {
+export const GetCurrentUser = createAsyncThunk(
+  "AUTH/GET_CURRENT_USER",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await API.get("/auth/me");
+
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || {
+          message: "GET USER FAILED",
+          status: error.response?.status,
+        },
+      );
+    }
+  },
+);
+
+export const googleLogin = createAsyncThunk("AUTH/GOOGLE_LOGIN", async () => {
+  window.location.href = `${
+    import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
+  }/auth/google/login`;
+});
+
+// ======================================================
+// GITHUB LOGIN
+// ======================================================
+
+export const githubLogin = createAsyncThunk("AUTH/GITHUB_LOGIN", async () => {
+  window.location.href = `${
+    import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
+  }/auth/github/login`;
+});
+
+// ======================================================
+// LOGOUT
+// ======================================================
+
+export const LogoutUser = createAsyncThunk("AUTH/LOGOUT", async (_, { rejectWithValue }) => {
   try {
-    const response = await axios.post(`${API}/auth/logout`, {}, { withCredentials: true });
+    const response = await API.post("/auth/logout");
+
     return response.data;
   } catch (error) {
-    return thunkAPI.rejectWithValue(error.response?.data || { message: "Logout failed" });
+    return rejectWithValue(
+      error.response?.data || {
+        message: "LOGOUT FAILED",
+      },
+    );
   }
 });
 
-const normalizeError = (payload) => {
-  const detail = payload?.detail;
-  if (!detail) return payload?.message ?? "Something went wrong";
-  if (Array.isArray(detail)) return detail.map((e) => e.msg).join(", ");
-  return detail;
-};
-
-const initialState = {
-  loading: false,
-  error: null,
-  isAuthenticated: false,
-  authStep: "email",
-  email: "",
-  otp: "",
-  transactionID: "",
-  user: null,
-  onboardingCompleted: false,
-};
+// ======================================================
+// SLICE
+// ======================================================
 
 const userSlice = createSlice({
   name: "user",
+
   initialState,
+
   reducers: {
-    setEmail: (state, action) => {
+    // =========================================
+    // SET EMAIL
+    // =========================================
+
+    setEmail(state, action) {
       state.email = action.payload;
     },
-    setOTP: (state, action) => {
-      state.otp = action.payload;
-    },
-    setAuthStep: (state, action) => {
-      state.authStep = action.payload;
-    },
-    clearError: (state) => {
+
+    // =========================================
+    // CLEAR ERROR
+    // =========================================
+
+    clearError(state) {
       state.error = null;
     },
-    resetAuthFlow: (state) => {
+
+    // =========================================
+    // RESET AUTH FLOW
+    // =========================================
+
+    resetAuthFlow(state) {
       state.authStep = "email";
-      state.email = "";
-      state.otp = "";
-      state.transactionID = "";
+      state.transactionID = null;
+      state.error = null;
+      state.success = false;
     },
   },
+
   extraReducers: (builder) => {
-    builder
-      .addCase(sendOTP.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(sendOTP.fulfilled, (state, action) => {
-        state.loading = false;
-        state.transactionID = action.payload.transactionID;
-        state.authStep = "otp";
-      })
-      .addCase(sendOTP.rejected, (state, action) => {
-        state.loading = false;
-        state.error = normalizeError(action.payload);
-      })
+    // ======================================================
+    // SEND OTP
+    // ======================================================
 
-      .addCase(verifyOTP.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(verifyOTP.fulfilled, (state) => {
-        state.loading = false;
+    builder.addCase(SendOTP.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+      state.success = false;
+    });
 
-        state.isAuthenticated = true;
-      })
-      .addCase(verifyOTP.rejected, (state, action) => {
-        state.loading = false;
-        state.error = normalizeError(action.payload);
-      })
+    builder.addCase(SendOTP.fulfilled, (state, action) => {
+      state.loading = false;
+      state.error = null;
+      state.success = true;
 
-      .addCase(getCurrentUser.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(getCurrentUser.fulfilled, (state, action) => {
-        state.loading = false;
-        state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.onboardingCompleted = action.payload.user?.onboarding_completed || false;
-      })
-      .addCase(getCurrentUser.rejected, (state) => {
-        state.loading = false;
-        state.isAuthenticated = false;
-        state.user = null;
-      })
+      state.authStep = "otp";
 
-      .addCase(completeOnboarding.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(completeOnboarding.fulfilled, (state, action) => {
-        state.loading = false;
-        state.onboardingCompleted = true;
-        state.user = action.payload.user;
-      })
-      .addCase(completeOnboarding.rejected, (state, action) => {
-        state.loading = false;
-        state.error = normalizeError(action.payload);
-      })
+      state.transactionID = action.payload?.transactionID || null;
+    });
 
-      .addCase(logoutUser.fulfilled, () => {
-        return initialState;
-      });
+    builder.addCase(SendOTP.rejected, (state, action) => {
+      state.loading = false;
+
+      state.error = action.payload?.detail || action.payload?.message || "SEND OTP FAILED";
+
+      state.success = false;
+    });
+
+    // ======================================================
+    // VERIFY OTP
+    // ======================================================
+
+    builder.addCase(VerifyOTP.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+      state.success = false;
+    });
+
+    builder.addCase(VerifyOTP.fulfilled, (state) => {
+      state.loading = false;
+      state.error = null;
+      state.success = true;
+
+      state.isAuthenticated = true;
+    });
+
+    builder.addCase(VerifyOTP.rejected, (state, action) => {
+      state.loading = false;
+
+      state.error = action.payload?.detail || action.payload?.message || "VERIFY OTP FAILED";
+
+      state.success = false;
+
+      state.isAuthenticated = false;
+    });
+
+    // ======================================================
+    // GET CURRENT USER
+    // ======================================================
+
+    builder.addCase(GetCurrentUser.pending, (state) => {
+      state.loading = true;
+    });
+
+    builder.addCase(GetCurrentUser.fulfilled, (state, action) => {
+      state.loading = false;
+
+      state.error = null;
+
+      state.isAuthenticated = true;
+
+      state.user = action.payload?.USER || null;
+
+      state.onboardingCompleted = action.payload?.USER?.onboarding_completed || false;
+    });
+
+    builder.addCase(GetCurrentUser.rejected, (state, action) => {
+      state.loading = false;
+
+      // DON'T SHOW ERROR FOR GUEST USERS
+      if (action.payload?.status !== 401) {
+        state.error = action.payload?.detail || action.payload?.message || "GET USER FAILED";
+      }
+
+      state.user = null;
+
+      state.isAuthenticated = false;
+
+      state.onboardingCompleted = false;
+    });
+
+    // ======================================================
+    // LOGOUT
+    // ======================================================
+
+    builder.addCase(LogoutUser.pending, (state) => {
+      state.loading = true;
+    });
+
+    builder.addCase(LogoutUser.fulfilled, (state) => {
+      state.loading = false;
+
+      state.user = null;
+
+      state.isAuthenticated = false;
+
+      state.onboardingCompleted = false;
+
+      state.authStep = "email";
+
+      state.email = "";
+
+      state.transactionID = null;
+
+      state.error = null;
+
+      state.success = false;
+    });
+
+    builder.addCase(LogoutUser.rejected, (state, action) => {
+      state.loading = false;
+
+      state.error = action.payload?.detail || action.payload?.message || "LOGOUT FAILED";
+    });
   },
 });
 
-export const { setEmail, setOTP, setAuthStep, clearError, resetAuthFlow } = userSlice.actions;
+// ======================================================
+// EXPORTS
+// ======================================================
+
+export const { setEmail, clearError, resetAuthFlow } = userSlice.actions;
 
 export default userSlice.reducer;
