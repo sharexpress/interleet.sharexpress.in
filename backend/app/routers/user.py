@@ -4,13 +4,9 @@ from fastapi import (
     Request,
     Depends,
 )
-from app.models.users import (
-    UserModel as User,
-    OTPverify,
-    RegisterUser,
-    LoginUser,
-    user_on_boarding,
-)
+from app.models.users import UserModel as User, OTPverify, CompleteOnboarding
+from typing import Dict
+
 from app.controllers.user import (
     UserController,
 )
@@ -18,7 +14,7 @@ from app.utils.JWT import (
     check_token,
 )
 from app.middleware.user import Middleware as User_Middleware
-
+from typing import Dict
 
 router = APIRouter(
     prefix="/auth",
@@ -31,22 +27,9 @@ async def send_otp(
     user: User,
     _: None = Depends(check_token),
 ):
+    # SEND OTP STATES =>
+    # LOADING, ERROR, SUCCESS
     return await UserController.send_otp(user)
-
-
-@router.post("/register")
-async def register(user: RegisterUser, response: Response):
-    return await UserController.register(user, response)
-
-
-@router.post("/login")
-async def login(user: LoginUser, response: Response):
-    return await UserController.login(user, response)
-
-
-@router.get("/me")
-async def me(current_user=Depends(User_Middleware.me)):
-    return current_user
 
 
 @router.post("/verify-otp")
@@ -56,6 +39,9 @@ async def verify_otp(
     request: Request,
     _: None = Depends(check_token),
 ):
+
+    # VERIFY OTP STATES =>
+    # LOADING, ERROR, SUCCESS,
     return await UserController.verify_otp(
         otp,
         response,
@@ -94,3 +80,19 @@ async def github_callback(
 @router.post("/logout")
 async def logout(response: Response, _: None = Depends(User_Middleware.me)):
     return await UserController.logout(response)
+
+
+@router.get("/me")
+async def get_user(user: Dict = Depends(User_Middleware.me)):
+    return {"SUCCESS": True, "USER": user}
+
+
+@router.post("/complete-onboarding")
+async def complete_onboarding(
+    payload: CompleteOnboarding,
+    user=Depends(User_Middleware.me),
+):
+    return await UserController.complete_onboarding(
+        payload,
+        user,
+    )

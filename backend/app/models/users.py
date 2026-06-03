@@ -50,19 +50,6 @@ class OTPverify(BaseModel):
     OTP: str
 
 
-class RegisterUser(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8)
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    username: Optional[str] = None
-
-
-class LoginUser(BaseModel):
-    email: EmailStr
-    password: str
-
-
 # SEARCH BY EMAIL
 
 
@@ -70,6 +57,7 @@ class email(BaseModel):
     email: EmailStr
 
 
-class user_on_boarding(BaseModel):
-    name: str
+class CompleteOnboarding(BaseModel):
     username: str
+
+    full_name: str | None = None
