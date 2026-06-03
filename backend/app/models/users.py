@@ -68,3 +68,8 @@ class LoginUser(BaseModel):
 
 class email(BaseModel):
     email: EmailStr
+
+
+class user_on_boarding(BaseModel):
+    name: str
+    username: str

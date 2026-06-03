@@ -9,6 +9,7 @@ from app.models.users import (
     OTPverify,
     RegisterUser,
     LoginUser,
+    user_on_boarding,
 )
 from app.controllers.user import (
     UserController,

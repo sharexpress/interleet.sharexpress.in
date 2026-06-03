@@ -18,7 +18,7 @@ from app.utils.JWT import (
 from app.lib.generateOTP import generateOTP
 from app.core.oauth import oauth
 from authlib.integrations.base_client.errors import OAuthError
-
+from app.models.users import user_on_boarding
 
 from fastapi.responses import RedirectResponse
 
@@ -53,9 +53,12 @@ class UserController:
 
         user_id = str(uuid4())
         salt, password_hash = UserController._hash_password(payload.password)
-        full_name = " ".join(
-            part for part in [payload.first_name, payload.last_name] if part
-        ).strip() or None
+        full_name = (
+            " ".join(
+                part for part in [payload.first_name, payload.last_name] if part
+            ).strip()
+            or None
+        )
         username = payload.username or payload.email.split("@")[0]
         new_user = {
             "user_id": user_id,
@@ -93,7 +96,9 @@ class UserController:
         salt = existing_user.get("password_salt")
         expected = existing_user.get("password_hash")
         if not salt or not expected:
-            raise HTTPException(status_code=400, detail="Use your original sign-in provider")
+            raise HTTPException(
+                status_code=400, detail="Use your original sign-in provider"
+            )
         _, actual = UserController._hash_password(payload.password, salt)
         if not secrets.compare_digest(actual, expected):
             raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -104,7 +109,12 @@ class UserController:
 
         await db.users.update_one(
             {"email": payload.email},
-            {"$set": {"updated_at": datetime.utcnow(), "last_login": datetime.utcnow()}},
+            {
+                "$set": {
+                    "updated_at": datetime.utcnow(),
+                    "last_login": datetime.utcnow(),
+                }
+            },
         )
         generate_token(existing_user["user_id"], response)
         return {"success": True, "user": UserController._public_user(existing_user)}
