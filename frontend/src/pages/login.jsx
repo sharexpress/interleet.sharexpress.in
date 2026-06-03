@@ -44,6 +44,10 @@ function LoginPage() {
   // =========================================
 
   useEffect(() => {
+    dispatch(GetCurrentUser());
+  }, [dispatch]);
+
+  useEffect(() => {
     if (!isAuthenticated) return;
 
     navigate(onboardingCompleted ? "/app/dashboard" : "/onboarding");
@@ -218,7 +222,7 @@ function LoginPage() {
               variant="outline"
               type="button"
               onClick={() => dispatch(githubLogin())}
-              className="w-full border border-zinc-200 bg-white text-black transition-all duration-200 ease-out hover:border-zinc-300 hover:bg-zinc-100 hover:text-black active:scale-[0.98]"
+              className="w-full border   border-zinc-200 bg-white text-black transition-all duration-200 ease-out hover:border-zinc-300 hover:bg-zinc-100 hover:text-black active:scale-[0.98]"
             >
               <img src={github} alt="GitHub" className="mr-2 h-4 w-4 object-contain" />
               GitHub
@@ -230,7 +234,7 @@ function LoginPage() {
               variant="outline"
               type="button"
               onClick={() => dispatch(googleLogin())}
-              className="w-full border border-zinc-700 bg-zinc-950 text-white transition-all duration-200 ease-out hover:border-zinc-600 hover:bg-zinc-900 active:scale-[0.98]"
+              className="w-full border order-[0.1px]b border-zinc-700 bg-zinc-950 text-white transition-all duration-200 ease-out hover:border-zinc-600 hover:bg-zinc-900 active:scale-[0.98]"
             >
               <img src={google} alt="Google" className="mr-2 h-4 w-4 object-contain" />
               Google

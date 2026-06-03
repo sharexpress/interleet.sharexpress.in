@@ -76,6 +76,7 @@ class UserController:
                     "user_id": user_id,
                     "email": user_email,
                     "role": "user",
+                    "onboarding_completed": False,
                     "auth_provider": "OTP",
                     "frontend_rating": 0,
                     "backend_rating": 0,
@@ -168,6 +169,9 @@ class UserController:
             email = user_info.get("email")
             avatar = user_info.get("picture")
             google_sub = user_info.get("sub")
+
+            full_name = user_info.get("name")
+
             if not email:
                 raise HTTPException(
                     status_code=400, detail="Email not provided by Google"
@@ -188,7 +192,7 @@ class UserController:
                     "user_id": user_id,
                     "email": email,
                     "username": None,
-                    "full_name": None,
+                    "full_name": full_name,
                     "avatar": avatar,
                     "google_sub": google_sub,
                     "auth_provider": "google",
@@ -366,3 +370,99 @@ class UserController:
         except Exception:
             logger.exception("Logout failed")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+    @staticmethod
+    async def complete_onboarding(
+        payload,
+        user: dict,
+    ):
+        try:
+            current_user = await db.users.find_one(
+                {
+                    "user_id": user["user_id"],
+                }
+            )
+
+            if not current_user:
+                raise HTTPException(
+                    status_code=404,
+                    detail="User not found",
+                )
+
+            if current_user.get("onboarding_completed"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Onboarding already completed",
+                )
+
+            username = payload.username.strip().lower()
+
+            existing_username = await db.users.find_one(
+                {
+                    "username": username,
+                    "user_id": {"$ne": user["user_id"]},
+                }
+            )
+
+            if existing_username:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Username already taken",
+                )
+
+            full_name = current_user.get("full_name")
+
+            if current_user.get("auth_provider") == "OTP":
+                if not payload.full_name:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Full name is required",
+                    )
+
+                full_name = payload.full_name.strip()
+
+            if not full_name and payload.full_name:
+                full_name = payload.full_name.strip()
+
+            # ============================================
+            # UPDATE USER
+            # ============================================
+
+            updated_data = {
+                "username": username,
+                "full_name": full_name,
+                "onboarding_completed": True,
+                "updated_at": datetime.utcnow(),
+            }
+
+            await db.users.update_one(
+                {
+                    "user_id": user["user_id"],
+                },
+                {
+                    "$set": updated_data,
+                },
+            )
+
+            updated_user = await db.users.find_one(
+                {
+                    "user_id": user["user_id"],
+                }
+            )
+
+            return {
+                "success": True,
+                "message": "Onboarding completed successfully",
+                "user": UserController._public_user(updated_user),
+            }
+
+        except HTTPException:
+            raise
+
+        except Exception as e:
+            logger.exception(f"Complete onboarding failed: {e}")
+
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error",
+            )

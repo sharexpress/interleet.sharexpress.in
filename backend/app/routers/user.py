@@ -4,10 +4,9 @@ from fastapi import (
     Request,
     Depends,
 )
-from app.models.users import (
-    UserModel as User,
-    OTPverify,
-)
+from app.models.users import UserModel as User, OTPverify, CompleteOnboarding
+from typing import Dict
+
 from app.controllers.user import (
     UserController,
 )
@@ -86,3 +85,14 @@ async def logout(response: Response, _: None = Depends(User_Middleware.me)):
 @router.get("/me")
 async def get_user(user: Dict = Depends(User_Middleware.me)):
     return {"SUCCESS": True, "USER": user}
+
+
+@router.post("/complete-onboarding")
+async def complete_onboarding(
+    payload: CompleteOnboarding,
+    user=Depends(User_Middleware.me),
+):
+    return await UserController.complete_onboarding(
+        payload,
+        user,
+    )

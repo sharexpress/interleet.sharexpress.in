@@ -86,10 +86,6 @@ export const githubLogin = createAsyncThunk("AUTH/GITHUB_LOGIN", async () => {
   }/auth/github/login`;
 });
 
-// ======================================================
-// LOGOUT
-// ======================================================
-
 export const LogoutUser = createAsyncThunk("AUTH/LOGOUT", async (_, { rejectWithValue }) => {
   try {
     const response = await API.post("/auth/logout");
@@ -104,9 +100,22 @@ export const LogoutUser = createAsyncThunk("AUTH/LOGOUT", async (_, { rejectWith
   }
 });
 
-// ======================================================
-// SLICE
-// ======================================================
+export const CompleteOnboarding = createAsyncThunk(
+  "AUTH/COMPLETE_ONBOARDING",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await API.post("/auth/complete-onboarding", payload);
+
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data || {
+          message: "ONBOARDING FAILED",
+        },
+      );
+    }
+  },
+);
 
 const userSlice = createSlice({
   name: "user",
@@ -114,25 +123,13 @@ const userSlice = createSlice({
   initialState,
 
   reducers: {
-    // =========================================
-    // SET EMAIL
-    // =========================================
-
     setEmail(state, action) {
       state.email = action.payload;
     },
 
-    // =========================================
-    // CLEAR ERROR
-    // =========================================
-
     clearError(state) {
       state.error = null;
     },
-
-    // =========================================
-    // RESET AUTH FLOW
-    // =========================================
 
     resetAuthFlow(state) {
       state.authStep = "email";
@@ -143,10 +140,6 @@ const userSlice = createSlice({
   },
 
   extraReducers: (builder) => {
-    // ======================================================
-    // SEND OTP
-    // ======================================================
-
     builder.addCase(SendOTP.pending, (state) => {
       state.loading = true;
       state.error = null;
@@ -171,10 +164,6 @@ const userSlice = createSlice({
       state.success = false;
     });
 
-    // ======================================================
-    // VERIFY OTP
-    // ======================================================
-
     builder.addCase(VerifyOTP.pending, (state) => {
       state.loading = true;
       state.error = null;
@@ -198,10 +187,6 @@ const userSlice = createSlice({
 
       state.isAuthenticated = false;
     });
-
-    // ======================================================
-    // GET CURRENT USER
-    // ======================================================
 
     builder.addCase(GetCurrentUser.pending, (state) => {
       state.loading = true;
@@ -234,10 +219,6 @@ const userSlice = createSlice({
       state.onboardingCompleted = false;
     });
 
-    // ======================================================
-    // LOGOUT
-    // ======================================================
-
     builder.addCase(LogoutUser.pending, (state) => {
       state.loading = true;
     });
@@ -267,12 +248,35 @@ const userSlice = createSlice({
 
       state.error = action.payload?.detail || action.payload?.message || "LOGOUT FAILED";
     });
+
+    // ======================================================
+    // EXTRA REDUCERS
+    // ======================================================
+
+    builder.addCase(CompleteOnboarding.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+
+    builder.addCase(CompleteOnboarding.fulfilled, (state, action) => {
+      state.loading = false;
+
+      state.user = action.payload?.user;
+
+      state.onboardingCompleted = true;
+
+      state.isAuthenticated = true;
+
+      state.success = true;
+    });
+
+    builder.addCase(CompleteOnboarding.rejected, (state, action) => {
+      state.loading = false;
+
+      state.error = action.payload?.detail || action.payload?.message || "ONBOARDING FAILED";
+    });
   },
 });
-
-// ======================================================
-// EXPORTS
-// ======================================================
 
 export const { setEmail, clearError, resetAuthFlow } = userSlice.actions;
 

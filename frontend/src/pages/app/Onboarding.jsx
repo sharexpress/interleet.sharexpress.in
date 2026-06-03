@@ -92,10 +92,6 @@ function OnboardingPage() {
               className="space-y-7"
             >
               <div className="space-y-3">
-                <div className="inline-flex items-center rounded-full border border-orange-500/15 bg-orange-500/10 px-3 py-1 text-[11px] font-medium tracking-wide text-orange-400">
-                  Username
-                </div>
-
                 <div>
                   <h2 className="text-[28px] font-semibold leading-tight tracking-tight text-white">
                     Claim your identity.
@@ -161,10 +157,6 @@ function OnboardingPage() {
               className="space-y-7"
             >
               <div className="space-y-3">
-                <div className="inline-flex items-center rounded-full border border-orange-500/15 bg-orange-500/10 px-3 py-1 text-[11px] font-medium tracking-wide text-orange-400">
-                  Full Name
-                </div>
-
                 <div>
                   <h2 className="text-[28px] font-semibold leading-tight tracking-tight text-white">
                     Tell us your real name.

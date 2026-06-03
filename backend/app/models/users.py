@@ -55,3 +55,9 @@ class OTPverify(BaseModel):
 
 class email(BaseModel):
     email: EmailStr
+
+
+class CompleteOnboarding(BaseModel):
+    username: str
+
+    full_name: str | None = None
