@@ -17,7 +17,7 @@ import Page13 from "@/pages/signup";
 import Page14 from "@/pages/recruiter";
 import Page15 from "@/pages/forgot";
 import Page16 from "@/pages/admin";
-
+import OnboardingPage from "@/pages/app/Onboarding";
 export const router = createBrowserRouter([
   { path: "/", element: <Page0 /> },
   { path: "/app/settings", element: <Page1 /> },
@@ -36,5 +36,6 @@ export const router = createBrowserRouter([
   { path: "/recruiter", element: <Page14 /> },
   { path: "/forgot", element: <Page15 /> },
   { path: "/admin", element: <Page16 /> },
-  { path: "*", element: <NotFound /> }
+  { path: "/onboarding", element: <OnboardingPage /> },
+  { path: "*", element: <NotFound /> },
 ]);
