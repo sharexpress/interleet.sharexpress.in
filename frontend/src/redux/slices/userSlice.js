@@ -201,13 +201,12 @@ const userSlice = createSlice({
 
       state.user = action.payload?.USER || null;
 
-      state.onboardingCompleted = action.payload?.USER?.onboarding_completed || false;
+      state.onboardingCompleted = action.payload?.USER?.user?.onboarding_completed || false;
     });
 
     builder.addCase(GetCurrentUser.rejected, (state, action) => {
       state.loading = false;
 
-      // DON'T SHOW ERROR FOR GUEST USERS
       if (action.payload?.status !== 401) {
         state.error = action.payload?.detail || action.payload?.message || "GET USER FAILED";
       }
@@ -248,10 +247,6 @@ const userSlice = createSlice({
 
       state.error = action.payload?.detail || action.payload?.message || "LOGOUT FAILED";
     });
-
-    // ======================================================
-    // EXTRA REDUCERS
-    // ======================================================
 
     builder.addCase(CompleteOnboarding.pending, (state) => {
       state.loading = true;

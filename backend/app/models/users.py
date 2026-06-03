@@ -61,3 +61,75 @@ class CompleteOnboarding(BaseModel):
     username: str
 
     full_name: str | None = None
+
+
+#     "user_id": str,
+
+#     "email": str,
+#     "username": str,
+#     "full_name": str,
+
+#     "avatar": str,
+
+#     "bio": str,
+
+#     "country": str,
+
+#     "role": "user",
+
+#     "auth_provider": "google",
+
+#     "is_verified": True,
+#     "is_active": True,
+
+#     "onboarding_completed": True,
+
+#     # =====================================
+#     # ENGINEERING RATINGS
+#     # =====================================
+
+#     "overall_rating": 0,
+
+#     "frontend_rating": 0,
+#     "backend_rating": 0,
+#     "fullstack_rating": 0,
+#     "devops_rating": 0,
+#     "system_design_rating": 0,
+#     "database_rating": 0,
+#     "api_rating": 0,
+
+#     # =====================================
+#     # GAMIFICATION
+#     # =====================================
+
+#     "xp": 0,
+
+#     "streak_count": 0,
+
+#     "badges": [],
+
+#     "weekly_xp": 0,
+
+#     "global_rank": 0,
+#     "weekly_rank": 0,
+
+#     # =====================================
+#     # COUNTERS
+#     # =====================================
+
+#     "total_solved": 0,
+
+#     "total_interviews": 0,
+
+#     "total_system_designs": 0,
+
+#     "success_rate": 0,
+
+#     # =====================================
+#     # TIMESTAMPS
+#     # =====================================
+
+#     "created_at": datetime,
+#     "updated_at": datetime,
+#     "last_active": datetime,
+# }

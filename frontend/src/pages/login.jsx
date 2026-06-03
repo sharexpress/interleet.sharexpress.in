@@ -39,10 +39,6 @@ function LoginPage() {
 
   const inputRefs = useRef([]);
 
-  // =========================================
-  // NAVIGATION AFTER AUTH
-  // =========================================
-
   useEffect(() => {
     dispatch(GetCurrentUser());
   }, [dispatch]);
@@ -53,19 +49,11 @@ function LoginPage() {
     navigate(onboardingCompleted ? "/app/dashboard" : "/onboarding");
   }, [isAuthenticated, onboardingCompleted, navigate]);
 
-  // =========================================
-  // AUTO VERIFY OTP
-  // =========================================
-
   useEffect(() => {
     if (authStep === "otp" && otpDigits.every((digit) => digit !== "")) {
       handleVerifyOTP();
     }
   }, [otpDigits]);
-
-  // =========================================
-  // RESEND TIMER
-  // =========================================
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -76,10 +64,6 @@ function LoginPage() {
 
     return () => clearInterval(timer);
   }, [cooldown]);
-
-  // =========================================
-  // SEND OTP
-  // =========================================
 
   const handleSendOTP = async (e) => {
     e?.preventDefault();
@@ -97,10 +81,6 @@ function LoginPage() {
     }
   };
 
-  // =========================================
-  // RESEND OTP
-  // =========================================
-
   const handleResend = async () => {
     setOtpDigits(Array(OTP_LENGTH).fill(""));
 
@@ -108,10 +88,6 @@ function LoginPage() {
 
     await handleSendOTP();
   };
-
-  // =========================================
-  // VERIFY OTP
-  // =========================================
 
   const handleVerifyOTP = async (e) => {
     e?.preventDefault();
@@ -138,10 +114,6 @@ function LoginPage() {
     }
   };
 
-  // =========================================
-  // OTP INPUT CHANGE
-  // =========================================
-
   const handleOTPChange = (value, index) => {
     if (!/^\d?$/.test(value)) return;
 
@@ -158,10 +130,6 @@ function LoginPage() {
     }
   };
 
-  // =========================================
-  // OTP KEYBOARD CONTROL
-  // =========================================
-
   const handleOTPKeyDown = (e, index) => {
     if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
@@ -175,10 +143,6 @@ function LoginPage() {
       inputRefs.current[index + 1]?.focus();
     }
   };
-
-  // =========================================
-  // OTP PASTE
-  // =========================================
 
   const handlePaste = (e) => {
     e.preventDefault();
@@ -209,10 +173,6 @@ function LoginPage() {
           : `We sent a 6-digit code to ${email}`
       }
     >
-      {/* ========================================= */}
-      {/* EMAIL STEP */}
-      {/* ========================================= */}
-
       {authStep === "email" && (
         <>
           <div className="grid grid-cols-2 gap-2">
@@ -266,18 +226,12 @@ function LoginPage() {
               />
             </div>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
-
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Sending code..." : "Continue"}
             </Button>
           </form>
         </>
       )}
-
-      {/* ========================================= */}
-      {/* OTP STEP */}
-      {/* ========================================= */}
 
       {authStep === "otp" && (
         <form className="space-y-6" onSubmit={handleVerifyOTP}>
@@ -297,8 +251,6 @@ function LoginPage() {
               />
             ))}
           </div>
-
-          {error && <p className="text-center text-sm text-red-400">{error}</p>}
 
           <Button
             type="submit"
