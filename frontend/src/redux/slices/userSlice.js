@@ -80,10 +80,6 @@ export const googleLogin = createAsyncThunk("AUTH/GOOGLE_LOGIN", async () => {
   }/auth/google/login`;
 });
 
-// ======================================================
-// GITHUB LOGIN
-// ======================================================
-
 export const githubLogin = createAsyncThunk("AUTH/GITHUB_LOGIN", async () => {
   window.location.href = `${
     import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
