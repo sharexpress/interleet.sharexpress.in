@@ -10,10 +10,9 @@ import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GetCurrentUser } from "@/redux/slices/userSlice";
+
 function OnboardingPage() {
   const dispatch = useDispatch();
-
   const navigate = useNavigate();
 
   const { user, loading, error, onboardingCompleted, isAuthenticated } = useSelector(
@@ -27,49 +26,26 @@ function OnboardingPage() {
     full_name: "",
   });
 
+  // If onboarding was already completed (e.g. user manually navigated here),
+  // redirect them away immediately.
   useEffect(() => {
-    dispatch(GetCurrentUser());
-  }, [dispatch]);
-
-  console.log(onboardingCompleted);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    navigate(onboardingCompleted ? "/app/dashboard" : "/onboarding");
+    if (isAuthenticated && onboardingCompleted) {
+      navigate("/app/dashboard", { replace: true });
+    }
   }, [isAuthenticated, onboardingCompleted, navigate]);
 
+  // Pre-fill whatever the backend already knows (OAuth users get full_name from provider)
   useEffect(() => {
     if (!user) return;
 
-    setForm((prev) => ({
-      ...prev,
-      full_name: user.user.full_name || "",
-      username: user.username || "",
-    }));
+    setForm({
+      full_name: user?.full_name || "",
+      username: user?.username || "",
+    });
   }, [user]);
 
-  useEffect(() => {
-    if (onboardingCompleted) {
-      navigate("/app/dashboard");
-    }
-  }, [onboardingCompleted, navigate]);
-
   const handleChange = (key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  const nextStep = () => {
-    if (!form.username.trim()) return;
-
-    setStep(2);
-  };
-
-  const prevStep = () => {
-    setStep(1);
+    setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = async () => {
@@ -81,7 +57,7 @@ function OnboardingPage() {
     );
 
     if (CompleteOnboarding.fulfilled.match(result)) {
-      navigate("/app/dashboard");
+      navigate("/app/dashboard", { replace: true });
     }
   };
 
@@ -92,50 +68,31 @@ function OnboardingPage() {
     >
       <div className="relative overflow-hidden">
         {/* Progress */}
-
         <div className="mb-8">
           <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-zinc-500">
             <span>Profile Setup</span>
-
             <span>0{step} / 02</span>
           </div>
 
           <div className="mt-3 h-[2px] w-full overflow-hidden rounded-full bg-zinc-800">
             <motion.div
               initial={false}
-              animate={{
-                width: step === 1 ? "50%" : "100%",
-              }}
-              transition={{
-                duration: 0.35,
-                ease: "easeOut",
-              }}
+              animate={{ width: step === 1 ? "50%" : "100%" }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
               className="h-full bg-orange-500"
             />
           </div>
         </div>
 
         <AnimatePresence mode="wait">
-          {/* STEP 1 */}
-
+          {/* STEP 1 — Full name */}
           {step === 1 && (
             <motion.div
               key="fullname-step"
-              initial={{
-                opacity: 0,
-                y: 20,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              exit={{
-                opacity: 0,
-                y: -20,
-              }}
-              transition={{
-                duration: 0.25,
-              }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.25 }}
               className="space-y-7"
             >
               <div>
@@ -175,24 +132,14 @@ function OnboardingPage() {
             </motion.div>
           )}
 
+          {/* STEP 2 — Username */}
           {step === 2 && (
             <motion.div
               key="username-step"
-              initial={{
-                opacity: 0,
-                y: 20,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              exit={{
-                opacity: 0,
-                y: -20,
-              }}
-              transition={{
-                duration: 0.25,
-              }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.25 }}
               className="space-y-7"
             >
               <div>

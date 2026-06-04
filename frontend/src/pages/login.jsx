@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 30;
@@ -30,18 +31,22 @@ function LoginPage() {
 
   const dispatch = useDispatch();
 
-  const { loading, error, authStep, email, transactionID, isAuthenticated, onboardingCompleted } =
-    useSelector((state) => state.user);
+  const {
+    loading,
+    error,
+    authStep,
+    email,
+    transactionID,
+    isAuthenticated,
+    onboardingCompleted,
+    user,
+  } = useSelector((state) => state.user);
 
   const [otpDigits, setOtpDigits] = useState(Array(OTP_LENGTH).fill(""));
 
   const [cooldown, setCooldown] = useState(0);
 
   const inputRefs = useRef([]);
-
-  useEffect(() => {
-    dispatch(GetCurrentUser());
-  }, [dispatch]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -106,6 +111,8 @@ function LoginPage() {
     if (VerifyOTP.fulfilled.match(result)) {
       await dispatch(GetCurrentUser());
     } else {
+      toast.error(result.payload?.detail || "Incorrect OTP");
+
       setOtpDigits(Array(OTP_LENGTH).fill(""));
 
       setTimeout(() => {
@@ -194,7 +201,7 @@ function LoginPage() {
               variant="outline"
               type="button"
               onClick={() => dispatch(googleLogin())}
-              className="w-full border order-[0.1px]b border-zinc-700 bg-zinc-950 text-white transition-all duration-200 ease-out hover:border-zinc-600 hover:bg-zinc-900 active:scale-[0.98]"
+              className="w-full border order-[0.1px] border-zinc-700 bg-zinc-950 text-white transition-all duration-200 ease-out hover:border-zinc-600 hover:bg-zinc-900 active:scale-[0.98]"
             >
               <img src={google} alt="Google" className="mr-2 h-4 w-4 object-contain" />
               Google
