@@ -1,41 +1,88 @@
 import { createBrowserRouter } from "react-router-dom";
-import NotFound from "@/pages/NotFound";
-import Page0 from "@/pages/index";
-import Page1 from "@/pages/app/settings";
-import Page2 from "@/pages/app/system-design";
-import Page3 from "@/pages/app/leaderboard";
-import Page4 from "@/pages/app/dashboard";
-import Page5 from "@/pages/app/challenges/index";
-import Page6, { loader as Page6Loader } from "@/pages/app/challenges/$id";
-import Page7, { loader as Page7Loader } from "@/pages/app/editor.$id";
-import Page8 from "@/pages/app/profile/$username";
-import Page9 from "@/pages/app/interviews/index";
-import Page10 from "@/pages/app/interviews/$id.report";
-import Page11 from "@/pages/app/interviews/live";
-import Page12 from "@/pages/login";
-import Page13 from "@/pages/signup";
-import Page14 from "@/pages/recruiter";
-import Page15 from "@/pages/forgot";
-import Page16 from "@/pages/admin";
+
+import { ProtectedRoute, PublicRoute, OnboardingRoute } from "@/routes/RouteGuards";
+
+// Public / marketing
+import IndexPage from "@/pages/index";
+import LoginPage from "@/pages/login";
+import SignupPage from "@/pages/signup";
+import ForgotPage from "@/pages/forgot";
+import RecruiterPage from "@/pages/recruiter";
+
+// Onboarding
 import OnboardingPage from "@/pages/app/Onboarding";
+
+// Protected app pages
+import DashboardPage from "@/pages/app/dashboard";
+import ChallengesPage from "@/pages/app/challenges/index";
+import ChallengePage from "@/pages/app/challenges/$id";
+import InterviewsPage from "@/pages/app/interviews/index";
+import InterviewReportPage from "@/pages/app/interviews/$id.report";
+import InterviewLivePage from "@/pages/app/interviews/live";
+import LeaderboardPage from "@/pages/app/leaderboard";
+import ProfilePage from "@/pages/app/profile/$username";
+import SettingsPage from "@/pages/app/settings";
+import SystemDesignPage from "@/pages/app/system-design";
+import EditorPage from "@/pages/app/editor.$id";
+
+// Admin + misc
+import AdminPage from "@/pages/admin";
+import NotFoundPage from "@/pages/NotFound";
+
 export const router = createBrowserRouter([
-  { path: "/", element: <Page0 /> },
-  { path: "/app/settings", element: <Page1 /> },
-  { path: "/app/system-design", element: <Page2 /> },
-  { path: "/app/leaderboard", element: <Page3 /> },
-  { path: "/app/dashboard", element: <Page4 /> },
-  { path: "/app/challenges", element: <Page5 /> },
-  { path: "/app/challenges/:id", element: <Page6 />, loader: Page6Loader },
-  { path: "/app/editor/:id", element: <Page7 />, loader: Page7Loader },
-  { path: "/app/profile/:username", element: <Page8 /> },
-  { path: "/app/interviews", element: <Page9 /> },
-  { path: "/app/interviews/:id/report", element: <Page10 /> },
-  { path: "/app/interviews/live", element: <Page11 /> },
-  { path: "/login", element: <Page12 /> },
-  { path: "/signup", element: <Page13 /> },
-  { path: "/recruiter", element: <Page14 /> },
-  { path: "/forgot", element: <Page15 /> },
-  { path: "/admin", element: <Page16 /> },
-  { path: "/onboarding", element: <OnboardingPage /> },
-  { path: "*", element: <NotFound /> },
+  // ── Fully public (no auth needed, no redirect) ───────────────────────────
+  {
+    path: "/",
+    element: <IndexPage />,
+  },
+  {
+    path: "/recruiter",
+    element: <RecruiterPage />,
+  },
+
+  // ── Auth routes (redirect away if already logged in) ─────────────────────
+  {
+    element: <PublicRoute />,
+    children: [
+      { path: "/login", element: <LoginPage /> },
+      { path: "/signup", element: <SignupPage /> },
+      { path: "/forgot", element: <ForgotPage /> },
+    ],
+  },
+
+  // ── Onboarding (authed but onboarding_completed = false) ─────────────────
+  {
+    element: <OnboardingRoute />,
+    children: [{ path: "/onboarding", element: <OnboardingPage /> }],
+  },
+
+  // ── Protected app (authed + onboarding_completed = true) ─────────────────
+  {
+    element: <ProtectedRoute />,
+    children: [
+      { path: "/app/dashboard", element: <DashboardPage /> },
+      { path: "/app/challenges", element: <ChallengesPage /> },
+      { path: "/app/challenges/:id", element: <ChallengePage /> },
+      { path: "/app/interviews", element: <InterviewsPage /> },
+      { path: "/app/interviews/:id/report", element: <InterviewReportPage /> },
+      { path: "/app/interviews/live", element: <InterviewLivePage /> },
+      { path: "/app/leaderboard", element: <LeaderboardPage /> },
+      { path: "/app/profile/:username", element: <ProfilePage /> },
+      { path: "/app/settings", element: <SettingsPage /> },
+      { path: "/app/system-design", element: <SystemDesignPage /> },
+      { path: "/app/editor/:id", element: <EditorPage /> },
+    ],
+  },
+
+  // ── Admin ─────────────────────────────────────────────────────────────────
+  {
+    path: "/admin",
+    element: <AdminPage />,
+  },
+
+  // ── 404 ───────────────────────────────────────────────────────────────────
+  {
+    path: "*",
+    element: <NotFoundPage />,
+  },
 ]);

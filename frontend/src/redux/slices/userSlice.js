@@ -16,21 +16,15 @@ const initialState = {
 
   isAuthenticated: false,
   onboardingCompleted: false,
+  initialized: false,
 };
 
 export const SendOTP = createAsyncThunk("AUTH/SEND_OTP", async (email, { rejectWithValue }) => {
   try {
-    const response = await API.post("/auth/send-otp", {
-      email,
-    });
-
+    const response = await API.post("/auth/send-otp", { email });
     return response.data;
   } catch (error) {
-    return rejectWithValue(
-      error.response?.data || {
-        message: "SEND OTP FAILED",
-      },
-    );
+    return rejectWithValue(error.response?.data || { message: "SEND OTP FAILED" });
   }
 });
 
@@ -43,15 +37,12 @@ export const VerifyOTP = createAsyncThunk(
         OTP: otp,
       });
 
+      // GetCurrentUser runs here and owns isAuthenticated + user + onboardingCompleted
       await dispatch(GetCurrentUser());
 
       return response.data;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data || {
-          message: "VERIFY OTP FAILED",
-        },
-      );
+      return rejectWithValue(error.response?.data || { message: "VERIFY OTP FAILED" });
     }
   },
 );
@@ -61,7 +52,6 @@ export const GetCurrentUser = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await API.get("/auth/me");
-
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -89,14 +79,9 @@ export const githubLogin = createAsyncThunk("AUTH/GITHUB_LOGIN", async () => {
 export const LogoutUser = createAsyncThunk("AUTH/LOGOUT", async (_, { rejectWithValue }) => {
   try {
     const response = await API.post("/auth/logout");
-
     return response.data;
   } catch (error) {
-    return rejectWithValue(
-      error.response?.data || {
-        message: "LOGOUT FAILED",
-      },
-    );
+    return rejectWithValue(error.response?.data || { message: "LOGOUT FAILED" });
   }
 });
 
@@ -105,14 +90,9 @@ export const CompleteOnboarding = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const response = await API.post("/auth/complete-onboarding", payload);
-
       return response.data;
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data || {
-          message: "ONBOARDING FAILED",
-        },
-      );
+      return rejectWithValue(error.response?.data || { message: "ONBOARDING FAILED" });
     }
   },
 );
@@ -140,6 +120,7 @@ const userSlice = createSlice({
   },
 
   extraReducers: (builder) => {
+    // ─── SendOTP ────────────────────────────────────────────────────────────
     builder.addCase(SendOTP.pending, (state) => {
       state.loading = true;
       state.error = null;
@@ -150,20 +131,21 @@ const userSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.success = true;
-
       state.authStep = "otp";
-
       state.transactionID = action.payload?.transactionID || null;
     });
 
     builder.addCase(SendOTP.rejected, (state, action) => {
       state.loading = false;
-
       state.error = action.payload?.detail || action.payload?.message || "SEND OTP FAILED";
-
       state.success = false;
     });
 
+    // ─── VerifyOTP ──────────────────────────────────────────────────────────
+    // GetCurrentUser is awaited inside the thunk, so by the time
+    // VerifyOTP.fulfilled fires, GetCurrentUser has already resolved and
+    // set user / isAuthenticated / onboardingCompleted correctly.
+    // We only manage loading + error + success here — nothing else.
     builder.addCase(VerifyOTP.pending, (state) => {
       state.loading = true;
       state.error = null;
@@ -174,80 +156,61 @@ const userSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.success = true;
-
-      state.isAuthenticated = true;
+      // isAuthenticated, user, onboardingCompleted are owned by GetCurrentUser
     });
 
     builder.addCase(VerifyOTP.rejected, (state, action) => {
       state.loading = false;
-
       state.error = action.payload?.detail || action.payload?.message || "VERIFY OTP FAILED";
-
       state.success = false;
-
       state.isAuthenticated = false;
     });
 
+    // ─── GetCurrentUser ─────────────────────────────────────────────────────
+    // Backend now returns lowercase { success, user } — see auth router fix.
     builder.addCase(GetCurrentUser.pending, (state) => {
       state.loading = true;
     });
 
     builder.addCase(GetCurrentUser.fulfilled, (state, action) => {
       state.loading = false;
-
-      state.error = null;
-
+      state.initialized = true;
+      state.user = action.payload.user;
       state.isAuthenticated = true;
-
-      state.user = action.payload?.USER || null;
-
-      state.onboardingCompleted = action.payload?.USER?.user?.onboarding_completed || false;
+      state.onboardingCompleted = action.payload.user?.onboarding_completed || false;
     });
 
-    builder.addCase(GetCurrentUser.rejected, (state, action) => {
+    builder.addCase(GetCurrentUser.rejected, (state) => {
       state.loading = false;
-
-      if (action.payload?.status !== 401) {
-        state.error = action.payload?.detail || action.payload?.message || "GET USER FAILED";
-      }
-
+      state.initialized = true;
       state.user = null;
-
       state.isAuthenticated = false;
-
       state.onboardingCompleted = false;
     });
 
+    // ─── LogoutUser ─────────────────────────────────────────────────────────
     builder.addCase(LogoutUser.pending, (state) => {
       state.loading = true;
     });
 
     builder.addCase(LogoutUser.fulfilled, (state) => {
       state.loading = false;
-
       state.user = null;
-
       state.isAuthenticated = false;
-
-      state.onboardingCompleted = false;
-
       state.authStep = "email";
-
       state.email = "";
-
       state.transactionID = null;
-
       state.error = null;
-
       state.success = false;
     });
 
     builder.addCase(LogoutUser.rejected, (state, action) => {
       state.loading = false;
-
       state.error = action.payload?.detail || action.payload?.message || "LOGOUT FAILED";
     });
 
+    // ─── CompleteOnboarding ─────────────────────────────────────────────────
+    // Backend returns lowercase { success, message, user }
     builder.addCase(CompleteOnboarding.pending, (state) => {
       state.loading = true;
       state.error = null;
@@ -255,19 +218,14 @@ const userSlice = createSlice({
 
     builder.addCase(CompleteOnboarding.fulfilled, (state, action) => {
       state.loading = false;
-
       state.user = action.payload?.user;
-
       state.onboardingCompleted = true;
-
       state.isAuthenticated = true;
-
       state.success = true;
     });
 
     builder.addCase(CompleteOnboarding.rejected, (state, action) => {
       state.loading = false;
-
       state.error = action.payload?.detail || action.payload?.message || "ONBOARDING FAILED";
     });
   },

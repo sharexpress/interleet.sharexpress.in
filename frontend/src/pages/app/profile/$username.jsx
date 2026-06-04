@@ -2,33 +2,23 @@ import { useParams } from "react-router-dom";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Award, MapPin, Github, Link as LinkIcon, ShieldCheck } from "lucide-react";
 import { user, interviewHistory, challenges } from "@/lib/mock";
-import { useDispatch, useSelector } from "react-redux";
-import { useEffect } from "react";
-import { GetCurrentUser } from "@/redux/slices/userSlice";
+import { useSelector } from "react-redux";
 
 function ProfilePage() {
   const { username } = useParams();
-  const dispatch = useDispatch();
 
-  useEffect(() => {
-    dispatch(GetCurrentUser());
-  }, [dispatch]);
+  const { user: actual_user } = useSelector((state) => state.user);
+  console.log(actual_user);
 
-  const {
-    user: actual_user,
-    loading,
-    error,
-    onboardingCompleted,
-    isAuthenticated,
-  } = useSelector((state) => state.user);
-
-  console.log(actual_user.user.full_name);
+  if (!actual_user) {
+    return null;
+  }
 
   return (
     <AppShell>
@@ -38,21 +28,34 @@ function ProfilePage() {
         <div className="pointer-events-none absolute -top-20 left-1/3 h-[300px] w-[500px] rounded-full bg-primary/10 blur-3xl" />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-5 px-4 py-8 md:flex-row md:items-end md:px-8">
           <Avatar className="h-20 w-20 border-2 border-border bg-card">
-            <AvatarFallback className="text-xl">AM</AvatarFallback>
+            {actual_user.avatar && (
+              <AvatarImage
+                src={actual_user.avatar}
+                alt={actual_user.full_name}
+                className="object-cover"
+              />
+            )}
+
+            <AvatarFallback className="text-xl">
+              {actual_user.full_name
+                ?.split(" ")
+                ?.map((n) => n[0])
+                ?.join("")
+                ?.slice(0, 2)
+                ?.toUpperCase()}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight">
-                {actual_user.user?.full_name || "null"}
+                {actual_user.full_name || null}
               </h1>
               <Badge className="gap-1 bg-success/15 text-success">
                 <ShieldCheck className="h-3 w-3" />
                 Verified
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
-              @{actual_user.user?.username} · {user.title}
-            </p>
+            <p className="text-sm text-muted-foreground">@{actual_user.username || null}</p>
             <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />

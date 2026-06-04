@@ -247,7 +247,8 @@ class UserController:
                 },
             )
 
-            redirect_url = "http://localhost:5173"
+            redirect_url = "http://localhost:5173/app/dashboard"
+
             if not existing_user.get("onboarding_completed"):
                 redirect_url = "http://localhost:5173/onboarding"
             response = RedirectResponse(url=redirect_url)
@@ -348,12 +349,16 @@ class UserController:
                     }
                 },
             )
-            redirect_url = "http://localhost:5173"
+            redirect_url = "http://localhost:5173/app/dashboard"
+
             if not existing_user.get("onboarding_completed"):
                 redirect_url = "http://localhost:5173/onboarding"
-            redirect_response = RedirectResponse(url=redirect_url)
-            generate_token(existing_user["user_id"], redirect_response)
-            return redirect_response
+
+            response = RedirectResponse(url=redirect_url)
+
+            generate_token(existing_user["user_id"], response)
+
+            return response
         except OAuthError as e:
             print("GITHUB OAUTH ERROR =", e)
             raise HTTPException(status_code=400, detail=str(e))
