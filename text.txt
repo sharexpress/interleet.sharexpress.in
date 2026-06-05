@@ -1,0 +1,257 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+
+import { FetchChallenges } from "@/redux/slices/challengesSlice";
+import { AppShell, PageHeader } from "@/components/layout/AppShell";
+import { ChallengeCard } from "@/components/domain/ChallengeCard";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Search, SlidersHorizontal, LayoutGrid, List as ListIcon, RefreshCw } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DifficultyPill, DomainTag } from "@/components/domain/Tags";
+import { cn } from "@/lib/utils";
+
+const DIFFICULTIES = ["Easy", "Medium", "Hard", "Expert"];
+
+function ChallengesPage() {
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const { items, domains, total, loading, error } = useSelector((state) => state.challenges);
+
+  const [q, setQ] = useState("");
+  const [domain, setDomain] = useState("all");
+  const [diff, setDiff] = useState("all");
+  const [sort, setSort] = useState("popular");
+  const [view, setView] = useState("grid");
+
+  // Fetch from API whenever filters / sort change
+  useEffect(() => {
+    dispatch(
+      FetchChallenges({
+        ...(q && { q }),
+        ...(domain !== "all" && { domain }),
+        ...(diff !== "all" && { difficulty: diff }),
+        sort,
+      })
+    );
+  }, [dispatch, q, domain, diff, sort]);
+
+  const openChallenge = (slug) => navigate(`/app/challenges/${slug}`);
+
+  // ── Loading state ──────────────────────────────────────────────────────────
+  if (loading && items.length === 0) {
+    return (
+      <AppShell>
+        <PageHeader
+          title="Challenges"
+          description="Real-world engineering problems across the full stack."
+        />
+        <div className="flex items-center justify-center py-32">
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <div className="h-8 w-8 animate-spin rounded-full border border-zinc-700 border-t-primary" />
+            <p className="text-sm">Loading challenges…</p>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // ── Error state ────────────────────────────────────────────────────────────
+  if (error && items.length === 0) {
+    return (
+      <AppShell>
+        <PageHeader title="Challenges" description="Real-world engineering problems across the full stack." />
+        <div className="flex items-center justify-center py-32">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => dispatch(FetchChallenges({ sort }))}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" /> Retry
+            </Button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  return (
+    <AppShell>
+      <PageHeader
+        title="Challenges"
+        description="Real-world engineering problems across the full stack."
+        actions={
+          <>
+            <Button variant="outline">
+              <SlidersHorizontal className="mr-1.5 h-4 w-4" /> Advanced filters
+            </Button>
+            <Button>Submit a challenge</Button>
+          </>
+        }
+      />
+
+      <div className="px-4 py-6 md:px-8">
+        {/* Filters bar */}
+        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 md:flex-row md:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search challenges, tags, technologies…"
+              className="h-9 border-transparent bg-background pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={domain} onValueChange={setDomain}>
+              <SelectTrigger className="h-9 w-[150px]">
+                <SelectValue placeholder="Domain" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All domains</SelectItem>
+                {domains.map((d) => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={diff} onValueChange={setDiff}>
+              <SelectTrigger className="h-9 w-[140px]">
+                <SelectValue placeholder="Difficulty" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Any difficulty</SelectItem>
+                {DIFFICULTIES.map((d) => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={sort} onValueChange={setSort}>
+              <SelectTrigger className="h-9 w-[140px]">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="popular">Most popular</SelectItem>
+                <SelectItem value="xp">Most XP</SelectItem>
+                <SelectItem value="time">Quickest</SelectItem>
+                <SelectItem value="completion">Highest completion</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex rounded-md border border-border p-0.5">
+              <button
+                onClick={() => setView("grid")}
+                className={cn("rounded p-1.5", view === "grid" ? "bg-accent text-foreground" : "text-muted-foreground")}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setView("list")}
+                className={cn("rounded p-1.5", view === "list" ? "bg-accent text-foreground" : "text-muted-foreground")}
+                aria-label="List view"
+              >
+                <ListIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Domain pills */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {domains.map((d) => (
+            <button
+              key={d}
+              onClick={() => setDomain(domain === d ? "all" : d)}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs transition-colors",
+                domain === d
+                  ? "border-primary/50 bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {d}
+            </button>
+          ))}
+          <span className="ml-auto text-xs text-muted-foreground">
+            {loading ? "Loading…" : `${items.length} of ${total}`}
+          </span>
+        </div>
+
+        {/* Grid view */}
+        {view === "grid" && (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((c) => (
+              <ChallengeCard key={c.id || c.slug} c={c} />
+            ))}
+          </div>
+        )}
+
+        {/* List view */}
+        {view === "list" && (
+          <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
+            <table className="w-full text-xs md:text-sm">
+              <thead className="bg-background/60 text-left text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 font-mono uppercase tracking-wider md:px-4">Title</th>
+                  <th className="px-3 py-2 font-mono uppercase tracking-wider md:px-4">Domain</th>
+                  <th className="px-3 py-2 font-mono uppercase tracking-wider md:px-4">Difficulty</th>
+                  <th className="hidden px-4 py-2 font-mono uppercase tracking-wider md:table-cell">XP</th>
+                  <th className="hidden px-4 py-2 font-mono uppercase tracking-wider md:table-cell">Time</th>
+                  <th className="hidden px-4 py-2 font-mono uppercase tracking-wider md:table-cell">Done</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((c) => (
+                  <tr
+                    key={c.id || c.slug}
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Open challenge ${c.title}`}
+                    onClick={() => openChallenge(c.slug)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openChallenge(c.slug);
+                      }
+                    }}
+                    className="cursor-pointer border-t border-border hover:bg-accent/40 focus-visible:bg-accent/40"
+                  >
+                    <td className="px-3 py-3 font-medium md:px-4">{c.title}</td>
+                    <td className="px-3 py-3 md:px-4"><DomainTag d={c.domain} /></td>
+                    <td className="px-3 py-3 md:px-4"><DifficultyPill d={c.difficulty} /></td>
+                    <td className="hidden px-4 py-3 font-mono md:table-cell">{c.xp}</td>
+                    <td className="hidden px-4 py-3 font-mono md:table-cell">{c.minutes}m</td>
+                    <td className="hidden px-4 py-3 font-mono md:table-cell">{c.completion}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && items.length === 0 && (
+          <div className="mt-10 rounded-xl border border-dashed border-border p-10 text-center">
+            <Badge variant="outline" className="mx-auto">No matches</Badge>
+            <p className="mt-3 text-sm text-muted-foreground">Try clearing some filters.</p>
+          </div>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+export default ChallengesPage;

@@ -15,7 +15,7 @@ import OnboardingPage from "@/pages/app/Onboarding";
 // Protected app pages
 import DashboardPage from "@/pages/app/dashboard";
 import ChallengesPage from "@/pages/app/challenges/index";
-import ChallengePage, { loader as challengeLoader } from "@/pages/app/challenges/$id";
+import ChallengePage from "@/pages/app/challenges/$id";
 import InterviewsPage from "@/pages/app/interviews/index";
 import InterviewReportPage from "@/pages/app/interviews/$id.report";
 import InterviewLivePage from "@/pages/app/interviews/live";
@@ -23,7 +23,7 @@ import LeaderboardPage from "@/pages/app/leaderboard";
 import ProfilePage from "@/pages/app/profile/$username";
 import SettingsPage from "@/pages/app/settings";
 import SystemDesignPage from "@/pages/app/system-design";
-import EditorPage, { loader as editorLoader } from "@/pages/app/editor.$id";
+import EditorPage from "@/pages/app/editor.$id";
 
 // Admin + misc
 import AdminPage from "@/pages/admin";
@@ -62,7 +62,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/app/dashboard", element: <DashboardPage /> },
       { path: "/app/challenges", element: <ChallengesPage /> },
-      { path: "/app/challenges/:id", element: <ChallengePage />, loader: challengeLoader },
+      { path: "/app/challenges/:id", element: <ChallengePage /> },
       { path: "/app/interviews", element: <InterviewsPage /> },
       { path: "/app/interviews/:id/report", element: <InterviewReportPage /> },
       { path: "/app/interviews/live", element: <InterviewLivePage /> },
@@ -70,7 +70,7 @@ export const router = createBrowserRouter([
       { path: "/app/profile/:username", element: <ProfilePage /> },
       { path: "/app/settings", element: <SettingsPage /> },
       { path: "/app/system-design", element: <SystemDesignPage /> },
-      { path: "/app/editor/:id", element: <EditorPage />, loader: editorLoader },
+      { path: "/app/editor/:id", element: <EditorPage /> },
     ],
   },
 

@@ -10,6 +10,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.routers.interview import router as interview_router
 
 from app.routers.resume import router as resume_router
+from app.routers.challenges import router as challenge_router
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -53,6 +54,7 @@ async def home(db: AsyncIOMotorDatabase = Depends(get_db)):
 app.include_router(user_router)
 app.include_router(resume_router)
 app.include_router(interview_router)
+app.include_router(challenge_router)
 
 
 if __name__ == "__main__":
