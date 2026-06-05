@@ -7,8 +7,6 @@ import { DifficultyPill, DomainTag } from "@/components/domain/Tags";
 import { challenges } from "@/lib/mock";
 import { ArrowLeft, ArrowRight, Clock, Sparkles, Users, FileCode, Beaker } from "lucide-react";
 
-
-
 function ChallengeDetail() {
   const c = useLoaderData();
   return (
@@ -18,7 +16,7 @@ function ChallengeDetail() {
         description={c.summary}
         badge={c.domain}
         actions={
-        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" asChild>
               <Link to="/app/challenges">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
@@ -31,8 +29,9 @@ function ChallengeDetail() {
               </Link>
             </Button>
           </div>
-        } />
-      
+        }
+      />
+
       <div className="grid gap-6 px-4 py-6 md:grid-cols-3 md:px-8">
         <div className="space-y-4 md:col-span-2">
           <Card className="border-border bg-card p-6">
@@ -76,7 +75,7 @@ function ChallengeDetail() {
           <Card className="border-border bg-card p-6">
             <h3 className="text-sm font-semibold">Example test</h3>
             <pre className="mt-3 overflow-x-auto rounded-md border border-border bg-background/60 p-4 font-mono text-xs leading-relaxed">
-{`> POST /allow { userId: "u_123", action: "search" }
+              {`> POST /allow { userId: "u_123", action: "search" }
 < 200 { allowed: true, remaining: 14 }
 
 > POST /allow x16 (burst)
@@ -90,11 +89,11 @@ function ChallengeDetail() {
           <Card className="border-border bg-card p-5">
             <h3 className="text-sm font-semibold">Tags</h3>
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {c.tags.map((t) =>
-              <Badge key={t} variant="outline" className="font-mono text-[10px]">
+              {c.tags.map((t) => (
+                <Badge key={t} variant="outline" className="font-mono text-[10px]">
                   {t}
                 </Badge>
-              )}
+              ))}
             </div>
           </Card>
           <Card className="border-border bg-card p-5">
@@ -118,12 +117,12 @@ function ChallengeDetail() {
           </Card>
         </div>
       </div>
-    </AppShell>);
-
+    </AppShell>
+  );
 }
 export const loader = ({ params }) => {
-    const c = challenges.find((x) => x.slug === params.id);
-    if (!c) throw new Error("Not found");
-    return c;
-  };
+  const c = challenges.find((x) => x.slug === params.id);
+  if (!c) throw new Error("Not found");
+  return c;
+};
 export default ChallengeDetail;
