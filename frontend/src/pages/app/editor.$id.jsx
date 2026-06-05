@@ -1,4 +1,6 @@
-import { Link, useParams, useLoaderData } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +10,16 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue } from
-"@/components/ui/select";
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DifficultyPill, DomainTag } from "@/components/domain/Tags";
-import { challenges } from "@/lib/mock";
+import {
+  FetchChallengeBySlug,
+  selectChallengeDetail,
+  selectDetailLoading,
+  selectDetailError,
+} from "@/redux/slices/challengesSlice";
 import {
   Play,
   Send,
@@ -27,10 +34,8 @@ import {
   BookOpen,
   Globe,
   RotateCw,
-  Lock } from
-"lucide-react";
-
-
+  Lock,
+} from "lucide-react";
 
 const code = `// rate-limiter.ts
 export class TokenBucket {
@@ -62,7 +67,45 @@ export class TokenBucket {
 `;
 
 function EditorPage() {
-  const c = useLoaderData();
+  const { id: slug } = useParams();
+  const dispatch = useDispatch();
+  const c = useSelector(selectChallengeDetail(slug));
+  const loading = useSelector(selectDetailLoading);
+  const detailError = useSelector(selectDetailError);
+
+  useEffect(() => {
+    dispatch(FetchChallengeBySlug(slug));
+  }, [dispatch, slug]);
+
+  if (loading && !c) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-32">
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <div className="h-8 w-8 animate-spin rounded-full border border-zinc-700 border-t-primary" />
+            <p className="text-sm">Loading editor…</p>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if ((detailError || !c) && !loading) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-32">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <p className="text-sm text-destructive">{detailError ?? "Challenge not found"}</p>
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/app/challenges">
+                <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to challenges
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
   return (
     <AppShell>
       {/* Toolbar */}
@@ -104,8 +147,8 @@ function EditorPage() {
                 variant="outline"
                 size="icon"
                 className="xl:hidden"
-                aria-label="Open browser preview">
-                
+                aria-label="Open browser preview"
+              >
                 <Globe className="h-4 w-4" />
               </Button>
             </DrawerTrigger>
@@ -145,37 +188,73 @@ function EditorPage() {
           <div className="flex-1 overflow-auto px-4 py-4 text-sm leading-relaxed text-foreground/90">
             <p>{c.summary}</p>
 
-            <h3 className="mt-5 text-sm font-semibold">Requirements</h3>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
-              <li>Implement a thread-safe token bucket with capacity and refill rate.</li>
-              <li>Expose <code className="font-mono text-foreground">allow()</code> returning a boolean.</li>
-              <li>Refill is continuous, not bucketed by the second.</li>
-              <li>Reject the request once tokens drop below 1.</li>
-            </ul>
+            {c.description && <p className="mt-3 text-muted-foreground">{c.description}</p>}
 
-            <h3 className="mt-5 text-sm font-semibold">Example</h3>
-            <pre className="mt-2 overflow-auto rounded-md border border-border bg-background/60 p-3 font-mono text-[11px] text-foreground/85">
-{`const b = new TokenBucket(3, 1); // 3 tokens, 1/sec
-b.allow(); // true
-b.allow(); // true
-b.allow(); // true
-b.allow(); // false  -> bucket empty
-// wait 1s
-b.allow(); // true`}
-            </pre>
+            {/* Visible test cases as examples */}
+            {c.test_cases && c.test_cases.filter((t) => !t.hidden).length > 0 && (
+              <>
+                <h3 className="mt-5 text-sm font-semibold">Examples</h3>
+                <div className="mt-2 space-y-2">
+                  {c.test_cases
+                    .filter((t) => !t.hidden)
+                    .map((t) => (
+                      <div
+                        key={t.id}
+                        className="rounded-md border border-border bg-background/60 p-3"
+                      >
+                        <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                          {t.name}
+                        </p>
+                        {t.stdin && (
+                          <div className="mb-1">
+                            <span className="text-[10px] text-muted-foreground">Input: </span>
+                            <code className="font-mono text-[11px] text-foreground/85">
+                              {t.stdin.trim()}
+                            </code>
+                          </div>
+                        )}
+                        {t.expected_output && (
+                          <div>
+                            <span className="text-[10px] text-muted-foreground">Output: </span>
+                            <code className="font-mono text-[11px] text-foreground/85">
+                              {t.expected_output.trim()}
+                            </code>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              </>
+            )}
 
-            <h3 className="mt-5 text-sm font-semibold">Constraints</h3>
-            <ul className="mt-2 list-inside list-disc space-y-1 text-muted-foreground">
-              <li>1 ≤ capacity ≤ 10<sup>6</sup></li>
-              <li>0 ≤ refillPerSec ≤ 10<sup>5</sup></li>
-              <li>Must be O(1) per allow() call</li>
-            </ul>
+            {/* Hints */}
+            {c.hints && c.hints.length > 0 && (
+              <>
+                <h3 className="mt-5 text-sm font-semibold">Hints</h3>
+                <ol className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
+                  {c.hints.map((hint, i) => (
+                    <li key={i}>{hint}</li>
+                  ))}
+                </ol>
+              </>
+            )}
 
-            <h3 className="mt-5 text-sm font-semibold">Hints</h3>
-            <ol className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
-              <li>Track the timestamp of the last update, not every individual token.</li>
-              <li>Clamp accumulated tokens to <code className="font-mono text-foreground">capacity</code>.</li>
-            </ol>
+            {/* Tags */}
+            {c.tags && c.tags.length > 0 && (
+              <>
+                <h3 className="mt-5 text-sm font-semibold">Tags</h3>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {c.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded border border-border bg-background/60 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </aside>
 
@@ -184,24 +263,24 @@ b.allow(); // true`}
           {/* Editor (top) */}
           <div className="flex min-h-0 flex-1 flex-col">
             <div className="flex items-center gap-1 border-b border-border bg-background/60 px-2 py-1.5">
-              {["rate-limiter.ts", "basic.test.ts"].map((t, i) =>
-              <div
-                key={t}
-                className={`flex items-center gap-2 rounded-t border-b-2 px-3 py-1 font-mono text-xs ${
-                i === 0 ?
-                "border-primary bg-card text-foreground" :
-                "border-transparent text-muted-foreground hover:text-foreground"}`
-                }>
-                
+              {["rate-limiter.ts", "basic.test.ts"].map((t, i) => (
+                <div
+                  key={t}
+                  className={`flex items-center gap-2 rounded-t border-b-2 px-3 py-1 font-mono text-xs ${
+                    i === 0
+                      ? "border-primary bg-card text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
                   <FileCode2 className="h-3 w-3" /> {t}
                 </div>
-              )}
+              ))}
             </div>
             <div className="flex min-h-0 flex-1 overflow-auto">
               <div className="select-none border-r border-border bg-background/40 px-3 py-3 text-right font-mono text-[11px] leading-relaxed text-muted-foreground">
-                {code.split("\n").map((_, i) =>
-                <div key={i}>{i + 1}</div>
-                )}
+                {code.split("\n").map((_, i) => (
+                  <div key={i}>{i + 1}</div>
+                ))}
               </div>
               <pre className="flex-1 overflow-auto p-3 font-mono text-[12px] leading-relaxed text-foreground/90">
                 <code dangerouslySetInnerHTML={{ __html: highlight(code) }} />
@@ -231,22 +310,32 @@ b.allow(); // true`}
               </div>
 
               <TabsContent value="testcase" className="m-0 max-h-64 overflow-auto p-3">
-                <div className="grid gap-2 md:grid-cols-3">
-                  {[
-                  { name: "Case 1", input: "capacity=15, refill=5/s", expected: "allow×15 then deny" },
-                  { name: "Case 2", input: "capacity=1, refill=1/s", expected: "deny within 999ms" },
-                  { name: "Case 3", input: "capacity=10, refill=0/s", expected: "deny after 10" }].
-                  map((t) =>
-                  <div
-                    key={t.name}
-                    className="rounded-md border border-border bg-card/60 p-3 text-xs">
-                    
-                      <p className="font-mono text-[11px] text-muted-foreground">{t.name}</p>
-                      <p className="mt-1.5 font-mono text-foreground">{t.input}</p>
-                      <p className="mt-1 font-mono text-muted-foreground">→ {t.expected}</p>
-                    </div>
-                  )}
-                </div>
+                {c.test_cases && c.test_cases.filter((t) => !t.hidden).length > 0 ? (
+                  <div className="grid gap-2 md:grid-cols-3">
+                    {c.test_cases
+                      .filter((t) => !t.hidden)
+                      .map((t) => (
+                        <div
+                          key={t.id}
+                          className="rounded-md border border-border bg-card/60 p-3 text-xs"
+                        >
+                          <p className="font-mono text-[11px] text-muted-foreground">{t.name}</p>
+                          {t.stdin && (
+                            <p className="mt-1.5 font-mono text-foreground">{t.stdin.trim()}</p>
+                          )}
+                          {t.expected_output && (
+                            <p className="mt-1 font-mono text-muted-foreground">
+                              → {t.expected_output.trim()}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No visible test cases for this challenge.
+                  </p>
+                )}
               </TabsContent>
 
               <TabsContent value="result" className="m-0 max-h-64 overflow-auto p-3">
@@ -261,31 +350,31 @@ b.allow(); // true`}
                 </div>
                 <div className="space-y-1.5">
                   {[
-                  { l: "allows up to capacity", p: true },
-                  { l: "refills at configured rate", p: true },
-                  { l: "handles concurrent allow()", p: true },
-                  { l: "rejects burst overflow", p: true },
-                  { l: "respects refill cap", p: true },
-                  { l: "drops under zero refill", p: false }].
-                  map((t) =>
-                  <div
-                    key={t.l}
-                    className="flex items-center gap-2 rounded-md border border-border bg-background/40 px-3 py-1.5 text-xs">
-                    
-                      {t.p ?
-                    <Check className="h-3.5 w-3.5 text-success" /> :
-
-                    <X className="h-3.5 w-3.5 text-destructive" />
-                    }
+                    { l: "allows up to capacity", p: true },
+                    { l: "refills at configured rate", p: true },
+                    { l: "handles concurrent allow()", p: true },
+                    { l: "rejects burst overflow", p: true },
+                    { l: "respects refill cap", p: true },
+                    { l: "drops under zero refill", p: false },
+                  ].map((t) => (
+                    <div
+                      key={t.l}
+                      className="flex items-center gap-2 rounded-md border border-border bg-background/40 px-3 py-1.5 text-xs"
+                    >
+                      {t.p ? (
+                        <Check className="h-3.5 w-3.5 text-success" />
+                      ) : (
+                        <X className="h-3.5 w-3.5 text-destructive" />
+                      )}
                       <span className="font-mono">{t.l}</span>
                     </div>
-                  )}
+                  ))}
                 </div>
               </TabsContent>
 
               <TabsContent value="console" className="m-0">
                 <pre className="max-h-64 overflow-auto p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
-{`$ npm test
+                  {`$ npm test
 PASS  tests/basic.test.ts (1.2s)
   ✓ allows up to capacity
   ✓ refills at configured rate
@@ -305,8 +394,8 @@ Time:        2.04 s`}
           <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} />
         </aside>
       </div>
-    </AppShell>);
-
+    </AppShell>
+  );
 }
 
 function BrowserPreview({ domain, slug, title }) {
@@ -333,8 +422,8 @@ function BrowserPreview({ domain, slug, title }) {
       </div>
 
       <PreviewArea domain={domain} slug={slug} title={title} />
-    </div>);
-
+    </div>
+  );
 }
 
 // ---------- Adaptive right-pane preview ----------
@@ -351,19 +440,17 @@ function PreviewArea({ domain, slug, title }) {
           title={`${title} preview`}
           srcDoc={getFrontendSrcDoc(slug, title)}
           sandbox="allow-scripts"
-          className="h-full w-full flex-1 border-0 bg-white" />
-        
-      </div>);
-
+          className="h-full w-full flex-1 border-0 bg-white"
+        />
+      </div>
+    );
   }
 
   const out = getProgramOutput(slug);
   return (
     <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4">
       <div className="rounded-lg border border-border bg-card/60 p-4">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">
-          Program Output
-        </p>
+        <p className="text-xs uppercase tracking-wider text-muted-foreground">Program Output</p>
         <pre className="mt-3 whitespace-pre-wrap font-mono text-[12px] leading-relaxed text-success">
           {out.log}
         </pre>
@@ -372,25 +459,22 @@ function PreviewArea({ domain, slug, title }) {
       <div className="mt-3 rounded-lg border border-border bg-card/60 p-4">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Stats</p>
         <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-          {out.stats.map((s) =>
-          <div
-            key={s.label}
-            className="rounded border border-border bg-background/40 px-2 py-1.5">
-            
+          {out.stats.map((s) => (
+            <div
+              key={s.label}
+              className="rounded border border-border bg-background/40 px-2 py-1.5"
+            >
               <p className="text-muted-foreground">{s.label}</p>
               <p className={`font-mono ${s.tone ?? "text-foreground"}`}>{s.value}</p>
             </div>
-          )}
+          ))}
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }
 
-function getProgramOutput(slug)
-
-
-{
+function getProgramOutput(slug) {
   switch (slug) {
     case "build-a-rate-limiter":
       return {
@@ -404,11 +488,11 @@ function getProgramOutput(slug)
 
 ✓ Run finished in 1.04s`,
         stats: [
-        { label: "Calls", value: "5" },
-        { label: "Allowed", value: "4", tone: "text-success" },
-        { label: "Denied", value: "1", tone: "text-destructive" },
-        { label: "Avg ms", value: "0.21" }]
-
+          { label: "Calls", value: "5" },
+          { label: "Allowed", value: "4", tone: "text-success" },
+          { label: "Denied", value: "1", tone: "text-destructive" },
+          { label: "Avg ms", value: "0.21" },
+        ],
       };
     case "feature-flag-service":
       return {
@@ -419,11 +503,11 @@ function getProgramOutput(slug)
 
 ✓ Run finished in 0.98s`,
         stats: [
-        { label: "Evals", value: "1204" },
-        { label: "Cache hit", value: "94%", tone: "text-success" },
-        { label: "p95 ms", value: "1.8" },
-        { label: "Errors", value: "0", tone: "text-success" }]
-
+          { label: "Evals", value: "1204" },
+          { label: "Cache hit", value: "94%", tone: "text-success" },
+          { label: "p95 ms", value: "1.8" },
+          { label: "Errors", value: "0", tone: "text-success" },
+        ],
       };
     default:
       return {
@@ -432,11 +516,11 @@ function getProgramOutput(slug)
 ✓ tests passed
 ✓ Run finished in 1.21s`,
         stats: [
-        { label: "Status", value: "OK", tone: "text-success" },
-        { label: "Duration", value: "1.21s" },
-        { label: "Warnings", value: "0" },
-        { label: "Errors", value: "0", tone: "text-success" }]
-
+          { label: "Status", value: "OK", tone: "text-success" },
+          { label: "Duration", value: "1.21s" },
+          { label: "Warnings", value: "0" },
+          { label: "Errors", value: "0", tone: "text-success" },
+        ],
       };
   }
 }
@@ -525,7 +609,13 @@ function getFrontendSrcDoc(slug, title) {
       </body></html>`;
 
     default:
-      return '<!doctype html><html><head>' + base + '</head><body><h2>' + title + '</h2><p style="color:#525252">Interactive preview for this challenge will render here.</p></body></html>';
+      return (
+        "<!doctype html><html><head>" +
+        base +
+        "</head><body><h2>" +
+        title +
+        '</h2><p style="color:#525252">Interactive preview for this challenge will render here.</p></body></html>'
+      );
   }
 }
 
@@ -540,7 +630,7 @@ const TOK = {
   string: "#CE9178",
   number: "#B5CEA8",
   prop: "#9CDCFE",
-  punct: "#D4D4D4"
+  punct: "#D4D4D4",
 };
 
 function highlight(src) {
@@ -553,8 +643,7 @@ function highlight(src) {
     slots.push(html);
     return `\u0000${i}\u0000`;
   };
-  const span = (color, text) =>
-  slot(`<span style="color:${color}">${text}</span>`);
+  const span = (color, text) => slot(`<span style="color:${color}">${text}</span>`);
 
   let s = esc;
 
@@ -567,17 +656,17 @@ function highlight(src) {
   // 4. Control flow keywords (blue)
   s = s.replace(
     /\b(if|else|return|for|while|switch|case|break|continue|throw|try|catch|finally)\b/g,
-    (m) => span(TOK.control, m)
+    (m) => span(TOK.control, m),
   );
   // 5. Declaration keywords (purple)
   s = s.replace(
     /\b(export|import|from|class|interface|extends|implements|private|public|protected|readonly|static|constructor|new|const|let|var|function|async|await|of|in|this|true|false|null|undefined)\b/g,
-    (m) => span(TOK.keyword, m)
+    (m) => span(TOK.keyword, m),
   );
   // 6. Built-in types (teal)
   s = s.replace(
     /\b(number|boolean|string|void|any|never|unknown|object|Promise|Array|Date|Math)\b/g,
-    (m) => span(TOK.type, m)
+    (m) => span(TOK.type, m),
   );
   // 7. Class / type names (PascalCase) → teal
   s = s.replace(/\b([A-Z][A-Za-z0-9_]*)\b/g, (m) => span(TOK.klass, m));
@@ -589,9 +678,5 @@ function highlight(src) {
   // Restore slots
   return s.replace(/\u0000(\d+)\u0000/g, (_m, i) => slots[Number(i)]);
 }
-export const loader = ({ params }) => {
-    const c = challenges.find((x) => x.slug === params.id);
-    if (!c) throw new Error("Not found");
-    return c;
-  };
+
 export default EditorPage;

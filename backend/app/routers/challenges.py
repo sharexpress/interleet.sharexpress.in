@@ -4,7 +4,7 @@ from typing import Optional
 from app.controllers.challenge import ChallengeController
 from app.middleware.user import Middleware as UserMiddleware
 
-router = APIRouter(prefix="/api/challenges", tags=["Challenges"])
+router = APIRouter(prefix="/challenges", tags=["Challenges"])
 
 
 @router.get("")
@@ -28,10 +28,9 @@ async def get_challenge(slug: str):
     return await ChallengeController.get_challenge(slug)
 
 
-@router.post("")
+@router.post("/create")
 async def create_challenge(
     payload: dict = Body(...),
-    _user=Depends(UserMiddleware.me),
 ):
     return await ChallengeController.create_challenge(payload)
 
