@@ -13,3 +13,4 @@ google.json
 # OR specifically
 app/core/security/private.pem
 app/core/security/public.pem.DS_Store
+.DS_Store
