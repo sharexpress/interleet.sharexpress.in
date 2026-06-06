@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { ProtectedRoute, PublicRoute, OnboardingRoute } from "@/routes/RouteGuards";
 
@@ -30,6 +30,12 @@ import EditorPage from "@/pages/app/editor.$id";
 import AdminPage from "@/pages/admin";
 import NotFoundPage from "@/pages/NotFound";
 
+// Face ID Pages
+import RegisterFacePage from "@/pages/register-face";
+import LoginFacePage from "@/pages/login-face";
+import FaceEnrollmentPage from "@/pages/face-enrollment";
+import FaceVerificationPage from "@/pages/face-verification";
+
 export const router = createBrowserRouter([
   // ── Fully public (no auth needed, no redirect) ───────────────────────────
   {
@@ -40,6 +46,10 @@ export const router = createBrowserRouter([
     path: "/recruiter",
     element: <RecruiterPage />,
   },
+  {
+    path: "/dashboard",
+    element: <Navigate to="/app/dashboard" replace />,
+  },
 
   // ── Auth routes (redirect away if already logged in) ─────────────────────
   {
@@ -48,6 +58,7 @@ export const router = createBrowserRouter([
       { path: "/login", element: <LoginPage /> },
       { path: "/signup", element: <LoginPage /> },
       { path: "/forgot", element: <ForgotPage /> },
+      { path: "/login-face", element: <LoginFacePage /> },
     ],
   },
 
@@ -73,6 +84,9 @@ export const router = createBrowserRouter([
       { path: "/app/settings", element: <SettingsPage /> },
       { path: "/app/system-design", element: <SystemDesignPage /> },
       { path: "/app/editor/:id", element: <EditorPage /> },
+      { path: "/register-face", element: <RegisterFacePage /> },
+      { path: "/face-enrollment", element: <FaceEnrollmentPage /> },
+      { path: "/face-verification", element: <FaceVerificationPage /> },
     ],
   },
 
