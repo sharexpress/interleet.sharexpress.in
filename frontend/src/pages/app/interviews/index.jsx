@@ -25,7 +25,7 @@ function InterviewsPage() {
         description="Practice the conversation. Get rubric-graded feedback after every session."
         actions={
         <Button asChild>
-            <Link to="/app/interviews/live"><Mic className="mr-1.5 h-4 w-4" /> Start a live session</Link>
+            <Link to="/app/interviews/setup"><Mic className="mr-1.5 h-4 w-4" /> Start a live session</Link>
           </Button>
         } />
       
@@ -51,7 +51,7 @@ function InterviewsPage() {
                   map((d) =>
                   <Link
                     key={d.l}
-                    to="/app/interviews/live"
+                    to={`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`}
                     className={`rounded-md border px-2 py-1.5 text-center text-[11px] font-medium transition-colors ${d.c}`}>
                     
                         {d.l}
@@ -62,7 +62,7 @@ function InterviewsPage() {
 
                 <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{r.m}m</span>
-                  <Link to="/app/interviews/live" className="inline-flex items-center text-primary hover:underline">
+                  <Link to={`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`} className="inline-flex items-center text-primary hover:underline">
                     Start <ArrowRight className="ml-1 h-3 w-3" />
                   </Link>
                 </div>

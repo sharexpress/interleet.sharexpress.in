@@ -19,6 +19,7 @@ import ChallengePage from "@/pages/app/challenges/$id";
 import InterviewsPage from "@/pages/app/interviews/index";
 import InterviewReportPage from "@/pages/app/interviews/$id.report";
 import InterviewLivePage from "@/pages/app/interviews/live";
+import InterviewSetupPage from "@/pages/app/interviews/setup";
 import LeaderboardPage from "@/pages/app/leaderboard";
 import ProfilePage from "@/pages/app/profile/$username";
 import SettingsPage from "@/pages/app/settings";
@@ -64,6 +65,7 @@ export const router = createBrowserRouter([
       { path: "/app/challenges", element: <ChallengesPage /> },
       { path: "/app/challenges/:id", element: <ChallengePage /> },
       { path: "/app/interviews", element: <InterviewsPage /> },
+      { path: "/app/interviews/setup", element: <InterviewSetupPage /> },
       { path: "/app/interviews/:id/report", element: <InterviewReportPage /> },
       { path: "/app/interviews/live", element: <InterviewLivePage /> },
       { path: "/app/leaderboard", element: <LeaderboardPage /> },

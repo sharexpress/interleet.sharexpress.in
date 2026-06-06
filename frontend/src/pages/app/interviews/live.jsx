@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,10 @@ const TRANSCRIPT = [
 
 
 function LiveInterview() {
+  const [searchParams] = useSearchParams();
+  const role = searchParams.get("role") || "Senior Backend Engineer";
+  const difficulty = searchParams.get("difficulty") || "Intermediate";
+
   const [muted, setMuted] = useState(false);
   const [speaking, setSpeaking] = useState(true);
   const transcriptRef = useRef(null);
@@ -41,7 +45,7 @@ function LiveInterview() {
             <Link to="/app/interviews"><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
           <div>
-            <p className="text-sm font-semibold">Senior Backend Engineer · Live</p>
+            <p className="text-sm font-semibold">{role} ({difficulty}) · Live</p>
             <p className="text-xs text-muted-foreground">Voice call · Session #iv-22</p>
           </div>
         </div>
