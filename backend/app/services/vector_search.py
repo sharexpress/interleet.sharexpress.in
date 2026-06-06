@@ -1,158 +1,226 @@
 import os
 import logging
-from typing import List, Dict, Any, Tuple
+import random
+from datetime import datetime
+from typing import List, Dict, Any, Optional
 import numpy as np
 from app.core.db import get_db
 
 logger = logging.getLogger(__name__)
 db = get_db()
 
-# Try to import chromadb
-CHROMA_AVAILABLE = False
-chroma_client = None
-chroma_collection = None
+# ── Pinecone initialisation ────────────────────────────────────────────────
+PINECONE_AVAILABLE = False
+pinecone_index = None
 
-try:
-    import chromadb
-    # Persistent storage in the workspace
-    chroma_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data", "chroma")
-    os.makedirs(chroma_path, exist_ok=True)
-    
-    chroma_client = chromadb.PersistentClient(path=chroma_path)
-    # Use cosine similarity as specified in requirements
-    chroma_collection = chroma_client.get_or_create_collection(
-        name="face_embeddings", 
-        metadata={"hnsw:space": "cosine"}
+PINECONE_API_KEY   = os.getenv("PINECONE_API_KEY", "")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "face-embeddings")
+PINECONE_CLOUD     = os.getenv("PINECONE_CLOUD", "aws")
+PINECONE_REGION    = os.getenv("PINECONE_REGION", "us-east-1")
+
+# ArcFace / geometric fallback embedding dimension
+EMBEDDING_DIM = 512
+
+if PINECONE_API_KEY:
+    try:
+        from pinecone import Pinecone, ServerlessSpec
+
+        pc = Pinecone(api_key=PINECONE_API_KEY)
+
+        # Create index if it doesn't exist yet
+        existing = [idx.name for idx in pc.list_indexes()]
+        if PINECONE_INDEX_NAME not in existing:
+            pc.create_index(
+                name=PINECONE_INDEX_NAME,
+                dimension=EMBEDDING_DIM,
+                metric="cosine",
+                spec=ServerlessSpec(
+                    cloud=PINECONE_CLOUD,
+                    region=PINECONE_REGION,
+                ),
+            )
+            logger.info("Pinecone: created index '%s'", PINECONE_INDEX_NAME)
+
+        pinecone_index = pc.Index(PINECONE_INDEX_NAME)
+        PINECONE_AVAILABLE = True
+        logger.info("Pinecone initialised — index '%s'", PINECONE_INDEX_NAME)
+
+    except Exception as e:
+        logger.warning(
+            "Pinecone initialisation failed — falling back to MongoDB+Numpy: %s", e
+        )
+else:
+    logger.warning(
+        "PINECONE_API_KEY not set — face embeddings will use MongoDB+Numpy fallback only"
     )
-    CHROMA_AVAILABLE = True
-    logger.info("ChromaDB initialized successfully at %s", chroma_path)
-except Exception as e:
-    logger.warning("ChromaDB initialization failed, falling back to MongoDB + Numpy: %s", e)
 
+
+# ──────────────────────────────────────────────────────────────────────────────
 
 class VectorSearchService:
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+
     @staticmethod
     def cosine_similarity_np(v1: List[float], v2: List[float]) -> float:
-        """Calculate cosine similarity between two vectors using numpy."""
-        arr1 = np.array(v1, dtype=np.float32)
-        arr2 = np.array(v2, dtype=np.float32)
-        dot = np.dot(arr1, arr2)
-        norm1 = np.linalg.norm(arr1)
-        norm2 = np.linalg.norm(arr2)
-        if norm1 == 0 or norm2 == 0:
+        """Cosine similarity between two vectors using numpy."""
+        a1 = np.array(v1, dtype=np.float32)
+        a2 = np.array(v2, dtype=np.float32)
+        dot  = np.dot(a1, a2)
+        n1   = np.linalg.norm(a1)
+        n2   = np.linalg.norm(a2)
+        if n1 == 0 or n2 == 0:
             return 0.0
-        return float(dot / (norm1 * norm2))
+        return float(dot / (n1 * n2))
+
+    # ── Write ─────────────────────────────────────────────────────────────────
 
     @staticmethod
-    async def add_face_embedding(user_id: str, embedding_vector: List[float], angle: str, lighting: str = "normal") -> str:
+    async def add_face_embedding(
+        user_id: str,
+        embedding_vector: List[float],
+        angle: str,
+        lighting: str = "normal",
+    ) -> str:
         """
-        Store embedding vector in ChromaDB (if available) and MongoDB for durability/fallback.
+        Store a face embedding in:
+          1. Pinecone (primary, cloud-hosted vector DB)
+          2. MongoDB  (always, acts as durable backup + numpy fallback)
         """
-        embedding_id = f"{user_id}_{angle}_{int(np.random.randint(1000, 9999))}"
-        
-        # Save to MongoDB
+        embedding_id = f"{user_id}_{angle}_{random.randint(10000, 99999)}"
+
+        # 1. Always save to MongoDB for durability
         await db.face_embeddings.insert_one({
-            "userId": user_id,
-            "embeddingVector": embedding_vector,
-            "angle": angle,
+            "userId":           user_id,
+            "embeddingVector":  embedding_vector,
+            "angle":            angle,
             "lightingCondition": lighting,
-            "createdAt": np.datetime64('now').astype(str)
+            "createdAt":        datetime.utcnow().isoformat(),
         })
-        
-        # Save to ChromaDB if available
-        if CHROMA_AVAILABLE and chroma_collection:
+        logger.info("MongoDB: saved embedding for user=%s angle=%s", user_id, angle)
+
+        # 2. Upsert into Pinecone
+        if PINECONE_AVAILABLE and pinecone_index is not None:
             try:
-                chroma_collection.add(
-                    embeddings=[embedding_vector],
-                    metadatas=[{"user_id": user_id, "angle": angle, "lighting": lighting}],
-                    ids=[embedding_id]
+                pinecone_index.upsert(
+                    vectors=[{
+                        "id":       embedding_id,
+                        "values":   embedding_vector,
+                        "metadata": {
+                            "user_id":  user_id,
+                            "angle":    angle,
+                            "lighting": lighting,
+                        },
+                    }]
                 )
-                logger.info("Added face embedding to ChromaDB for user: %s (angle: %s)", user_id, angle)
+                logger.info("Pinecone: upserted embedding id=%s user=%s", embedding_id, user_id)
             except Exception as e:
-                logger.error("Failed to add embedding to ChromaDB: %s", e)
-                
+                logger.error("Pinecone upsert failed: %s", e, exc_info=True)
+
         return embedding_id
 
+    # ── Search ────────────────────────────────────────────────────────────────
+
     @staticmethod
-    async def search_nearest_neighbors(query_vector: List[float], limit: int = 5) -> List[Dict[str, Any]]:
+    async def search_nearest_neighbors(
+        query_vector: List[float],
+        limit: int = 5,
+    ) -> List[Dict[str, Any]]:
         """
-        Search for nearest neighbor face embeddings using Cosine Similarity.
-        Attempts ChromaDB search, falls back to raw MongoDB vector similarity calculation.
+        Nearest-neighbour search using cosine similarity.
+        Tries Pinecone first, falls back to MongoDB+Numpy.
         """
-        # Try ChromaDB
-        if CHROMA_AVAILABLE and chroma_collection:
+        # ── Pinecone path ──────────────────────────────────────────────────
+        if PINECONE_AVAILABLE and pinecone_index is not None:
             try:
-                results = chroma_collection.query(
-                    query_embeddings=[query_vector],
-                    n_results=limit
+                result = pinecone_index.query(
+                    vector=query_vector,
+                    top_k=limit,
+                    include_metadata=True,
                 )
-                
-                # Format ChromaDB output
                 hits = []
-                if results and results['ids'] and len(results['ids'][0]) > 0:
-                    for i in range(len(results['ids'][0])):
-                        user_id = results['metadatas'][0][i]['user_id']
-                        # Chroma distance is Cosine Distance (1 - Cosine Similarity)
-                        # Let's convert it to Cosine Similarity score (1 - distance)
-                        distance = results['distances'][0][i]
-                        similarity = 1.0 - distance
-                        hits.append({
-                            "userId": user_id,
-                            "similarity": similarity,
-                            "metadata": results['metadatas'][0][i]
-                        })
-                return hits
+                for match in result.get("matches", []):
+                    # Pinecone cosine score is already similarity (0-1)
+                    hits.append({
+                        "userId":     match["metadata"]["user_id"],
+                        "similarity": float(match["score"]),
+                        "metadata":   match["metadata"],
+                    })
+                if hits:
+                    logger.info("Pinecone: returned %d matches", len(hits))
+                    return hits
+                logger.info("Pinecone: no matches found, falling back to MongoDB")
             except Exception as e:
-                logger.error("ChromaDB query failed, running MongoDB + Numpy fallback: %s", e)
-        
-        # Fallback: MongoDB + Numpy cosine similarity check
-        logger.info("Running Numpy fallback vector similarity search")
-        cursor = db.face_embeddings.find({}, {"userId": 1, "embeddingVector": 1, "angle": 1, "lightingCondition": 1})
-        all_embeddings = await cursor.to_list(length=1000)
-        
+                logger.error("Pinecone query failed, using MongoDB fallback: %s", e)
+
+        # ── MongoDB + Numpy fallback ───────────────────────────────────────
+        logger.info("Running MongoDB+Numpy similarity search")
+        cursor = db.face_embeddings.find(
+            {},
+            {"userId": 1, "embeddingVector": 1, "angle": 1, "lightingCondition": 1},
+        )
+        all_docs = await cursor.to_list(length=1000)
+
         hits = []
-        for doc in all_embeddings:
-            db_vector = doc.get("embeddingVector")
-            if not db_vector:
+        for doc in all_docs:
+            vec = doc.get("embeddingVector")
+            if not vec:
                 continue
-            similarity = VectorSearchService.cosine_similarity_np(query_vector, db_vector)
+            sim = VectorSearchService.cosine_similarity_np(query_vector, vec)
             hits.append({
-                "userId": doc["userId"],
-                "similarity": similarity,
+                "userId":     doc["userId"],
+                "similarity": sim,
                 "metadata": {
-                    "user_id": doc["userId"],
-                    "angle": doc.get("angle", "unknown"),
-                    "lighting": doc.get("lightingCondition", "normal")
-                }
+                    "user_id":  doc["userId"],
+                    "angle":    doc.get("angle", "unknown"),
+                    "lighting": doc.get("lightingCondition", "normal"),
+                },
             })
-            
-        # Sort by similarity descending
+
         hits.sort(key=lambda x: x["similarity"], reverse=True)
         return hits[:limit]
 
+    # ── Utility ───────────────────────────────────────────────────────────────
+
     @staticmethod
-    async def get_average_embedding(user_id: str) -> List[float] | None:
-        """
-        Average all stored embeddings for a user to create a robust identity profile representation.
-        """
+    async def get_average_embedding(user_id: str) -> Optional[List[float]]:
+        """Average all stored embeddings for a user into one representative vector."""
         cursor = db.face_embeddings.find({"userId": user_id}, {"embeddingVector": 1})
-        docs = await cursor.to_list(length=100)
-        
+        docs   = await cursor.to_list(length=100)
         if not docs:
             return None
-            
-        vectors = [doc["embeddingVector"] for doc in docs]
+        vectors    = [doc["embeddingVector"] for doc in docs]
         avg_vector = np.mean(vectors, axis=0).tolist()
         return avg_vector
 
     @staticmethod
-    async def delete_user_embeddings(user_id: str):
-        """Delete all face embeddings for a user."""
+    async def delete_user_embeddings(user_id: str) -> None:
+        """Remove all face embeddings for a user from MongoDB and Pinecone."""
+
+        # MongoDB
         await db.face_embeddings.delete_many({"userId": user_id})
-        
-        if CHROMA_AVAILABLE and chroma_collection:
+        logger.info("MongoDB: deleted all embeddings for user=%s", user_id)
+
+        # Pinecone — fetch IDs that belong to this user then delete them
+        if PINECONE_AVAILABLE and pinecone_index is not None:
             try:
-                chroma_collection.delete(where={"user_id": user_id})
-                logger.info("Deleted embeddings in ChromaDB for user %s", user_id)
+                # List vectors by metadata filter (requires metadata filtering enabled on index)
+                # Use a dummy query to find all vectors for this user
+                result = pinecone_index.query(
+                    vector=[0.0] * EMBEDDING_DIM,
+                    top_k=100,
+                    include_metadata=True,
+                    filter={"user_id": {"$eq": user_id}},
+                )
+                ids_to_delete = [m["id"] for m in result.get("matches", [])]
+                if ids_to_delete:
+                    pinecone_index.delete(ids=ids_to_delete)
+                    logger.info(
+                        "Pinecone: deleted %d vectors for user=%s",
+                        len(ids_to_delete),
+                        user_id,
+                    )
+                else:
+                    logger.info("Pinecone: no vectors found for user=%s to delete", user_id)
             except Exception as e:
-                logger.error("Failed to delete embeddings in ChromaDB: %s", e)
+                logger.error("Pinecone delete failed for user=%s: %s", user_id, e, exc_info=True)

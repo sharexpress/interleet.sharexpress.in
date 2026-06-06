@@ -18,3 +18,4 @@ PyMuPDF
 requests
 python-slugify
 cloudinary
+pinecone

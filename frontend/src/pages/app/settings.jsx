@@ -5,7 +5,7 @@ import {
   User, Mail, Phone, KeyRound, ChevronRight, ExternalLink, Github,
   ShieldCheck, ShieldAlert, Camera, Fingerprint, Trash2, ArrowRight, Scan, CheckCircle2
 } from "lucide-react";
-import { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { toast } from "sonner";
 import { FaceScanner } from "@/components/auth/FaceScanner";
@@ -190,9 +190,9 @@ function AccountSection() {
 
 const ENROLL_STEPS = [
   { key: "front", label: "Front Look", instruction: "Look directly at the camera with a neutral face", angle: "front" },
-  { key: "left", label: "Left Angle", instruction: "Turn your head slightly to the left", angle: "left" },
-  { key: "right", label: "Right Angle", instruction: "Turn your head slightly to the right", angle: "right" },
-  { key: "smile", label: "Smiling Face", instruction: "Smile widely showing your teeth", angle: "smile" },
+  { key: "left",  label: "Left Angle",  instruction: "Turn your head slightly to the left",            angle: "left" },
+  { key: "right", label: "Right Angle", instruction: "Turn your head slightly to the right",           angle: "right" },
+  { key: "smile", label: "Smiling Face", instruction: "Smile widely showing your teeth",               angle: "smile" },
 ];
 
 /* ─── Security Section ───────────────────────────────────────────────────── */
@@ -205,11 +205,15 @@ function SecuritySection() {
   // Enrollment state
   const [enrolling, setEnrolling] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  // scannerKey is what's passed as key= to FaceScanner — only changes AFTER the 800ms delay
+  // so the camera doesn't remount and re-fire before we're ready
+  const [scannerKey, setScannerKey] = useState(0);
   const [capturedData, setCapturedData] = useState({});
   const [scanStatus, setScanStatus] = useState("idle");
   const [scanError, setScanError] = useState("");
-  const [challengeProgress, setChallengeProgress] = useState(0);
   const [deleting, setDeleting] = useState(false);
+  // Hard lock ref — prevents double-fire even within the same render cycle
+  const processingRef = React.useRef(false);
 
   const activeStep = ENROLL_STEPS[currentStepIndex];
   const allCaptured = currentStepIndex >= ENROLL_STEPS.length;
@@ -217,19 +221,41 @@ function SecuritySection() {
   /* ── Capture handlers ────────────────────────────────────────────────── */
 
   const handleCaptureComplete = useCallback(async (frames) => {
-    if (scanStatus === "validating" || scanStatus === "success") return;
+    // Hard ref lock: prevents re-entry even during async gaps
+    if (processingRef.current) return;
+    if (scanStatus === "validating" || scanStatus === "success" || scanStatus === "uploading") return;
+    processingRef.current = true;
 
     setScanStatus("validating");
     const frame = frames[0];
+    const isLastStep = currentStepIndex === ENROLL_STEPS.length - 1;
 
-    setCapturedData((prev) => ({ ...prev, [activeStep.key]: frame }));
-    toast.success(`${activeStep.label} captured!`);
+    // Capture frame for this step
+    setCapturedData((prev) => {
+      const next = { ...prev, [activeStep.key]: frame };
 
-    setTimeout(() => {
-      setScanStatus("idle");
-      setCurrentStepIndex((prev) => prev + 1);
-    }, 800);
-  }, [scanStatus, activeStep, capturedData, user]);
+      if (isLastStep) {
+        // Last step done — submit everything after a short pause
+        toast.success(`${activeStep.label} captured!`);
+        setTimeout(() => submitRegistration(next), 600);
+      }
+
+      return next;
+    });
+
+    if (!isLastStep) {
+      toast.success(`${activeStep.label} captured!`);
+      setTimeout(() => {
+        setScanStatus("idle");
+        setScannerKey((k) => k + 1);
+        setCurrentStepIndex((prev) => prev + 1);
+        processingRef.current = false;
+      }, 900);
+    } else {
+      // Keep status as "validating" until submitRegistration takes over
+      setScanStatus("uploading");
+    }
+  }, [scanStatus, activeStep, currentStepIndex, user]);
 
   const submitRegistration = async (completeData) => {
     setScanStatus("uploading");
@@ -253,20 +279,22 @@ function SecuritySection() {
       })
     );
 
+    processingRef.current = false;
+
     if (RegisterFace.fulfilled.match(result)) {
       setScanStatus("success");
-      toast.success("Face ID enrolled successfully!");
+      toast.success("Face ID enrolled successfully! You can now log in with Face ID.");
       await dispatch(GetCurrentUser());
-      // Reset enrollment UI after a short delay
       setTimeout(() => {
         setEnrolling(false);
         setCurrentStepIndex(0);
+        setScannerKey(0);
         setCapturedData({});
         setScanStatus("idle");
-      }, 1500);
+      }, 2000);
     } else {
       setScanStatus("error");
-      setScanError(result.payload?.detail || "Face ID registration failed.");
+      setScanError(result.payload?.detail || "Face ID registration failed. Please retry.");
     }
   };
 
@@ -290,19 +318,23 @@ function SecuritySection() {
   /* ── Start enrollment ────────────────────────────────────────────────── */
 
   const startEnrollment = () => {
+    processingRef.current = false;
     setEnrolling(true);
     setCurrentStepIndex(0);
+    setScannerKey(0);
     setCapturedData({});
     setScanStatus("idle");
     setScanError("");
-    setChallengeProgress(0);
   };
 
   const cancelEnrollment = () => {
+    processingRef.current = false;
     setEnrolling(false);
     setCurrentStepIndex(0);
+    setScannerKey(0);
     setCapturedData({});
     setScanStatus("idle");
+    setScanError("");
   };
 
   /* ─── Render ─────────────────────────────────────────────────────────── */
@@ -397,20 +429,21 @@ function SecuritySection() {
               Step {currentStepIndex + 1} of {ENROLL_STEPS.length}: {activeStep.label}
             </p>
 
-            {/* Camera */}
+            {/* Camera — key=scannerKey means it only remounts when we explicitly allow it */}
             <FaceScanner
+              key={scannerKey}
               onFrameCaptured={null}
               onCaptureComplete={handleCaptureComplete}
-              activeChallenge={activeStep.key === "blink" ? "blink" : null}
-              challengeProgress={challengeProgress}
-              maxFrames={activeStep.key === "blink" ? 5 : 1}
-              autoCaptureInterval={activeStep.key === "blink" ? 500 : 2500}
+              activeChallenge={null}
+              challengeProgress={0}
+              maxFrames={1}
+              autoCaptureInterval={3000}
               statusMessage={
                 scanStatus === "uploading"
-                  ? "Securing embeddings in vector DB..."
+                  ? "Saving your Face ID — please wait..."
                   : scanStatus === "validating"
-                  ? "Processing face landmarks..."
-                  : activeStep.instruction
+                  ? "Processing face..."
+                  : activeStep?.instruction ?? ""
               }
               isProcessing={scanStatus === "validating" || scanStatus === "uploading"}
               isSuccess={scanStatus === "success"}
@@ -422,9 +455,12 @@ function SecuritySection() {
               <Button
                 className="w-full text-xs"
                 onClick={() => {
+                  processingRef.current = false;
                   setScanStatus("idle");
                   setScanError("");
                   setChallengeProgress(0);
+                  // Remount FaceScanner cleanly on retry
+                  setScannerKey((k) => k + 1);
                 }}
               >
                 Retry Step

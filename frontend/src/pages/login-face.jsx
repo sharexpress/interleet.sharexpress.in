@@ -53,23 +53,28 @@ export default function LoginFacePage() {
         }
       } else {
         const errorData = result.payload;
+        const detail = errorData?.detail || "";
         if (errorData?.challenge_required) {
           // LLM/Rules requested a liveness check
           toast.info("Liveness confirmation required to trust this device.");
           startLivenessChallenge(errorData.email);
-        } else {
-          const detail = errorData?.detail || "";
+        } else if (detail.toLowerCase().includes("not registered") || detail.toLowerCase().includes("enroll")) {
           setScanStatus("error");
-          setScanError(
-            detail.includes("Face ID not registered")
-              ? "You haven't set up Face ID yet. Go to Settings → Security to enroll."
-              : detail || "Biometric credentials match failed."
-          );
+          setScanError("Face ID not set up yet. Go to Settings → Security to enroll your face first.");
+        } else {
+          setScanStatus("error");
+          setScanError(detail || "Biometric credentials match failed.");
         }
       }
     } catch (err) {
-      setScanStatus("error");
-      setScanError("Connection error. Biometrics verification unavailable.");
+      const status = err?.response?.status || err?.status;
+      if (status === 403) {
+        setScanStatus("error");
+        setScanError("Face ID not set up yet. Go to Settings → Security to enroll your face first.");
+      } else {
+        setScanStatus("error");
+        setScanError("Connection error. Biometrics verification unavailable.");
+      }
     }
   };
 
