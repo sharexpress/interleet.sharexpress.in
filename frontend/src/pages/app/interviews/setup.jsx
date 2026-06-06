@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { API } from "@/api/api";
+import { useAppDispatch } from "@/redux/hooks";
+import { setSetupPayload, clearSession } from "@/redux/slices/interviewsSlice";
 
 const ROLE_JDS = {
   "Senior Backend Engineer": {
@@ -165,8 +167,30 @@ const ROLE_JDS = {
   }
 };
 
+// ─── interview_type mapping ───────────────────────────────────────────────────
+const ROLE_INTERVIEW_TYPE = {
+  "Senior Backend Engineer": "backend",
+  "Frontend Architect": "frontend",
+  "System Design (L5)": "system_design",
+  "DevOps Lead": "devops",
+  "API Design": "backend",
+  "Full-Stack Generalist": "fullstack",
+};
+
+const ROLE_TOPICS = {
+  "Senior Backend Engineer": ["System Design", "Databases", "Concurrency", "Microservices", "Caching"],
+  "Frontend Architect": ["React", "State Management", "Performance", "TypeScript", "Testing"],
+  "System Design (L5)": ["Scalability", "CAP Theorem", "Load Balancing", "Data Modeling", "Resilience"],
+  "DevOps Lead": ["CI/CD", "Docker", "Kubernetes", "Cloud Infrastructure", "Monitoring"],
+  "API Design": ["REST", "GraphQL", "Auth", "Rate Limiting", "Versioning"],
+  "Full-Stack Generalist": ["React", "Node.js", "SQL", "APIs", "Testing"],
+};
+
+const DIFFICULTY_MAP = { Easy: "easy", Intermediate: "medium", Hard: "hard" };
+
 function InterviewSetupPage() {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
 
   const roleParam = searchParams.get("role") || "Senior Backend Engineer";
@@ -364,7 +388,15 @@ function InterviewSetupPage() {
 
   const startInterview = () => {
     stopMic();
-    let finalJD = "";
+
+    // ── Build topics list ──────────────────────────────────────────────────
+    const baseTopic = ROLE_TOPICS[roleParam] || [];
+    const resumeTopics = useResume && resumeUploaded && parsedJD?.topics?.length
+      ? parsedJD.topics
+      : baseTopic;
+
+    // ── Build job description string ───────────────────────────────────────
+    let finalJD = jdData.overview;
     if (useResume && resumeUploaded && parsedJD) {
       const topicsStr = parsedJD.topics?.length
         ? `Focus topics: ${parsedJD.topics.join(", ")}.`
@@ -373,12 +405,43 @@ function InterviewSetupPage() {
         ? `Key skills: ${parsedJD.skills.join(", ")}.`
         : "";
       finalJD = `${jdData.overview} ${topicsStr} ${skillsStr}`.trim();
-    } else {
-      finalJD = jdData.overview;
     }
 
-    const path = `/app/interviews/live?role=${encodeURIComponent(roleParam)}&difficulty=${encodeURIComponent(difficulty)}&jd=${encodeURIComponent(finalJD)}`;
-    navigate(path);
+    // ── Build parsed_resume for backend ───────────────────────────────────
+    const parsed_resume = useResume && resumeUploaded && parsedJD
+      ? {
+          summary: parsedJD.summary || "",
+          skills: parsedJD.skills || [],
+          technologies: parsedJD.technologies || [],
+          experience: [],
+          projects: [],
+        }
+      : {
+          summary: "",
+          skills: [],
+          technologies: jdData.technologies || [],
+          experience: [],
+          projects: [],
+        };
+
+    // ── Build mock_test for backend ────────────────────────────────────────
+    const mock_test = {
+      role: roleParam,
+      interview_type: ROLE_INTERVIEW_TYPE[roleParam] || "technical",
+      difficulty: DIFFICULTY_MAP[difficulty] || "medium",
+      job_description: finalJD,
+      topics: resumeTopics,
+      max_questions: 8,
+      min_questions: 5,
+    };
+
+    // ── Dispatch to Redux and navigate ─────────────────────────────────────
+    dispatch(clearSession());
+    dispatch(setSetupPayload({ mock_test, parsed_resume }));
+
+    navigate(
+      `/app/interviews/live?role=${encodeURIComponent(roleParam)}&difficulty=${encodeURIComponent(difficulty)}`
+    );
   };
 
 

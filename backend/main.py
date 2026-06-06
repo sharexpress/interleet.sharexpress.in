@@ -59,3 +59,6 @@ app.include_router(challenge_router)
 
 if __name__ == "__main__":
     uvicorn.run(host="127.0.0.1", port=8000, reload=True)
+
+# Trigger reload for .env config
+
