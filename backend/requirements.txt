@@ -17,3 +17,4 @@ groq
 PyMuPDF
 requests
 python-slugify
+cloudinary

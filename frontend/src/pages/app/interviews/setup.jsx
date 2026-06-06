@@ -187,6 +187,7 @@ function InterviewSetupPage() {
   const [micPermission, setMicPermission] = useState("prompt"); // prompt, granted, denied
   const [volumeLevel, setVolumeLevel] = useState(0);
   const [isSpeakerPlaying, setIsSpeakerPlaying] = useState(false);
+  const [speakerVerified, setSpeakerVerified] = useState(false);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
   const streamRef = useRef(null);
@@ -292,6 +293,7 @@ function InterviewSetupPage() {
 
       setTimeout(() => {
         setIsSpeakerPlaying(false);
+        setSpeakerVerified(true);
         toast.success("Test chime played successfully!");
       }, 1200);
     } catch (e) {
@@ -325,29 +327,36 @@ function InterviewSetupPage() {
 
     try {
       const response = await API.post("/resume/parse", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
+
+      const data = response.data;
+      const resumeData = data?.parsed_resume || {};
+      const mockTest = data?.mock_test || {};
 
       setResumeUploaded(true);
-      const skills = response.data?.skills?.slice(0, 8) || [];
-      const experience = response.data?.experience || "";
-      
       setParsedJD({
-        skills: skills,
-        experienceSummary: experience ? experience.substring(0, 200) + "..." : ""
+        skills: resumeData.skills?.slice(0, 8) || [],
+        technologies: resumeData.technologies?.slice(0, 6) || [],
+        summary: resumeData.summary || "",
+        topics: mockTest.topics || [],
+        cloudinaryUrl: data?.cloudinary?.secure_url || "",
       });
 
-      toast.success("Resume processed and aligned!");
+      toast.success("Resume parsed and interview tailored!");
     } catch (err) {
       console.error("Resume parsing error:", err);
-      toast.error("Failed to parse resume. Falling back to default syllabus configuration.");
+      const status = err?.response?.status;
+      if (status === 422) {
+        toast.error("Only PDF files are supported.");
+      } else if (status === 413) {
+        toast.error("File too large — max 5 MB.");
+      } else {
+        toast.error("Resume parsing failed. Using standard syllabus.");
+      }
+      // Still mark as "uploaded" so user can proceed
       setResumeUploaded(true);
-      setParsedJD({
-        skills: ["Database schemas", "FastAPI context", "Async controls"],
-        experienceSummary: "Simulated experience details for tailored assessment."
-      });
+      setParsedJD({ skills: [], technologies: [], summary: "", topics: [], cloudinaryUrl: "" });
     } finally {
       setIsParsing(false);
     }
@@ -357,14 +366,21 @@ function InterviewSetupPage() {
     stopMic();
     let finalJD = "";
     if (useResume && resumeUploaded && parsedJD) {
-      finalJD = `Resume customized interview: Focus skills: ${parsedJD.skills.join(", ")}. Experience highlight: ${parsedJD.experienceSummary}`;
+      const topicsStr = parsedJD.topics?.length
+        ? `Focus topics: ${parsedJD.topics.join(", ")}.`
+        : "";
+      const skillsStr = parsedJD.skills?.length
+        ? `Key skills: ${parsedJD.skills.join(", ")}.`
+        : "";
+      finalJD = `${jdData.overview} ${topicsStr} ${skillsStr}`.trim();
     } else {
       finalJD = jdData.overview;
     }
-    
+
     const path = `/app/interviews/live?role=${encodeURIComponent(roleParam)}&difficulty=${encodeURIComponent(difficulty)}&jd=${encodeURIComponent(finalJD)}`;
     navigate(path);
   };
+
 
   return (
     <AppShell>
@@ -433,8 +449,14 @@ function InterviewSetupPage() {
                     <Sparkles className="h-4 w-4 text-success" />
                     <AlertTitle className="font-semibold text-success">Resume Customization Active</AlertTitle>
                     <AlertDescription className="text-zinc-300 text-xs mt-1">
-                      The AI will adapt the questions to prioritize your background skills: <strong>{parsedJD.skills.join(", ")}</strong>.
-                      {parsedJD.experienceSummary && <p className="mt-2 text-zinc-400 italic">Parsed Highlights: {parsedJD.experienceSummary}</p>}
+                      {parsedJD.topics?.length > 0 ? (
+                        <>Interview will focus on: <strong>{parsedJD.topics.join(", ")}</strong>.</>
+                      ) : (
+                        "AI will adapt questions based on your resume."
+                      )}
+                      {parsedJD.summary && (
+                        <p className="mt-2 text-zinc-400 italic line-clamp-2">{parsedJD.summary}</p>
+                      )}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -659,6 +681,9 @@ function InterviewSetupPage() {
             <div className="space-y-3 border-t border-zinc-800/60 pt-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">2. Speaker Output</span>
+                {speakerVerified && (
+                  <Badge className="bg-success/20 text-success border-success/30 text-[10px]">Verified</Badge>
+                )}
               </div>
               <p className="text-[11px] text-zinc-400 leading-relaxed">
                 Play a brief sine wave chime to confirm you can hear the AI's prompts clearly.
@@ -670,7 +695,7 @@ function InterviewSetupPage() {
                 className="w-full border-zinc-800 bg-zinc-950 hover:bg-zinc-900 text-zinc-300 text-xs py-2 h-9"
               >
                 <Volume2 className={`mr-1.5 h-3.5 w-3.5 text-primary ${isSpeakerPlaying ? "animate-bounce" : ""}`} />
-                {isSpeakerPlaying ? "Playing chime..." : "Verify Speakers"}
+                {isSpeakerPlaying ? "Playing chime..." : speakerVerified ? "Verify Speakers Again" : "Verify Speakers"}
               </Button>
             </div>
           </div>
@@ -688,7 +713,7 @@ function InterviewSetupPage() {
             
             <Button
               onClick={startInterview}
-              disabled={micPermission !== "granted"}
+              disabled={micPermission !== "granted" || !speakerVerified}
               className="bg-primary hover:bg-orange-600 text-white font-medium text-xs px-6"
             >
               Enter Interview Arena <ArrowRight className="ml-1.5 h-3.5 w-3.5" />

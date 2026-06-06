@@ -42,7 +42,7 @@ function ReportPage() {
         title="Interview report"
         badge={id}
         description="Rubric-graded breakdown of your session with personalized recommendations."
-        actions={<Button asChild><Link to="/app/interviews/live">Run another <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>} />
+        actions={<Button asChild><Link to="/app/interviews">Run another <ArrowRight className="ml-1.5 h-4 w-4" /></Link></Button>} />
       
       <div className="space-y-6 px-4 py-6 md:px-8">
         <div className="grid gap-4 md:grid-cols-4">
