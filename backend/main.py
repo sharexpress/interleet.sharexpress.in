@@ -12,9 +12,11 @@ from app.routers.interview import router as interview_router
 from app.routers.resume import router as resume_router
 from app.routers.challenges import router as challenge_router
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from app.routers.face import router as face_router
 
 
-load_dotenv()
+load_dotenv(override=True)
 
 # INCLUDE ROUTERS
 
@@ -51,10 +53,16 @@ async def home(db: AsyncIOMotorDatabase = Depends(get_db)):
     return {"message": True}
 
 
+# Create uploads folder if missing so static mount doesn't crash on startup
+import os
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 app.include_router(user_router)
 app.include_router(resume_router)
 app.include_router(interview_router)
 app.include_router(challenge_router)
+app.include_router(face_router)
 
 
 if __name__ == "__main__":

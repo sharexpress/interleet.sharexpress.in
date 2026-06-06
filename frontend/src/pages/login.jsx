@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { Camera } from "lucide-react";
 
 const OTP_LENGTH = 6;
 const RESEND_COOLDOWN = 30;
@@ -237,6 +238,12 @@ function LoginPage() {
               {loading ? "Sending code..." : "Continue"}
             </Button>
           </form>
+          <div className="flex items-center justify-center mt-4">
+            <Button variant="outline" onClick={() => navigate('/login-face')} className="w-full max-w-xs border border-zinc-200 bg-white text-black hover:bg-zinc-100 hover:border-zinc-300">
+              <Camera className="mr-2 h-4 w-4" />
+              Sign in with Face ID
+            </Button>
+          </div>
         </>
       )}
 

@@ -97,6 +97,41 @@ export const CompleteOnboarding = createAsyncThunk(
   },
 );
 
+export const RegisterFace = createAsyncThunk(
+  "AUTH/REGISTER_FACE",
+  async ({ email, frames, angles, deviceFingerprint }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await API.post("/api/face/register", {
+        email,
+        frames,
+        angles,
+        device_fingerprint: deviceFingerprint,
+      });
+      await dispatch(GetCurrentUser());
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: "FACE REGISTRATION FAILED" });
+    }
+  }
+);
+
+export const LoginFace = createAsyncThunk(
+  "AUTH/LOGIN_FACE",
+  async ({ email, frame, deviceFingerprint }, { dispatch, rejectWithValue }) => {
+    try {
+      const response = await API.post("/api/face/login", {
+        email,
+        frame,
+        device_fingerprint: deviceFingerprint,
+      });
+      await dispatch(GetCurrentUser());
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: "FACE LOGIN FAILED" });
+    }
+  }
+);
+
 const userSlice = createSlice({
   name: "user",
 
@@ -227,6 +262,44 @@ const userSlice = createSlice({
     builder.addCase(CompleteOnboarding.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload?.detail || action.payload?.message || "ONBOARDING FAILED";
+    });
+
+    // ─── RegisterFace ───────────────────────────────────────────────────────
+    builder.addCase(RegisterFace.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+      state.success = false;
+    });
+
+    builder.addCase(RegisterFace.fulfilled, (state) => {
+      state.loading = false;
+      state.success = true;
+      state.error = null;
+    });
+
+    builder.addCase(RegisterFace.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload?.detail || action.payload?.message || "FACE REGISTRATION FAILED";
+      state.success = false;
+    });
+
+    // ─── LoginFace ──────────────────────────────────────────────────────────
+    builder.addCase(LoginFace.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+      state.success = false;
+    });
+
+    builder.addCase(LoginFace.fulfilled, (state) => {
+      state.loading = false;
+      state.success = true;
+      state.error = null;
+    });
+
+    builder.addCase(LoginFace.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload?.detail || action.payload?.message || "FACE LOGIN FAILED";
+      state.success = false;
     });
   },
 });

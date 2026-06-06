@@ -125,11 +125,10 @@ function TranscriptMessage({ msg }) {
         )}
       </div>
       <div
-        className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-          isAI
+        className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${isAI
             ? "rounded-tl-sm bg-zinc-900/80 border border-zinc-800 text-zinc-100"
             : "rounded-tr-sm bg-primary/90 text-white"
-        }`}
+          }`}
       >
         {msg.text}
       </div>
@@ -139,6 +138,37 @@ function TranscriptMessage({ msg }) {
           Score: {msg.evaluation.score ?? "—"}/10 · {msg.evaluation.summary ?? ""}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Audio Visualizer ───────────────────────────────────────────────────────
+
+function AudioVisualizer({ levels, isListening }) {
+  if (!isListening) {
+    return (
+      <div className="flex items-center gap-1 h-4 px-1">
+        {[...Array(5)].map((_, i) => (
+          <div
+            key={i}
+            className="w-1 h-1.5 rounded-full bg-zinc-700/60"
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-end gap-1 h-4 px-1">
+      {levels.map((level, i) => (
+        <div
+          key={i}
+          className="w-1 rounded-full bg-gradient-to-t from-primary via-orange-500 to-amber-400 transition-all duration-75"
+          style={{
+            height: `${Math.max(20, level)}%`,
+          }}
+        />
+      ))}
     </div>
   );
 }
@@ -183,10 +213,47 @@ function LiveInterview() {
   const [hasSttSupport] = useState(() => !!SpeechRecognition);
   const [sessionStarted, setSessionStarted] = useState(false);
 
+  // New state for interaction mode and silence auto-submit
+  const [interactionMode, setInteractionMode] = useState("auto"); // "auto", "ptt", "keyboard"
+  const [countdownPercent, setCountdownPercent] = useState(100);
+  const [audioLevels, setAudioLevels] = useState([0, 0, 0, 0, 0]);
+
   const transcriptRef = useRef(null);
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const lastQuestionRef = useRef("");
+
+  // Refs for tracking values inside event handlers (preventing stale closures)
+  const sessionIdRef = useRef(sessionId);
+  const isSubmittingRef = useRef(isSubmitting);
+  const currentTopicRef = useRef(currentTopic);
+  const isMutedRef = useRef(isMuted);
+  const interactionModeRef = useRef(interactionMode);
+  const isSpeakingRef = useRef(isSpeaking);
+  const isCompletedRef = useRef(isCompleted);
+  const textInputRef = useRef(textInput);
+
+  // Sync refs with state
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+    isSubmittingRef.current = isSubmitting;
+    currentTopicRef.current = currentTopic;
+    isMutedRef.current = isMuted;
+    interactionModeRef.current = interactionMode;
+    isSpeakingRef.current = isSpeaking;
+    isCompletedRef.current = isCompleted;
+    textInputRef.current = textInput;
+  }, [sessionId, isSubmitting, currentTopic, isMuted, interactionMode, isSpeaking, isCompleted, textInput]);
+
+  // Audio Analyser refs
+  const audioContextRef = useRef(null);
+  const audioStreamRef = useRef(null);
+  const audioAnalyserRef = useRef(null);
+  const audioAnimationRef = useRef(null);
+
+  // Silence Timer refs
+  const silenceTimerIdRef = useRef(null);
+  const countdownIntervalIdRef = useRef(null);
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -222,34 +289,6 @@ function LiveInterview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── TTS: speak whenever question changes ───────────────────────────────────
-  useEffect(() => {
-    const msg = currentPreamble
-      ? `${currentPreamble}. ${currentQuestion}`
-      : currentQuestion;
-
-    if (!msg || msg === lastQuestionRef.current) return;
-    lastQuestionRef.current = msg;
-
-    if (!ttsEnabled || !msg) return;
-
-    setIsSpeaking(true);
-    setIsListening(false);
-    recognitionRef.current?.stop();
-
-    speak(
-      msg,
-      () => setIsSpeaking(true),
-      () => {
-        setIsSpeaking(false);
-        if (!isMuted && hasSttSupport) {
-          setTimeout(() => startListening(), 400);
-        }
-      }
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentQuestion]);
-
   // ── Handle completion ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!isCompleted || !sessionId) return;
@@ -273,41 +312,192 @@ function LiveInterview() {
     if (sessionError) toast.error(sessionError);
   }, [sessionError]);
 
+  // Silence timers
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerIdRef.current) {
+      clearTimeout(silenceTimerIdRef.current);
+      silenceTimerIdRef.current = null;
+    }
+    if (countdownIntervalIdRef.current) {
+      clearInterval(countdownIntervalIdRef.current);
+      countdownIntervalIdRef.current = null;
+    }
+    setCountdownPercent(100);
+  }, []);
+
+  const handleSubmitAnswerRef = useRef(null);
+
+  const resetSilenceTimer = useCallback(() => {
+    clearSilenceTimer();
+
+    if (interactionModeRef.current !== "auto") return;
+    if (!textInputRef.current.trim()) return; // Don't trigger if nothing is transcribed
+
+    const start = Date.now();
+    const duration = 2500; // 2.5s silence duration
+
+    countdownIntervalIdRef.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, duration - elapsed);
+      setCountdownPercent((remaining / duration) * 100);
+    }, 100);
+
+    silenceTimerIdRef.current = setTimeout(() => {
+      clearSilenceTimer();
+      const finalVal = textInputRef.current.trim();
+      if (finalVal && handleSubmitAnswerRef.current) {
+        handleSubmitAnswerRef.current(finalVal);
+      }
+    }, duration);
+  }, [clearSilenceTimer]);
+
+  // Audio Analyser
+  const startAudioAnalyser = useCallback(async () => {
+    if (audioContextRef.current) return;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      const context = new AudioContextClass();
+      audioContextRef.current = context;
+
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 32;
+      audioAnalyserRef.current = analyser;
+
+      const source = context.createMediaStreamSource(stream);
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const updateVolume = () => {
+        if (!audioAnalyserRef.current) return;
+        analyser.getByteFrequencyData(dataArray);
+
+        const newLevels = [];
+        const step = Math.floor(bufferLength / 5) || 1;
+        for (let j = 0; j < 5; j++) {
+          const val = dataArray[j * step] || 0;
+          newLevels.push(Math.min(100, Math.floor((val / 200) * 100)));
+        }
+        setAudioLevels(newLevels);
+        audioAnimationRef.current = requestAnimationFrame(updateVolume);
+      };
+
+      audioAnimationRef.current = requestAnimationFrame(updateVolume);
+    } catch (err) {
+      console.warn("Failed to start audio analyser:", err);
+    }
+  }, []);
+
+  const stopAudioAnalyser = useCallback(() => {
+    if (audioAnimationRef.current) {
+      cancelAnimationFrame(audioAnimationRef.current);
+      audioAnimationRef.current = null;
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach((track) => track.stop());
+      audioStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => { });
+      audioContextRef.current = null;
+    }
+    audioAnalyserRef.current = null;
+    setAudioLevels([0, 0, 0, 0, 0]);
+  }, []);
+
+  useEffect(() => {
+    if (isListening) {
+      startAudioAnalyser();
+    } else {
+      stopAudioAnalyser();
+    }
+  }, [isListening, startAudioAnalyser, stopAudioAnalyser]);
+
   // ── STT Setup ─────────────────────────────────────────────────────────────
   const startListening = useCallback(() => {
-    if (!hasSttSupport || isMuted) return;
+    if (!hasSttSupport || isMutedRef.current || interactionModeRef.current === "keyboard") return;
+
+    try {
+      recognitionRef.current?.abort();
+    } catch (e) { }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => setIsListening(true);
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
     recognition.onend = () => {
       setIsListening(false);
       setInterimText("");
+
+      const shouldRestart =
+        !isMutedRef.current &&
+        !isSubmittingRef.current &&
+        !isSpeakingRef.current &&
+        !isCompletedRef.current &&
+        interactionModeRef.current !== "keyboard";
+
+      if (shouldRestart) {
+        setTimeout(() => {
+          if (
+            !isMutedRef.current &&
+            !isSubmittingRef.current &&
+            !isSpeakingRef.current &&
+            !isCompletedRef.current &&
+            interactionModeRef.current !== "keyboard"
+          ) {
+            try {
+              recognitionRef.current?.start();
+            } catch (err) { }
+          }
+        }, 400);
+      }
     };
+
     recognition.onerror = (e) => {
-      if (e.error !== "aborted") toast.error(`Mic error: ${e.error}`);
+      if (e.error !== "aborted" && e.error !== "no-speech") {
+        console.warn(`Speech recognition error: ${e.error}`);
+        if (e.error === "not-allowed") {
+          toast.error("Microphone access blocked. Please allow mic permissions in your browser.");
+        }
+      }
       setIsListening(false);
       setInterimText("");
     };
+
     recognition.onresult = (e) => {
       let interim = "";
-      let finalText = "";
+      let finalSpeech = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) {
-          finalText += e.results[i][0].transcript;
+          finalSpeech += e.results[i][0].transcript;
         } else {
           interim += e.results[i][0].transcript;
         }
       }
-      setInterimText(interim);
-      if (finalText.trim()) {
-        setInterimText("");
-        handleSubmitAnswer(finalText.trim());
+
+      if (interim.trim() || finalSpeech.trim()) {
+        resetSilenceTimer();
       }
+
+      if (finalSpeech.trim()) {
+        setTextInput((prev) => {
+          const base = prev.trim();
+          return base ? `${base} ${finalSpeech.trim()}` : finalSpeech.trim();
+        });
+      }
+
+      setInterimText(interim);
     };
 
     recognitionRef.current = recognition;
@@ -316,52 +506,67 @@ function LiveInterview() {
     } catch (e) {
       console.warn("Recognition start error:", e);
     }
-  }, [hasSttSupport, isMuted]); // eslint-disable-line
+  }, [hasSttSupport, resetSilenceTimer]);
 
   const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
+    clearSilenceTimer();
+    try {
+      recognitionRef.current?.stop();
+    } catch (e) { }
     setIsListening(false);
     setInterimText("");
-  }, []);
+  }, [clearSilenceTimer]);
 
   const toggleMic = useCallback(() => {
-    if (isMuted) {
-      setIsMuted(false);
-      if (!isSpeaking) startListening();
-    } else {
-      setIsMuted(true);
-      stopListening();
-    }
-  }, [isMuted, isSpeaking, startListening, stopListening]);
+    setIsMuted((prevMuted) => {
+      const nextMuted = !prevMuted;
+      if (nextMuted) {
+        stopListening();
+      } else {
+        if (!isSpeakingRef.current && !isSubmittingRef.current) {
+          setTimeout(() => startListening(), 50);
+        }
+      }
+      return nextMuted;
+    });
+  }, [startListening, stopListening]);
 
   // ── Submit answer ──────────────────────────────────────────────────────────
   const handleSubmitAnswer = useCallback(
     (text) => {
-      if (!text.trim() || !sessionId || isSubmitting) return;
+      const activeSessionId = sessionIdRef.current;
+      const submitting = isSubmittingRef.current;
+      const topic = currentTopicRef.current;
+
+      if (!text.trim() || !activeSessionId || submitting) return;
 
       stopListening();
       window.speechSynthesis?.cancel();
       setIsSpeaking(false);
+      clearSilenceTimer();
 
-      // Append user message to transcript immediately
       dispatch(
         appendTranscript({
           from: "you",
           text: text.trim(),
-          topic: currentTopic,
+          topic: topic,
         })
       );
 
       dispatch(
         submitAnswer({
-          sessionId,
+          sessionId: activeSessionId,
           answer: text.trim(),
-          topic: currentTopic,
+          topic: topic,
         })
       );
     },
-    [sessionId, isSubmitting, currentTopic, dispatch, stopListening]
+    [dispatch, stopListening, clearSilenceTimer]
   );
+
+  useEffect(() => {
+    handleSubmitAnswerRef.current = handleSubmitAnswer;
+  }, [handleSubmitAnswer]);
 
   const handleTextSubmit = (e) => {
     e.preventDefault();
@@ -369,6 +574,73 @@ function LiveInterview() {
     handleSubmitAnswer(textInput.trim());
     setTextInput("");
   };
+
+  // ── TTS: speak whenever question changes ───────────────────────────────────
+  useEffect(() => {
+    const msg = currentPreamble
+      ? `${currentPreamble}. ${currentQuestion}`
+      : currentQuestion;
+
+    if (!msg || msg === lastQuestionRef.current) return;
+    lastQuestionRef.current = msg;
+
+    setTextInput("");
+    setInterimText("");
+    clearSilenceTimer();
+
+    if (!ttsEnabled || !msg) {
+      if (!isMutedRef.current && hasSttSupport && interactionModeRef.current !== "keyboard") {
+        setTimeout(() => startListening(), 100);
+      }
+      return;
+    }
+
+    setIsSpeaking(true);
+    setIsListening(false);
+    try {
+      recognitionRef.current?.abort();
+    } catch (e) { }
+
+    speak(
+      msg,
+      () => {
+        setIsSpeaking(true);
+      },
+      () => {
+        setIsSpeaking(false);
+        if (!isMutedRef.current && hasSttSupport && interactionModeRef.current !== "keyboard") {
+          setTimeout(() => startListening(), 400);
+        }
+      }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentQuestion]);
+
+  // Unmount cleanups
+  useEffect(() => {
+    return () => {
+      clearSilenceTimer();
+      stopAudioAnalyser();
+      window.speechSynthesis?.cancel();
+      try {
+        recognitionRef.current?.abort();
+      } catch (e) { }
+    };
+  }, [clearSilenceTimer, stopAudioAnalyser]);
+
+  // Handle interaction mode changes
+  useEffect(() => {
+    if (interactionMode === "keyboard") {
+      setIsMuted(true);
+      stopListening();
+    } else {
+      setIsMuted(false);
+      if (!isSpeaking && !isSubmitting) {
+        startListening();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interactionMode]);
 
   // ── End call manually ──────────────────────────────────────────────────────
   const handleEndCall = () => {
@@ -481,11 +753,33 @@ function LiveInterview() {
               )}
             </div>
 
-            {/* STT interim preview */}
-            {interimText && (
-              <div className="w-full max-w-2xl rounded-xl border border-zinc-800/40 bg-zinc-900/40 px-4 py-3">
-                <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">You're saying…</p>
-                <p className="text-sm text-zinc-300 italic">{interimText}</p>
+            {/* STT interim preview or silence countdown */}
+            {(interimText || (interactionMode === "auto" && textInput.trim())) && (
+              <div className="w-full max-w-2xl rounded-xl border border-zinc-800/40 bg-zinc-900/40 px-4 py-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+                    {interimText ? "You're saying…" : "Voice Answer Transcribed"}
+                  </p>
+                  {interactionMode === "auto" && textInput.trim() && !isSubmitting && (
+                    <span className="text-[10px] text-amber-500 font-medium">
+                      Auto-submitting in {((countdownPercent * 2.5) / 100).toFixed(1)}s (pause mic to edit)
+                    </span>
+                  )}
+                </div>
+                {interimText ? (
+                  <p className="text-sm text-zinc-300 italic">{interimText}</p>
+                ) : (
+                  <p className="text-sm text-zinc-300">{textInput}</p>
+                )}
+                {/* Silence countdown progress bar */}
+                {interactionMode === "auto" && textInput.trim() && !isSubmitting && (
+                  <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-600 to-primary transition-all duration-75"
+                      style={{ width: `${countdownPercent}%` }}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -500,32 +794,77 @@ function LiveInterview() {
                   {isListening
                     ? "Listening… speak your answer"
                     : isMuted
-                    ? "Microphone muted"
-                    : "Microphone on"}
+                      ? "Microphone muted"
+                      : "Microphone on"}
                 </p>
               </div>
-              {isMuted ? (
-                <MicOff className="h-4 w-4 text-destructive shrink-0" />
-              ) : isListening ? (
-                <Mic className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
-              ) : (
-                <Mic className="h-4 w-4 text-zinc-500 shrink-0" />
-              )}
+
+              {/* Audio Visualizer */}
+              <AudioVisualizer levels={audioLevels} isListening={isListening} />
+
+              <div className="shrink-0 ml-1">
+                {isMuted ? (
+                  <MicOff className="h-4 w-4 text-destructive shrink-0" />
+                ) : isListening ? (
+                  <Mic className="h-4 w-4 text-emerald-400 shrink-0 animate-pulse" />
+                ) : (
+                  <Mic className="h-4 w-4 text-zinc-500 shrink-0" />
+                )}
+              </div>
             </div>
           </div>
 
-          {/* ── Text input fallback (always shown) ── */}
+          {/* ── Interaction Settings & Text input fallback (always shown) ── */}
           {!isCompleted && !isStarting && (
-            <div className="border-t border-zinc-900 bg-zinc-950/80 px-4 py-3">
+            <div className="border-t border-zinc-900 bg-zinc-950/80 px-4 py-4 space-y-3">
+              {/* Interaction Mode Toggles */}
+              <div className="flex flex-wrap items-center justify-center gap-2 max-w-2xl mx-auto border-b border-zinc-900/60 pb-3">
+                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold mr-2">
+                  Mode:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setInteractionMode("auto")}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${interactionMode === "auto"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:text-zinc-300"
+                    }`}
+                >
+                  🎙️ Voice Auto-Submit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInteractionMode("ptt")}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${interactionMode === "ptt"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:text-zinc-300"
+                    }`}
+                >
+                  🎯 Push to Talk (Manual Send)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInteractionMode("keyboard")}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${interactionMode === "keyboard"
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:text-zinc-300"
+                    }`}
+                >
+                  ⌨️ Keyboard Only
+                </button>
+              </div>
+
               <form onSubmit={handleTextSubmit} className="flex items-center gap-2 max-w-2xl mx-auto">
                 <input
                   type="text"
                   value={textInput}
                   onChange={(e) => setTextInput(e.target.value)}
                   placeholder={
-                    isListening
-                      ? "Listening via mic… or type here"
-                      : "Type your answer here…"
+                    interactionMode === "keyboard"
+                      ? "Type your answer here…"
+                      : isListening
+                        ? "Listening via mic… or type/edit here"
+                        : "Microphone muted… type here or unmute"
                   }
                   disabled={isSubmitting}
                   className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-50"
@@ -553,7 +892,7 @@ function LiveInterview() {
               onClick={() => {
                 const next = !ttsEnabled;
                 setTtsEnabled(next);
-                if (!next) window.speechSynthesis?.cancel();
+                window.speechSynthesis?.cancel();
                 toast(next ? "Voice enabled" : "Voice muted");
               }}
               title={ttsEnabled ? "Mute Sara's voice" : "Enable Sara's voice"}
@@ -566,13 +905,12 @@ function LiveInterview() {
             <button
               onClick={toggleMic}
               title={isMuted ? "Unmute mic" : "Mute mic"}
-              className={`flex h-14 w-14 items-center justify-center rounded-full border transition-colors ${
-                isMuted
+              className={`flex h-14 w-14 items-center justify-center rounded-full border transition-colors ${isMuted
                   ? "border-destructive/60 bg-destructive/15 text-destructive"
                   : isListening
-                  ? "border-emerald-600/60 bg-emerald-950/40 text-emerald-400"
-                  : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-              }`}
+                    ? "border-emerald-600/60 bg-emerald-950/40 text-emerald-400"
+                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                }`}
             >
               {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </button>

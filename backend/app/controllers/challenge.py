@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 from math import ceil
 from typing import Optional
-
 from fastapi import HTTPException
 
 from app.core.db import get_db
