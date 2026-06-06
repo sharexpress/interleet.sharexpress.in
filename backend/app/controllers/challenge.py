@@ -49,7 +49,6 @@ async def _all_from_db() -> list[dict]:
 
 
 class ChallengeController:
-    # ── LIST ──────────────────────────────────────────────────────────────────
     @staticmethod
     async def list_challenges(
         q: Optional[str] = None,
