@@ -103,3 +103,52 @@ class SubmissionModel(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Engine Submission Model (Docker-based judge engine)
+# ─────────────────────────────────────────────────────────────────────
+
+class EngineSubmissionModel(BaseModel):
+    """
+    Submission record created by the Docker-based judge engine.
+    Stored in the `engine_submissions` MongoDB collection.
+    """
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    job_id: str = ""
+
+    # Identity
+    user_id: Optional[str] = None
+    problem_slug: Optional[str] = None
+    challenge_id: Optional[str] = None
+
+    # Submission content
+    language: str
+    code: str = ""
+    mode: str = "run"  # "run" | "submit"
+
+    # Results
+    status: str = "QUEUED"
+    verdict: Optional[str] = None
+    score: float = 0.0
+    passed_testcases: int = 0
+    total_testcases: int = 0
+
+    # Performance metrics
+    time_seconds: float = 0.0
+    memory_mb: float = 0.0
+
+    # Raw outputs
+    stdout: str = ""
+    stderr: str = ""
+    compile_output: str = ""
+    exit_code: int = 0
+
+    # Per-testcase breakdown
+    testcase_results: List[Dict[str, Any]] = []
+
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
