@@ -9,6 +9,7 @@ Flow:
   5. Send text to AI → structured JSON response
   6. Return { cloudinary, parsed_resume, mock_test }
 """
+
 from __future__ import annotations
 
 import logging
@@ -82,5 +83,5 @@ async def parse_resume(file: UploadFile = File(...)):
 
     return {
         "cloudinary": cloudinary_meta,
-        **parsed,         # inlines  parsed_resume  and  mock_test  keys
+        **parsed,  # inlines  parsed_resume  and  mock_test  keys
     }
