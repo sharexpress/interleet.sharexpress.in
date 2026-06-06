@@ -11,7 +11,7 @@ export function Logo({ className, compact = false }) {
         alt="Interleet"
         className={cn(
           "object-contain transition-all duration-200",
-          compact ? "h-10 w-10" : "h-30 w-auto",
+          compact ? "h-10 w-10" : "h-25 w-auto",
         )}
       />
 

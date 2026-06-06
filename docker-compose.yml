@@ -1,0 +1,129 @@
+# ═══════════════════════════════════════════════════════════════════
+# Interleet — Docker Compose Stack
+# Services: API, Worker, Redis, MongoDB + Sandbox image builds
+# ═══════════════════════════════════════════════════════════════════
+version: "3.9"
+
+# ─── Shared environment ─────────────────────────────────────────────
+x-env-common: &env-common
+  MONGO_URI: mongodb://mongodb:27017
+  DB_NAME: interleet
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  REDIS_PASSWORD: ""
+  REDIS_QUEUE_KEY: interleet:execution_jobs
+  WORKER_COUNT: "4"
+  EXECUTION_WORKSPACE_DIR: /tmp/interleet_workspaces
+  WS_HEARTBEAT_SECONDS: "30"
+  DEFAULT_TIME_LIMIT_SECONDS: "5"
+  DEFAULT_MEMORY_LIMIT_MB: "256"
+  LOG_LEVEL: INFO
+  # Docker-in-Docker (DinD) not needed — we mount the host socket
+  DOCKER_HOST: unix:///var/run/docker.sock
+
+services:
+
+  # ─── Redis (Queue + Cache) ────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: interleet-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - interleet-net
+
+  # ─── MongoDB (Persistence) ────────────────────────────────────────
+  mongodb:
+    image: mongo:7-jammy
+    container_name: interleet-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/interleet --quiet
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - interleet-net
+
+  # ─── FastAPI Application ──────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: interleet-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *env-common
+      WORKER_COUNT: "0"  # API container runs no workers (separate worker service)
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-change_me_in_production}
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for sandbox execution
+      - workspace_vol:/tmp/interleet_workspaces
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - interleet-net
+      - sandbox-net
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ─── Execution Worker (Separate process) ─────────────────────────
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: interleet-worker
+    restart: unless-stopped
+    environment:
+      <<: *env-common
+      WORKER_COUNT: "4"
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+      - workspace_vol:/tmp/interleet_workspaces
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - interleet-net
+      - sandbox-net
+    command: python -m app.engine.workers.main
+
+  # ─── Sandbox Images (built, not run as services) ──────────────────
+  # Run `make build-sandboxes` to build these images.
+  # They are used on-demand by the execution engine.
+
+networks:
+  interleet-net:
+    driver: bridge
+  sandbox-net:
+    driver: bridge
+    internal: true  # Sandbox containers have NO external network access
+
+volumes:
+  redis_data:
+  mongo_data:
+  workspace_vol:

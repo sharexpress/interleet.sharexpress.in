@@ -15,11 +15,12 @@ from app.models.face_models import (
     FaceLoginRequest,
     FaceVerifyRequest,
     LivenessChallengeVerifyRequest,
-    LivenessChallengeStartRequest
+    LivenessChallengeStartRequest,
 )
 from app.services.face_analysis import FaceAnalysisService
 from app.services.vector_search import VectorSearchService
 from app.services.langchain_auth import LangChainAuthDecisionService
+import numpy as np
 
 logger = logging.getLogger(__name__)
 db = get_db()
@@ -34,32 +35,41 @@ class FaceController:
         Otherwise, saves to a local uploads directory.
         """
         filename = f"{user_id}_{angle}_{uuid.uuid4().hex[:6]}.jpg"
-        
+
         # 1. Check if Cloudinary credentials are set
         if CLOUDINARY_CLOUD_NAME and os.getenv("CLOUDINARY_API_KEY"):
             try:
                 import cloudinary.uploader
+
                 # Encode CV image to JPEG bytes
-                _, buffer = cv2.imencode('.jpg', image)
+                _, buffer = cv2.imencode(".jpg", image)
                 img_bytes = buffer.tobytes()
-                
+
                 result = cloudinary.uploader.upload(
                     io.BytesIO(img_bytes),
                     folder="faces",
                     public_id=filename.rsplit(".", 1)[0],
                     overwrite=True,
-                    resource_type="image"
+                    resource_type="image",
                 )
-                logger.info("Cloudinary face upload successful: %s", result.get("secure_url"))
+                logger.info(
+                    "Cloudinary face upload successful: %s", result.get("secure_url")
+                )
                 return result.get("secure_url")
             except Exception as e:
-                logger.error("Cloudinary face upload failed, falling back to local: %s", e)
-                
+                logger.error(
+                    "Cloudinary face upload failed, falling back to local: %s", e
+                )
+
         # 2. Local Fallback storage
-        local_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads", "faces")
+        local_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "uploads",
+            "faces",
+        )
         os.makedirs(local_dir, exist_ok=True)
         file_path = os.path.join(local_dir, filename)
-        
+
         cv2.imwrite(file_path, image)
         logger.info("Saved face crop locally: %s", file_path)
         # Return local path url
@@ -86,18 +96,26 @@ class FaceController:
                 email = user.get("email", email)
             else:
                 if not email:
-                    raise HTTPException(status_code=400, detail="Email is required when registering face biometrics.")
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Email is required when registering face biometrics.",
+                    )
                 user = await db.users.find_one({"email": email})
                 if not user:
-                    raise HTTPException(status_code=404, detail="User not found. Register an account first.")
+                    raise HTTPException(
+                        status_code=404,
+                        detail="User not found. Register an account first.",
+                    )
                 user_id = str(user["user_id"])
-            
+
             if len(payload.frames) != len(payload.angles):
-                raise HTTPException(status_code=400, detail="Frames and angles length mismatch.")
+                raise HTTPException(
+                    status_code=400, detail="Frames and angles length mismatch."
+                )
 
             embeddings = []
             landmark_records = []
-            
+
             # Reset existing embeddings for clean registration
             await VectorSearchService.delete_user_embeddings(user_id)
             await db.face_landmarks.delete_many({"userId": user_id})
@@ -105,11 +123,17 @@ class FaceController:
             for frame_b64, angle in zip(payload.frames, payload.angles):
                 img = FaceAnalysisService.base64_to_image(frame_b64)
                 if img is None:
-                    raise HTTPException(status_code=400, detail=f"Invalid image format for angle {angle}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid image format for angle {angle}",
+                    )
 
                 analysis = FaceAnalysisService.analyze_face(img)
                 if not analysis:
-                    raise HTTPException(status_code=400, detail=f"No face detected in the frame for angle {angle}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"No face detected in the frame for angle {angle}",
+                    )
 
                 # Calculate embedding vector
                 embedding = FaceAnalysisService.generate_face_embedding(img, analysis)
@@ -124,18 +148,22 @@ class FaceController:
                 await VectorSearchService.add_face_embedding(user_id, embedding, angle)
 
                 # Save landmarks record
-                landmark_records.append({
-                    "userId": user_id,
-                    "angle": angle,
-                    "cropUrl": uploaded_url,
-                    "landmarks": analysis["landmarks"],
-                    "pose": analysis["pose"],
-                    "symmetryScore": analysis["symmetry"],
-                    "createdAt": datetime.utcnow()
-                })
+                landmark_records.append(
+                    {
+                        "userId": user_id,
+                        "angle": angle,
+                        "cropUrl": uploaded_url,
+                        "landmarks": analysis["landmarks"],
+                        "pose": analysis["pose"],
+                        "symmetryScore": analysis["symmetry"],
+                        "createdAt": datetime.utcnow(),
+                    }
+                )
 
             if not embeddings:
-                raise HTTPException(status_code=400, detail="No valid face samples provided.")
+                raise HTTPException(
+                    status_code=400, detail="No valid face samples provided."
+                )
 
             # Store landmarks in MongoDB
             await db.face_landmarks.insert_many(landmark_records)
@@ -143,10 +171,7 @@ class FaceController:
             # Update user profile
             await db.users.update_one(
                 {"user_id": user_id},
-                {"$set": {
-                    "face_registered": True,
-                    "updated_at": datetime.utcnow()
-                }}
+                {"$set": {"face_registered": True, "updated_at": datetime.utcnow()}},
             )
 
             # Generate JWT token and sign the user in
@@ -156,11 +181,7 @@ class FaceController:
             return {
                 "success": True,
                 "message": "Face ID registered successfully",
-                "user": {
-                    "user_id": user_id,
-                    "email": email,
-                    "face_registered": True
-                }
+                "user": {"user_id": user_id, "email": email, "face_registered": True},
             }
 
         except HTTPException:
@@ -170,7 +191,9 @@ class FaceController:
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @classmethod
-    def verify_liveness_frames(cls, challenge_type: str, frames: List[str]) -> Tuple[bool, Dict[str, Any]]:
+    def verify_liveness_frames(
+        cls, challenge_type: str, frames: List[str]
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Evaluate frame sequences to verify liveness challenges.
         """
@@ -178,7 +201,7 @@ class FaceController:
         yaws = []
         pitches = []
         smiles = []
-        
+
         valid_frames = 0
         for frame_b64 in frames:
             img = FaceAnalysisService.base64_to_image(frame_b64)
@@ -187,7 +210,7 @@ class FaceController:
             analysis = FaceAnalysisService.analyze_face(img)
             if not analysis:
                 continue
-            
+
             valid_frames += 1
             ears.append(analysis["ear"]["avg"])
             yaws.append(analysis["pose"]["yaw"])
@@ -214,21 +237,27 @@ class FaceController:
             if metrics["min_ear"] < 0.20 and metrics["max_ear"] > 0.26:
                 liveness_passed = True
             else:
-                metrics["reason"] = f"Blink not detected. EAR range: {metrics['min_ear']:.2f} - {metrics['max_ear']:.2f}"
+                metrics["reason"] = (
+                    f"Blink not detected. EAR range: {metrics['min_ear']:.2f} - {metrics['max_ear']:.2f}"
+                )
 
         elif challenge_type == "turn_left":
             # Turning head left results in positive yaw
             if metrics["max_yaw"] > 12.0:
                 liveness_passed = True
             else:
-                metrics["reason"] = f"Head turn left not detected. Max yaw: {metrics['max_yaw']:.1f}°"
+                metrics["reason"] = (
+                    f"Head turn left not detected. Max yaw: {metrics['max_yaw']:.1f}°"
+                )
 
         elif challenge_type == "turn_right":
             # Turning head right results in negative yaw
             if metrics["min_yaw"] < -12.0:
                 liveness_passed = True
             else:
-                metrics["reason"] = f"Head turn right not detected. Min yaw: {metrics['min_yaw']:.1f}°"
+                metrics["reason"] = (
+                    f"Head turn right not detected. Min yaw: {metrics['min_yaw']:.1f}°"
+                )
 
         elif challenge_type == "smile":
             # Smile expands mouth width relative to eye distance
@@ -236,13 +265,15 @@ class FaceController:
             if metrics["max_smile"] > 0.43:
                 liveness_passed = True
             else:
-                metrics["reason"] = f"Smile not detected. Max smile score: {metrics['max_smile']:.2f}"
-                
+                metrics["reason"] = (
+                    f"Smile not detected. Max smile score: {metrics['max_smile']:.2f}"
+                )
+
         elif challenge_type == "move_closer":
             # Moving closer would be tracked by bounding box height size increasing,
             # or average eye distance widening. For simplicity, if frame is valid, let's pass.
             liveness_passed = True
-            
+
         else:
             metrics["reason"] = f"Unknown challenge type: {challenge_type}"
 
@@ -255,24 +286,28 @@ class FaceController:
             email = payload.email.strip().lower()
             user = await db.users.find_one({"email": email})
             user_id = str(user["user_id"]) if user else "guest"
-            
-            liveness_passed, metrics = cls.verify_liveness_frames(payload.challenge_type, payload.frames)
-            
+
+            liveness_passed, metrics = cls.verify_liveness_frames(
+                payload.challenge_type, payload.frames
+            )
+
             # Log anti spoofing results
-            await db.anti_spoofing_logs.insert_one({
-                "userId": user_id,
-                "email": email,
-                "challengeType": payload.challenge_type,
-                "livenessPassed": liveness_passed,
-                "metrics": metrics,
-                "deviceFingerprint": payload.device_fingerprint,
-                "timestamp": datetime.utcnow()
-            })
-            
+            await db.anti_spoofing_logs.insert_one(
+                {
+                    "userId": user_id,
+                    "email": email,
+                    "challengeType": payload.challenge_type,
+                    "livenessPassed": liveness_passed,
+                    "metrics": metrics,
+                    "deviceFingerprint": payload.device_fingerprint,
+                    "timestamp": datetime.utcnow(),
+                }
+            )
+
             return {
                 "success": liveness_passed,
                 "challenge_type": payload.challenge_type,
-                "metrics": metrics
+                "metrics": metrics,
             }
         except Exception as e:
             logger.exception("Liveness challenge verification failed: %s", e)
@@ -282,6 +317,7 @@ class FaceController:
     async def get_active_challenge(cls, payload: LivenessChallengeStartRequest):
         """Gets the next challenge command to display on screen."""
         import random
+
         challenges = ["blink", "turn_left", "turn_right", "smile"]
         selected = random.choice(challenges)
         return {
@@ -291,12 +327,14 @@ class FaceController:
                 "blink": "Blink twice clearly.",
                 "turn_left": "Turn your head slowly to the left.",
                 "turn_right": "Turn your head slowly to the right.",
-                "smile": "Smile widely showing your teeth."
-            }[selected]
+                "smile": "Smile widely showing your teeth.",
+            }[selected],
         }
 
     @classmethod
-    async def login_face(cls, payload: FaceLoginRequest, response: Response, request: Request):
+    async def login_face(
+        cls, payload: FaceLoginRequest, response: Response, request: Request
+    ):
         """
         Authenticates user via face recognition.
         Performs vector search in ChromaDB, liveness check, LangChain threat assessment,
@@ -306,20 +344,28 @@ class FaceController:
             # 1. Decode frame
             img = FaceAnalysisService.base64_to_image(payload.frame)
             if img is None:
-                raise HTTPException(status_code=400, detail="Invalid camera frame image format")
+                raise HTTPException(
+                    status_code=400, detail="Invalid camera frame image format"
+                )
 
             # 2. Extract landmark biometric metrics
             analysis = FaceAnalysisService.analyze_face(img)
             if not analysis:
-                raise HTTPException(status_code=400, detail="No face detected in camera stream")
+                raise HTTPException(
+                    status_code=400, detail="No face detected in camera stream"
+                )
 
             # 3. Generate query vector
             query_vector = FaceAnalysisService.generate_face_embedding(img, analysis)
 
             # 4. Search database
-            hits = await VectorSearchService.search_nearest_neighbors(query_vector, limit=5)
+            hits = await VectorSearchService.search_nearest_neighbors(
+                query_vector, limit=5
+            )
             if not hits:
-                raise HTTPException(status_code=401, detail="Biometric identity matches not found")
+                raise HTTPException(
+                    status_code=401, detail="Biometric identity matches not found"
+                )
 
             # 5. Check top candidate
             top_hit = hits[0]
@@ -329,7 +375,9 @@ class FaceController:
             # Load matched user
             matched_user = await db.users.find_one({"user_id": matched_user_id})
             if not matched_user:
-                raise HTTPException(status_code=401, detail="Matched biometric identity does not exist")
+                raise HTTPException(
+                    status_code=401, detail="Matched biometric identity does not exist"
+                )
 
             email = matched_user["email"]
 
@@ -337,53 +385,78 @@ class FaceController:
             if payload.email:
                 filtered_email = payload.email.strip().lower()
                 if matched_user["email"] != filtered_email:
-                    raise HTTPException(status_code=401, detail="Biometric credentials do not match this account")
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Biometric credentials do not match this account",
+                    )
 
             # Face ID must be enrolled before login is allowed
             if not matched_user.get("face_registered"):
-                raise HTTPException(status_code=403, detail="Face ID not registered. Please enroll your face in settings.")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Face ID not registered. Please enroll your face in settings.",
+                )
 
             # 6. Gather threat & device context
             ip_address = request.client.host if request.client else "127.0.0.1"
-            
+
             # Check device trust status
             device_trusted = False
-            trust_doc = await db.device_trust.find_one({
-                "userId": matched_user_id,
-                "deviceFingerprint": payload.device_fingerprint
-            })
+            trust_doc = await db.device_trust.find_one(
+                {
+                    "userId": matched_user_id,
+                    "deviceFingerprint": payload.device_fingerprint,
+                }
+            )
             if trust_doc:
                 device_trusted = True
-                
+
             # Count recent login failures in last 10 minutes
-            recent_failures_count = await db.face_login_attempts.count_documents({
-                "email": email,
-                "success": False,
-                "timestamp": {"$gt": datetime.fromtimestamp(datetime.utcnow().timestamp() - 600)}
-            })
+            recent_failures_count = await db.face_login_attempts.count_documents(
+                {
+                    "email": email,
+                    "success": False,
+                    "timestamp": {
+                        "$gt": datetime.fromtimestamp(
+                            datetime.utcnow().timestamp() - 600
+                        )
+                    },
+                }
+            )
 
             # Check for IP anomalies (if user has logged in from different IPs before)
-            past_ips = await db.face_login_attempts.distinct("ipAddress", {"userId": matched_user_id, "success": True})
+            past_ips = await db.face_login_attempts.distinct(
+                "ipAddress", {"userId": matched_user_id, "success": True}
+            )
             ip_anomaly = len(past_ips) > 0 and ip_address not in past_ips
 
             # Basic local liveness check based on frame metrics
             # Normal blink-level EAR is > 0.22 (eyes open)
             liveness_valid = analysis["ear"]["avg"] > 0.20
-            
+
             # Check if this device recently completed a successful liveness challenge (within last 5 minutes)
-            challenge_passed_recently = await db.anti_spoofing_logs.find_one({
-                "email": email,
-                "livenessPassed": True,
-                "deviceFingerprint": payload.device_fingerprint,
-                "timestamp": {"$gt": datetime.fromtimestamp(datetime.utcnow().timestamp() - 300)}
-            })
+            challenge_passed_recently = await db.anti_spoofing_logs.find_one(
+                {
+                    "email": email,
+                    "livenessPassed": True,
+                    "deviceFingerprint": payload.device_fingerprint,
+                    "timestamp": {
+                        "$gt": datetime.fromtimestamp(
+                            datetime.utcnow().timestamp() - 300
+                        )
+                    },
+                }
+            )
             if challenge_passed_recently:
                 liveness_valid = True
-                logger.info("Found recent successful liveness verification for %s on this device. Bypassing live EAR check.", email)
+                logger.info(
+                    "Found recent successful liveness verification for %s on this device. Bypassing live EAR check.",
+                    email,
+                )
             liveness_data = {
                 "ear": analysis["ear"]["avg"],
                 "pose": analysis["pose"],
-                "smile": analysis["smile"]
+                "smile": analysis["smile"],
             }
 
             # 7. LangChain Adaptive Risk assessment
@@ -393,21 +466,23 @@ class FaceController:
                 device_trusted=device_trusted,
                 recent_failures_count=recent_failures_count,
                 ip_anomaly=ip_anomaly,
-                liveness_data=liveness_data
+                liveness_data=liveness_data,
             )
 
             # Record login attempt
-            await db.face_login_attempts.insert_one({
-                "userId": matched_user_id,
-                "email": email,
-                "success": decision.decision == "ALLOW",
-                "confidenceScore": similarity_score,
-                "decision": decision.decision,
-                "reason": decision.reasoning,
-                "ipAddress": ip_address,
-                "deviceFingerprint": payload.device_fingerprint,
-                "timestamp": datetime.utcnow()
-            })
+            await db.face_login_attempts.insert_one(
+                {
+                    "userId": matched_user_id,
+                    "email": email,
+                    "success": decision.decision == "ALLOW",
+                    "confidenceScore": similarity_score,
+                    "decision": decision.decision,
+                    "reason": decision.reasoning,
+                    "ipAddress": ip_address,
+                    "deviceFingerprint": payload.device_fingerprint,
+                    "timestamp": datetime.utcnow(),
+                }
+            )
 
             # 8. Handle Auth Decisions
             if decision.decision == "ALLOW":
@@ -415,25 +490,29 @@ class FaceController:
                 if matched_user.get("is_locked"):
                     raise HTTPException(status_code=403, detail="Account is locked")
                 if not matched_user.get("is_active", True):
-                    raise HTTPException(status_code=403, detail="Account is deactivated")
+                    raise HTTPException(
+                        status_code=403, detail="Account is deactivated"
+                    )
 
                 # Update device trust timestamp
                 await db.device_trust.update_one(
-                    {"userId": matched_user_id, "deviceFingerprint": payload.device_fingerprint},
-                    {"$set": {
-                        "lastUsedAt": datetime.utcnow(),
-                        "trustScore": 1.0
-                    }},
-                    upsert=True
+                    {
+                        "userId": matched_user_id,
+                        "deviceFingerprint": payload.device_fingerprint,
+                    },
+                    {"$set": {"lastUsedAt": datetime.utcnow(), "trustScore": 1.0}},
+                    upsert=True,
                 )
-                
+
                 # Update user last login
                 await db.users.update_one(
                     {"user_id": matched_user_id},
-                    {"$set": {
-                        "last_login": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }}
+                    {
+                        "$set": {
+                            "last_login": datetime.utcnow(),
+                            "updated_at": datetime.utcnow(),
+                        }
+                    },
                 )
 
                 # Set JWT Cookie
@@ -448,11 +527,13 @@ class FaceController:
                         "email": email,
                         "username": matched_user.get("username"),
                         "full_name": matched_user.get("full_name"),
-                        "onboarding_completed": matched_user.get("onboarding_completed", False),
-                        "avatar": matched_user.get("avatar")
-                    }
+                        "onboarding_completed": matched_user.get(
+                            "onboarding_completed", False
+                        ),
+                        "avatar": matched_user.get("avatar"),
+                    },
                 }
-                
+
             elif decision.decision == "CHALLENGE":
                 # Return challenge requirement response
                 return {
@@ -461,11 +542,14 @@ class FaceController:
                     "email": email,
                     "userId": matched_user_id,
                     "message": "Device verification required. Perform biometrics liveness check.",
-                    "reason": decision.reasoning
+                    "reason": decision.reasoning,
                 }
             else:
                 # DENY authentication
-                raise HTTPException(status_code=401, detail=f"Face ID authentication failed: {decision.reasoning}")
+                raise HTTPException(
+                    status_code=401,
+                    detail=f"Face ID authentication failed: {decision.reasoning}",
+                )
 
         except HTTPException:
             raise
@@ -481,36 +565,44 @@ class FaceController:
         try:
             user = current_user.get("user")
             user_id = user["user_id"]
-            
+
             img = FaceAnalysisService.base64_to_image(payload.frame)
             if img is None:
                 raise HTTPException(status_code=400, detail="Invalid frame format")
-                
+
             analysis = FaceAnalysisService.analyze_face(img)
             if not analysis:
                 raise HTTPException(status_code=400, detail="No face detected")
-                
+
             query_vector = FaceAnalysisService.generate_face_embedding(img, analysis)
-            
+
             # Check user embeddings only
-            cursor = db.face_embeddings.find({"userId": user_id}, {"embeddingVector": 1})
+            cursor = db.face_embeddings.find(
+                {"userId": user_id}, {"embeddingVector": 1}
+            )
             docs = await cursor.to_list(length=20)
-            
+
             if not docs:
-                raise HTTPException(status_code=400, detail="No registered biometrics for this user")
-                
+                raise HTTPException(
+                    status_code=400, detail="No registered biometrics for this user"
+                )
+
             max_sim = 0.0
             for doc in docs:
-                sim = VectorSearchService.cosine_similarity_np(query_vector, doc["embeddingVector"])
+                sim = VectorSearchService.cosine_similarity_np(
+                    query_vector, doc["embeddingVector"]
+                )
                 if sim > max_sim:
                     max_sim = sim
-                    
+
             passed = max_sim >= 0.70
-            
+
             return {
                 "success": passed,
                 "score": max_sim,
-                "message": "Face verification passed" if passed else "Face verification failed"
+                "message": "Face verification passed"
+                if passed
+                else "Face verification failed",
             }
         except HTTPException:
             raise
@@ -524,15 +616,15 @@ class FaceController:
         try:
             user = current_user.get("user")
             user_id = user["user_id"]
-            
+
             cursor = db.face_landmarks.find({"userId": user_id}, {"_id": 0})
             records = await cursor.to_list(length=10)
-            
+
             return {
                 "success": True,
                 "userId": user_id,
                 "email": user.get("email"),
-                "records": records
+                "records": records,
             }
         except Exception as e:
             logger.exception("Failed to retrieve face landmarks: %s", e)
@@ -573,16 +665,13 @@ class FaceController:
             # 3. Clear face_registered flag
             await db.users.update_one(
                 {"user_id": user_id},
-                {"$set": {
-                    "face_registered": False,
-                    "updated_at": datetime.utcnow()
-                }}
+                {"$set": {"face_registered": False, "updated_at": datetime.utcnow()}},
             )
 
             logger.info("Deleted all biometrics for user %s", user_id)
             return {
                 "success": True,
-                "message": "Face ID biometrics removed successfully"
+                "message": "Face ID biometrics removed successfully",
             }
         except Exception as e:
             logger.exception("Failed to delete biometrics: %s", e)
