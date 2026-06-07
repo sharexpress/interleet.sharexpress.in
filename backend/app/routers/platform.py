@@ -7,8 +7,8 @@ router = APIRouter(prefix="/api", tags=["Platform"])
 
 
 @router.get("/dashboard")
-async def dashboard():
-    return await PlatformController.dashboard()
+async def dashboard(user=Depends(UserMiddleware.me)):
+    return await PlatformController.dashboard(username=user["user"]["username"])
 
 
 @router.get("/challenges")

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
+import { API } from "@/api/api";
 
 import {
   ResponsiveContainer,
@@ -37,20 +38,65 @@ function Dashboard() {
   // state.user.user is the flat user object — no double-nesting needed
   const { user } = useSelector((state) => state.user);
 
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   const [quests, setQuests] = useState([
     { id: "1", text: "Maintain active streak", reward: "50 XP", done: true, type: "streak" },
     { id: "2", text: "Solve a medium challenge", reward: "150 XP", done: false, type: "challenge" },
     { id: "3", text: "Complete mock interview prep", reward: "300 XP", done: false, type: "interview" },
   ]);
 
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDashboard = async () => {
+      try {
+        const response = await API.get("/api/dashboard");
+        if (isMounted) {
+          setDashboardData(response.data);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Failed to load live dashboard, falling back to mock.", err);
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+    fetchDashboard();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   if (!user) return null;
 
-  const domainData = [
-    { domain: "Frontend", score: user.frontend_rating || 0 },
-    { domain: "Backend", score: user.backend_rating || 0 },
-    { domain: "Fullstack", score: user.fullstack_rating || 0 },
-    { domain: "DevOps", score: user.devops_rating || 0 },
+  // Real-time resolved data
+  const activeUser = dashboardData?.user || user;
+  const activeWeekly = dashboardData?.activityWeekly || activityWeekly;
+  const activeRecentActivity = dashboardData?.recentActivity || recentActivity;
+  const activeChallenges = dashboardData?.recommendedChallenges || challenges;
+  const activeInterviewTrend = dashboardData?.interviewTrend || [
+    { d: "W1", s: 62 },
+    { d: "W2", s: 65 },
+    { d: "W3", s: 71 },
+    { d: "W4", s: 70 },
+    { d: "W5", s: 76 },
+    { d: "W6", s: 78 },
+    { d: "W7", s: 81 },
+    { d: "W8", s: 84 },
   ];
+
+  // Map domainData dynamically from user.domains or backend ratings
+  const domainData = (activeUser.domains || [
+    { domain: "Frontend", score: activeUser.frontend_rating || 0 },
+    { domain: "Backend", score: activeUser.backend_rating || 0 },
+    { domain: "Fullstack", score: activeUser.fullstack_rating || 0 },
+    { domain: "DevOps", score: activeUser.devops_rating || 0 },
+  ]).map(d => ({
+    domain: d.domain,
+    score: d.score || d.rating || 0
+  }));
 
   const handleQuestToggle = (id) => {
     setQuests(prev => prev.map(q => {
@@ -65,7 +111,7 @@ function Dashboard() {
     }));
   };
 
-  const xp = user.overall_rating || 0;
+  const xp = activeUser.overall_rating || activeUser.xp || 0;
   const level = Math.floor(xp / 1000) + 1;
   const xpInLevel = xp % 1000;
   const progress = (xpInLevel / 1000) * 100;
@@ -73,7 +119,7 @@ function Dashboard() {
   return (
     <AppShell>
       <PageHeader
-        title={`Welcome back, ${user.full_name?.split(" ")[0] || "Engineer"}`}
+        title={`Welcome back, ${activeUser.name?.split(" ")[0] || "Engineer"}`}
         description="Your engineering arena at a glance."
         actions={
           <>
@@ -98,7 +144,7 @@ function Dashboard() {
             accent="text-primary"
           >
             <div className="mt-2">
-              <Progress value={progress} className="h-1.5 bg-zinc-800 animate-pulse" />
+              <Progress value={progress} className="h-1.5 bg-zinc-850 animate-pulse" />
               <p className="text-[10px] text-muted-foreground mt-1 font-mono">
                 {1000 - xpInLevel} XP to Level {level + 1}
               </p>
@@ -106,21 +152,21 @@ function Dashboard() {
           </StatCard>
           <StatCard
             label="Frontend"
-            value={user.frontend_rating || 0}
+            value={activeUser.frontend_rating || 0}
             delta="Frontend score"
             icon={Trophy}
             accent="text-chart-2"
           />
           <StatCard
             label="Streak"
-            value={`${user.streak_count || 0} days`}
+            value={`${activeUser.streak_count || activeUser.streak || 0} days`}
             delta="Keep consistency"
             icon={Flame}
             accent="text-chart-3"
           />
           <StatCard
             label="Backend"
-            value={user.backend_rating || 0}
+            value={activeUser.backend_rating || 0}
             delta="Backend score"
             icon={Target}
             accent="text-chart-4"
@@ -144,29 +190,29 @@ function Dashboard() {
 
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activityWeekly}>
+                <BarChart data={activeWeekly}>
                   <CartesianGrid
-                    stroke="hsl(var(--border))"
+                    stroke="var(--color-border)"
                     strokeDasharray="3 3"
                     vertical={false}
                   />
                   <XAxis
                     dataKey="day"
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="var(--color-muted-foreground)"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="var(--color-muted-foreground)"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
+                      background: "var(--color-card)",
+                      border: "1px solid var(--color-border)",
                       borderRadius: 8,
                       fontSize: 12,
                     }}
@@ -186,12 +232,12 @@ function Dashboard() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={domainData}>
-                  <PolarGrid stroke="hsl(var(--border))" />
+                  <PolarGrid stroke="var(--color-border)" />
                   <PolarAngleAxis
                     dataKey="domain"
-                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
                   />
-                  <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 3000]} />
+                  <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 100]} />
                   <Radar
                     dataKey="score"
                     stroke="var(--color-primary)"
@@ -219,7 +265,7 @@ function Dashboard() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              {challenges.slice(0, 4).map((challenge) => (
+              {activeChallenges.slice(0, 4).map((challenge) => (
                 <ChallengeCard key={challenge.id} c={challenge} />
               ))}
             </div>
@@ -263,7 +309,7 @@ function Dashboard() {
             <Card className="border-border bg-card p-5 shadow-sm">
               <h3 className="mb-4 text-sm font-semibold">Recent activity</h3>
               <ul className="space-y-3">
-                {recentActivity.map((activity, index) => (
+                {activeRecentActivity.map((activity, index) => (
                   <li key={index} className="flex items-start gap-3">
                     <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
                     <div className="min-w-0 flex-1">
@@ -301,31 +347,22 @@ function Dashboard() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                  data={[
-                    { d: "W1", s: 62 },
-                    { d: "W2", s: 65 },
-                    { d: "W3", s: 71 },
-                    { d: "W4", s: 70 },
-                    { d: "W5", s: 76 },
-                    { d: "W6", s: 78 },
-                    { d: "W7", s: 81 },
-                    { d: "W8", s: 84 },
-                  ]}
+                  data={activeInterviewTrend}
                 >
                   <CartesianGrid
-                    stroke="hsl(var(--border))"
+                    stroke="var(--color-border)"
                     strokeDasharray="3 3"
                     vertical={false}
                   />
                   <XAxis
                     dataKey="d"
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="var(--color-muted-foreground)"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="var(--color-muted-foreground)"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
@@ -333,8 +370,8 @@ function Dashboard() {
                   />
                   <Tooltip
                     contentStyle={{
-                      background: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
+                      background: "var(--color-card)",
+                      border: "1px solid var(--color-border)",
                       borderRadius: 8,
                       fontSize: 12,
                     }}
@@ -354,7 +391,7 @@ function Dashboard() {
           <Card className="border-border bg-card p-5">
             <h3 className="mb-3 text-sm font-semibold">Badges & achievements</h3>
             <div className="space-y-2">
-              {(user.badges || []).map((badge) => (
+              {(activeUser.badges || []).map((badge) => (
                 <div
                   key={badge}
                   className="flex items-center gap-3 rounded-md border border-border bg-background/40 p-2.5"
