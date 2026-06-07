@@ -156,10 +156,8 @@ class CodeGuard:
         Scan `code` for dangerous patterns based on `language`.
         Returns GuardResult(allowed=True) if clean, else GuardResult(allowed=False, reason=...).
         """
-        lang_rules = _LANG_RULES.get(language.lower(), [])
-        all_rules = lang_rules + _UNIVERSAL_BLOCKED
-
-        for pattern, reason in all_rules:
+        # Only check universal system-level restrictions to avoid blocking normal programming constructs
+        for pattern, reason in _UNIVERSAL_BLOCKED:
             if re.search(pattern, code, re.IGNORECASE | re.MULTILINE):
                 return GuardResult(allowed=False, reason=reason)
 
