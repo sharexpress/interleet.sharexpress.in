@@ -14,6 +14,7 @@ import {
   Briefcase,
   ShieldCheck,
   Swords,
+  ShoppingBag,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -46,6 +47,7 @@ const nav = [
   { to: "/app/system-design", label: "System Design", icon: Network },
   { to: "/app/leaderboard", label: "Leaderboard", icon: Trophy },
   { to: "/app/contest", label: "Contest", icon: Swords },
+  { to: "/app/store", label: "Store", icon: ShoppingBag },
 ];
 
 function NavLinks({ user, orientation = "horizontal", onNavigate }) {

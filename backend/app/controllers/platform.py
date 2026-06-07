@@ -90,7 +90,9 @@ class PlatformController:
         
         # 3. Calculate solved count and XP
         solved_count = len(solved_slugs)
-        xp = sum(problems_by_slug[slug].get("xp_reward", 100) for slug in solved_slugs if slug in problems_by_slug)
+        base_xp = sum(problems_by_slug[slug].get("xp_reward", 100) for slug in solved_slugs if slug in problems_by_slug)
+        spent_xp = user_doc.get("spent_xp", 0)
+        xp = max(0, base_xp - spent_xp)
         
         # 4. Calculate domains proficiency
         domain_list = ["Frontend", "Backend", "DevOps", "APIs", "Databases", "System Design"]
@@ -449,7 +451,9 @@ class PlatformController:
         solved_count = len(solved_slugs)
         
         # Sum of XP rewards for solved challenges
-        xp = sum(problems_by_slug[slug].get("xp_reward", 100) for slug in solved_slugs if slug in problems_by_slug)
+        base_xp = sum(problems_by_slug[slug].get("xp_reward", 100) for slug in solved_slugs if slug in problems_by_slug)
+        spent_xp = user_doc.get("spent_xp", 0)
+        xp = max(0, base_xp - spent_xp)
         
         # 4. Calculate domains proficiency
         domain_list = ["Frontend", "Backend", "DevOps", "APIs", "Databases", "System Design"]
