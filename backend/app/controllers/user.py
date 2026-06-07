@@ -13,6 +13,7 @@ from app.utils.OTP import (
 from app.utils.JWT import (
     generate_token,
 )
+from app.utils.email import send_otp_email
 from app.lib.generateOTP import generateOTP
 from app.core.oauth import oauth
 from authlib.integrations.base_client.errors import OAuthError
@@ -54,6 +55,9 @@ class UserController:
 
             if not otp_response.get("success"):
                 raise HTTPException(status_code=400, detail="Failed to send OTP")
+
+            # Send HTML OTP Email with Logo
+            await send_otp_email(user.email, "Verify your email - Interleet", otp_code)
 
             return {
                 "success": True,

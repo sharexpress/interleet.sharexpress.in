@@ -36,6 +36,7 @@ async def sendOTP(email: str, OTP: str):
         ) from e
 
 
+
 async def VerifyOTPbyUtils(transactionID: str, OTP: str):
     try:
         key = f"otp:{transactionID}"

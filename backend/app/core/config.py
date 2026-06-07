@@ -67,3 +67,12 @@ PINECONE_API_KEY    = os.getenv("PINECONE_API_KEY", "")
 PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "face-embeddings")
 PINECONE_CLOUD      = os.getenv("PINECONE_CLOUD", "aws")
 PINECONE_REGION     = os.getenv("PINECONE_REGION", "us-east-1")
+
+# SMTP CONFIGURATION
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "")
+SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Interleet")
+

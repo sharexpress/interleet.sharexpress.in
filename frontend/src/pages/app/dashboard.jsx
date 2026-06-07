@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { toast } from "sonner";
 
 import {
   ResponsiveContainer,
@@ -25,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
-import { ArrowUpRight, Sparkles, Trophy, Flame, Target, Award, ChevronRight } from "lucide-react";
+import { ArrowUpRight, Sparkles, Trophy, Flame, Target, Award, ChevronRight, CheckCircle2, Circle } from "lucide-react";
 
 import { activityWeekly, challenges, recentActivity } from "@/lib/mock";
 
@@ -35,6 +37,12 @@ function Dashboard() {
   // state.user.user is the flat user object — no double-nesting needed
   const { user } = useSelector((state) => state.user);
 
+  const [quests, setQuests] = useState([
+    { id: "1", text: "Maintain active streak", reward: "50 XP", done: true, type: "streak" },
+    { id: "2", text: "Solve a medium challenge", reward: "150 XP", done: false, type: "challenge" },
+    { id: "3", text: "Complete mock interview prep", reward: "300 XP", done: false, type: "interview" },
+  ]);
+
   if (!user) return null;
 
   const domainData = [
@@ -43,6 +51,24 @@ function Dashboard() {
     { domain: "Fullstack", score: user.fullstack_rating || 0 },
     { domain: "DevOps", score: user.devops_rating || 0 },
   ];
+
+  const handleQuestToggle = (id) => {
+    setQuests(prev => prev.map(q => {
+      if (q.id === id) {
+        const nextDone = !q.done;
+        if (nextDone) {
+          toast.success(`Quest completed! Claimed ${q.reward}!`);
+        }
+        return { ...q, done: nextDone };
+      }
+      return q;
+    }));
+  };
+
+  const xp = user.overall_rating || 0;
+  const level = Math.floor(xp / 1000) + 1;
+  const xpInLevel = xp % 1000;
+  const progress = (xpInLevel / 1000) * 100;
 
   return (
     <AppShell>
@@ -66,12 +92,18 @@ function Dashboard() {
         {/* STATS */}
         <div className="grid gap-4 md:grid-cols-4">
           <StatCard
-            label="XP"
-            value={user.overall_rating || 0}
-            delta="+120 this week"
+            label={`Level ${level}`}
+            value={`${xp.toLocaleString()} XP`}
             icon={Sparkles}
             accent="text-primary"
-          />
+          >
+            <div className="mt-2">
+              <Progress value={progress} className="h-1.5 bg-zinc-800 animate-pulse" />
+              <p className="text-[10px] text-muted-foreground mt-1 font-mono">
+                {1000 - xpInLevel} XP to Level {level + 1}
+              </p>
+            </div>
+          </StatCard>
           <StatCard
             label="Frontend"
             value={user.frontend_rating || 0}
@@ -193,26 +225,62 @@ function Dashboard() {
             </div>
           </div>
 
-          <Card className="border-border bg-card p-5">
-            <h3 className="mb-4 text-sm font-semibold">Recent activity</h3>
-            <ul className="space-y-3">
-              {recentActivity.map((activity, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">{activity.text}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {activity.domain} · {activity.when}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <Button variant="ghost" className="mt-3 w-full">
-              View all activity
-              <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
-            </Button>
-          </Card>
+          <div className="space-y-4">
+            {/* Daily Quests Card */}
+            <Card className="border-border bg-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-white">Daily Quests</h3>
+                <Badge variant="outline" className="font-mono text-[9px] border-primary/30 text-primary bg-primary/5">
+                  Bonus XP
+                </Badge>
+              </div>
+              <ul className="space-y-2.5">
+                {quests.map((q) => (
+                  <li 
+                    key={q.id} 
+                    onClick={() => handleQuestToggle(q.id)}
+                    className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-850 hover:border-zinc-700 transition-all cursor-pointer group animate-fade-in"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {q.done ? (
+                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                      ) : (
+                        <Circle className="h-4 w-4 text-zinc-650 group-hover:text-primary shrink-0 transition-colors" />
+                      )}
+                      <span className={`text-xs truncate ${q.done ? "text-zinc-500 line-through" : "text-zinc-300 font-medium"}`}>
+                        {q.text}
+                      </span>
+                    </div>
+                    <span className={`text-[10px] font-mono shrink-0 px-1.5 py-0.5 rounded ${q.done ? "bg-zinc-800 text-zinc-500" : "bg-primary/10 text-primary font-bold"}`}>
+                      {q.reward}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+
+            {/* Recent Activity Card */}
+            <Card className="border-border bg-card p-5 shadow-sm">
+              <h3 className="mb-4 text-sm font-semibold">Recent activity</h3>
+              <ul className="space-y-3">
+                {recentActivity.map((activity, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{activity.text}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.domain} · {activity.when}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <Button variant="ghost" className="mt-3 w-full">
+                View all activity
+                <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </Card>
+          </div>
         </div>
 
         {/* INTERVIEW + BADGES */}
@@ -313,17 +381,19 @@ function Dashboard() {
   );
 }
 
-function StatCard({ label, value, delta, icon: Icon, accent }) {
+function StatCard({ label, value, delta, icon: Icon, accent, children }) {
   return (
-    <Card className="gap-2 border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-          {label}
-        </p>
-        <Icon className={`h-4 w-4 ${accent}`} />
+    <Card className="gap-2 border-border bg-card p-4 flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            {label}
+          </p>
+          <Icon className={`h-4 w-4 ${accent}`} />
+        </div>
+        <p className="text-2xl font-semibold tracking-tight mt-1">{value}</p>
       </div>
-      <p className="text-2xl font-semibold tracking-tight">{value}</p>
-      <p className="text-xs text-muted-foreground">{delta}</p>
+      {children ? children : <p className="text-xs text-muted-foreground">{delta}</p>}
     </Card>
   );
 }

@@ -32,8 +32,12 @@ async def get_challenge(slug: str):
 
 
 @router.get("/leaderboard")
-async def leaderboard(limit: int = 50):
-    return await PlatformController.leaderboard(limit=limit)
+async def leaderboard(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=25, ge=1, le=100),
+    q: str | None = None,
+):
+    return await PlatformController.leaderboard(page=page, limit=limit, q=q)
 
 
 @router.get("/profile")

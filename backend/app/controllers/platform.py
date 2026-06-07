@@ -116,10 +116,28 @@ class PlatformController:
         return {"success": True, "challenge": challenge}
 
     @staticmethod
-    async def leaderboard(limit: int = 50):
+    async def leaderboard(page: int = 1, limit: int = 25, q: str | None = None):
         items = await _collection_or_seed("leaderboards", LEADERBOARD)
         items.sort(key=lambda entry: entry.get("rank", 999999))
-        return {"items": items[:limit], "count": min(len(items), limit)}
+
+        # Filter by search query (username)
+        if q:
+            query_str = q.strip().lower()
+            items = [entry for entry in items if query_str in entry.get("username", "").lower()]
+
+        total = len(items)
+
+        # Pagination slicing
+        start = (page - 1) * limit
+        end = start + limit
+        paginated_items = items[start:end]
+
+        return {
+            "items": paginated_items,
+            "total": total,
+            "page": page,
+            "limit": limit
+        }
 
     @staticmethod
     async def profile(username: str | None = None):

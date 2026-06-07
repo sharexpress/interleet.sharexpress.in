@@ -14,6 +14,16 @@ import {
 } from "lucide-react";
 import { API } from "@/api/api";
 
+const getDivisionTier = (rating, rank) => {
+  if (rank === 1) return { name: "Grandmaster Elite", color: "bg-purple-500/15 text-purple-400 border-purple-500/30" };
+  if (rank <= 3) return { name: "Grandmaster", color: "bg-pink-500/15 text-pink-400 border-pink-500/30" };
+  if (rank <= 5) return { name: "Master Architect", color: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30" };
+  if (rating >= 2500) return { name: "Diamond Stack", color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
+  if (rating >= 2000) return { name: "Gold Tech", color: "bg-amber-500/15 text-amber-400 border-amber-500/30" };
+  if (rating >= 1500) return { name: "Silver Developer", color: "bg-slate-400/15 text-slate-300 border-slate-400/30" };
+  return { name: "Bronze Apprentice", color: "bg-orange-950/20 text-orange-400 border-orange-900/30" };
+};
+
 function ProfilePage() {
   const { username } = useParams();
   const { user: actual_user } = useSelector((state) => state.user);
@@ -91,6 +101,10 @@ function ProfilePage() {
   }
 
   const { user, challenges, interviews_history } = profileData;
+  const level = Math.floor((user.xp || 0) / 1000) + 1;
+  const xpInLevel = (user.xp || 0) % 1000;
+  const progress = (xpInLevel / 1000) * 100;
+  const division = getDivisionTier(user.rating, user.rank);
 
   // Generate heatmap dates
   const heatmapDays = [];
@@ -137,7 +151,15 @@ function ProfilePage() {
                 Verified
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">@{user.username}</p>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <p className="text-sm text-muted-foreground">@{user.username}</p>
+              <Badge className="font-mono text-[10px] bg-primary/10 text-primary border border-primary/20">
+                Level {level}
+              </Badge>
+              <Badge className={`font-mono text-[10px] border ${division.color}`}>
+                {division.name}
+              </Badge>
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <MapPin className="h-3.5 w-3.5" />
@@ -214,35 +236,58 @@ function ProfilePage() {
                 ))}
               </div>
             </Card>
-            <Card className="border-border bg-card p-5">
-              <h3 className="text-sm font-semibold text-white">Contribution heatmap</h3>
-              <div
-                className="mt-4 grid grid-cols-26 gap-1"
-                style={{ gridTemplateColumns: "repeat(26, minmax(0, 1fr))" }}
-              >
-                {heatmapDays.map((dateStr, i) => {
-                  const count = user.heatmap?.[dateStr] || 0;
-                  const bucket = count >= 4 ? 4 : count;
-                  const cls = [
-                    "bg-zinc-800/40",
-                    "bg-primary/20",
-                    "bg-primary/45",
-                    "bg-primary/70",
-                    "bg-primary",
-                  ][bucket];
-                  return (
-                    <span 
-                      key={dateStr} 
-                      className={`h-2.5 w-2.5 rounded-sm ${cls} transition-all duration-300 hover:scale-125`} 
-                      title={`${dateStr}: ${count} activities`}
-                    />
-                  );
-                })}
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Last 6 months · {totalContributions} contributions
-              </p>
-            </Card>
+            <div className="space-y-4">
+              {/* Level Progress Card */}
+              <Card className="border-border bg-card p-5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-white">Arena Level</h3>
+                  <Badge className="bg-primary/15 text-primary border border-primary/30 font-mono text-[10px]">
+                    Level {level}
+                  </Badge>
+                </div>
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs mb-1.5 font-mono">
+                    <span className="text-muted-foreground">{xpInLevel} / 1000 XP</span>
+                    <span className="text-primary font-bold">{progress.toFixed(0)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2 bg-zinc-850" />
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    {1000 - xpInLevel} XP needed for Level {level + 1}. Complete challenges to level up.
+                  </p>
+                </div>
+              </Card>
+
+              {/* Contribution Heatmap Card */}
+              <Card className="border-border bg-card p-5">
+                <h3 className="text-sm font-semibold text-white">Contribution heatmap</h3>
+                <div
+                  className="mt-4 grid grid-cols-26 gap-1"
+                  style={{ gridTemplateColumns: "repeat(26, minmax(0, 1fr))" }}
+                >
+                  {heatmapDays.map((dateStr, i) => {
+                    const count = user.heatmap?.[dateStr] || 0;
+                    const bucket = count >= 4 ? 4 : count;
+                    const cls = [
+                      "bg-zinc-800/40",
+                      "bg-primary/20",
+                      "bg-primary/45",
+                      "bg-primary/70",
+                      "bg-primary",
+                    ][bucket];
+                    return (
+                      <span 
+                        key={dateStr} 
+                        className={`h-2.5 w-2.5 rounded-sm ${cls} transition-all duration-300 hover:scale-125`} 
+                        title={`${dateStr}: ${count} activities`}
+                      />
+                    );
+                  })}
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Last 6 months · {totalContributions} contributions
+                </p>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="challenges" className="mt-4">
