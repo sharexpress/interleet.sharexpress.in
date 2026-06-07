@@ -111,7 +111,7 @@ function Dashboard() {
     }));
   };
 
-  const xp = activeUser.overall_rating || activeUser.xp || 0;
+  const xp = activeUser.xp ?? activeUser.total_xp ?? 0;
   const level = Math.floor(xp / 1000) + 1;
   const xpInLevel = xp % 1000;
   const progress = (xpInLevel / 1000) * 100;
@@ -309,17 +309,21 @@ function Dashboard() {
             <Card className="border-border bg-card p-5 shadow-sm">
               <h3 className="mb-4 text-sm font-semibold">Recent activity</h3>
               <ul className="space-y-3">
-                {activeRecentActivity.map((activity, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm">{activity.text}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.domain} · {activity.when}
-                      </p>
-                    </div>
-                  </li>
-                ))}
+                {activeRecentActivity.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-4 text-center font-mono">No recent activity. Start solving challenges!</p>
+                ) : (
+                  activeRecentActivity.map((activity, index) => (
+                    <li key={index} className="flex items-start gap-3">
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm">{activity.text}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {activity.domain} · {activity.when}
+                        </p>
+                      </div>
+                    </li>
+                  ))
+                )}
               </ul>
               <Button variant="ghost" className="mt-3 w-full">
                 View all activity
@@ -344,47 +348,54 @@ function Dashboard() {
               </Badge>
             </div>
 
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={activeInterviewTrend}
-                >
-                  <CartesianGrid
-                    stroke="var(--color-border)"
-                    strokeDasharray="3 3"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="d"
-                    stroke="var(--color-muted-foreground)"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="var(--color-muted-foreground)"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                    domain={[40, 100]}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--color-card)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="s"
-                    stroke="var(--color-primary)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+             <div className="h-56">
+              {activeInterviewTrend.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center border border-dashed border-border rounded bg-zinc-950/20 p-4 text-center">
+                  <p className="text-xs text-muted-foreground font-mono">No mock interviews completed yet.</p>
+                  <p className="text-[10px] text-zinc-500 font-mono mt-1">Practice mock interviews to plot your score trends!</p>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={activeInterviewTrend}
+                  >
+                    <CartesianGrid
+                      stroke="var(--color-border)"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="d"
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                      domain={[40, 100]}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--color-card)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="s"
+                      stroke="var(--color-primary)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </Card>
 
