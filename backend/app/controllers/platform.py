@@ -238,18 +238,7 @@ class PlatformController:
             {"day": day, "solved": data["solved"], "minutes": data["minutes"]}
             for day, data in activity_weekly_dict.items()
         ]
-        
-        # Ensure charts don't look completely empty by placing a fallback default if total is 0
-        if sum(item["solved"] for item in activity_weekly) == 0:
-            activity_weekly = [
-                {"day": "Mon", "solved": 1, "minutes": 30},
-                {"day": "Tue", "solved": 2, "minutes": 55},
-                {"day": "Wed", "solved": 0, "minutes": 0},
-                {"day": "Thu", "solved": 1, "minutes": 40},
-                {"day": "Fri", "solved": 0, "minutes": 0},
-                {"day": "Sat", "solved": 3, "minutes": 90},
-                {"day": "Sun", "solved": 2, "minutes": 65},
-            ]
+
 
         # --- B. Recent Activity (real-time data) ---
         recent_activities = []
@@ -278,9 +267,7 @@ class PlatformController:
                 "when": rep.get("when", "1d ago"),
                 "domain": "Interview"
             })
-            
-        if not recent_activities:
-            recent_activities = RECENT_ACTIVITY
+
 
         # --- C. Recommended Challenges (not yet solved) ---
         recommended = []
@@ -298,17 +285,7 @@ class PlatformController:
                 "d": f"W{idx+1}",
                 "s": iv.get("score", 75)
             })
-        if not interview_trend:
-            interview_trend = [
-                {"d": "W1", "s": 62},
-                {"d": "W2", "s": 65},
-                {"d": "W3", "s": 71},
-                {"d": "W4", "s": 70},
-                {"d": "W5", "s": 76},
-                {"d": "W6", "s": 78},
-                {"d": "W7", "s": 81},
-                {"d": "W8", "s": 84},
-            ]
+
 
         # Compile flat user profile details
         user_profile_data = {
