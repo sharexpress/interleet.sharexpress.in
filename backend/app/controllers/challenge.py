@@ -120,7 +120,8 @@ class ChallengeController:
         # Access control: redact sensitive details for non-premium users on premium challenges
         if challenge_data.get("is_premium"):
             is_premium_user = requesting_user.get("is_premium", False) if requesting_user else False
-            if not is_premium_user:
+            is_admin_user = requesting_user.get("role") == "admin" if requesting_user else False
+            if not is_premium_user and not is_admin_user:
                 challenge_data["locked"] = True
                 challenge_data["starter_code"] = {k: "/* PREMIUM CONTENT LOCKED */" for k in challenge_data.get("starter_code", {})}
                 challenge_data["test_cases"] = []
@@ -130,10 +131,31 @@ class ChallengeController:
 
     @staticmethod
     async def create_challenge(payload: dict):
+        mapped_payload = dict(payload)
+        if "summary" in mapped_payload and "short_description" not in mapped_payload:
+            mapped_payload["short_description"] = mapped_payload.pop("summary")
+        if "xp" in mapped_payload and "xp_reward" not in mapped_payload:
+            mapped_payload["xp_reward"] = mapped_payload.pop("xp")
+        if "minutes" in mapped_payload and "estimated_time_minutes" not in mapped_payload:
+            mapped_payload["estimated_time_minutes"] = mapped_payload.pop("minutes")
+
+        if "domain" in mapped_payload:
+            d_val = str(mapped_payload["domain"]).lower().replace("_", " ").replace(" ", "")
+            for enum_member in ChallengeDomain:
+                if enum_member.value.lower().replace(" ", "") == d_val:
+                    mapped_payload["domain"] = enum_member
+                    break
+
+        if "difficulty" in mapped_payload:
+            diff_val = str(mapped_payload["difficulty"]).lower()
+            for enum_member in ChallengeDifficulty:
+                if enum_member.value.lower() == diff_val:
+                    mapped_payload["difficulty"] = enum_member
+                    break
 
         # Validate through Pydantic model — raises 422 on bad data
         try:
-            validated = ChallengeModel(**payload)
+            validated = ChallengeModel(**mapped_payload)
         except Exception as e:
             raise HTTPException(status_code=422, detail=str(e))
 
@@ -163,23 +185,48 @@ class ChallengeController:
         if not existing:
             raise HTTPException(status_code=404, detail="Challenge not found")
 
+        mapped_payload = dict(payload)
+        if "summary" in mapped_payload:
+            mapped_payload["short_description"] = mapped_payload.pop("summary")
+        if "xp" in mapped_payload:
+            mapped_payload["xp_reward"] = mapped_payload.pop("xp")
+        if "minutes" in mapped_payload:
+            mapped_payload["estimated_time_minutes"] = mapped_payload.pop("minutes")
+
+        if "domain" in mapped_payload:
+            d_val = str(mapped_payload["domain"]).lower().replace("_", " ").replace(" ", "")
+            matched = False
+            for enum_member in ChallengeDomain:
+                if enum_member.value.lower().replace(" ", "") == d_val:
+                    mapped_payload["domain"] = enum_member.value
+                    matched = True
+                    break
+            if not matched:
+                raise HTTPException(status_code=400, detail=f"Invalid domain: {mapped_payload['domain']}")
+
+        if "difficulty" in mapped_payload:
+            diff_val = str(mapped_payload["difficulty"]).lower()
+            matched = False
+            for enum_member in ChallengeDifficulty:
+                if enum_member.value.lower() == diff_val:
+                    mapped_payload["difficulty"] = enum_member.value
+                    matched = True
+                    break
+            if not matched:
+                raise HTTPException(status_code=400, detail=f"Invalid difficulty: {mapped_payload['difficulty']}")
+
         for field in ("_id", "challenge_id", "created_at"):
-            payload.pop(field, None)
+            mapped_payload.pop(field, None)
 
-        if "domain" in payload:
-            payload["domain"] = payload["domain"].lower().replace(" ", "_")
-        if "difficulty" in payload:
-            payload["difficulty"] = payload["difficulty"].lower()
-
-        new_slug = payload.get("slug", slug)
+        new_slug = mapped_payload.get("slug", slug)
         if new_slug != slug:
             clash = await db.problems.find_one({"slug": new_slug})
             if clash:
                 raise HTTPException(status_code=409, detail="Slug already taken")
 
-        payload["updated_at"] = datetime.utcnow()
+        mapped_payload["updated_at"] = datetime.utcnow()
 
-        await db.problems.update_one({"slug": slug}, {"$set": payload})
+        await db.problems.update_one({"slug": slug}, {"$set": mapped_payload})
         updated = await db.problems.find_one({"slug": new_slug})
 
         return {

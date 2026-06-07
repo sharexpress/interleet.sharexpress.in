@@ -120,8 +120,33 @@ async def get_interview_report(session_id: str):
 
 
 @router.get("/reports/recent")
-async def list_interview_reports(user_id: str | None = None, limit: int = 20):
-    return await InterviewReportRepository.list_reports(user_id=user_id, limit=limit)
+async def list_interview_reports(user_auth=Depends(UserMiddleware.me), limit: int = 20):
+    user_id = user_auth["user"]["user_id"]
+    reports = await InterviewReportRepository.list_reports(user_id=user_id, limit=limit)
+    
+    from datetime import datetime
+    formatted = []
+    for r in reports:
+        created_at = r.get("created_at")
+        when_str = "Recent"
+        if isinstance(created_at, datetime):
+            diff = datetime.utcnow() - created_at
+            if diff.days == 0:
+                when_str = "Today"
+            elif diff.days == 1:
+                when_str = "1d ago"
+            else:
+                when_str = f"{diff.days}d ago"
+        rep_data = r.get("report", {})
+        score = rep_data.get("overall_score") or rep_data.get("average_score") or 75
+        formatted.append({
+            "id": r.get("session_id"),
+            "role": r.get("role") or "Software Engineer",
+            "score": score,
+            "when": when_str,
+            "duration": 45
+        })
+    return formatted
 
 
 @router.websocket("/ws/{session_id}")
@@ -194,3 +219,10 @@ async def interview_websocket(websocket: WebSocket, session_id: str):
             )
     except WebSocketDisconnect:
         await SessionService.update_session(session_id, state)
+
+
+from app.controllers.admin import AdminController
+
+@router.get("/presets")
+async def get_interview_presets():
+    return await AdminController.list_presets()

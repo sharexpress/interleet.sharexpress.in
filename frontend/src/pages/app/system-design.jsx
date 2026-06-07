@@ -12,6 +12,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { useDispatch, useSelector } from "react-redux";
+import { API } from "@/api/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -1173,7 +1174,7 @@ function useSuggestions() {
 }
 
 // ---------- Challenge picker ----------
-function ChallengePicker({ onPick, onPickTemplate }) {
+function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], customTemplates = [], loading }) {
   const user = useSelector((s) => s.user?.user);
   const [tab, setTab] = useState("challenges"); // "challenges" | "practice"
   const [q, setQ] = useState("");
@@ -1181,7 +1182,8 @@ function ChallengePicker({ onPick, onPickTemplate }) {
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState("recommended");
 
-  const all = useMemo(() => [blankChallenge, ...challenges], []);
+  const finalChallenges = customChallenges.length > 0 ? customChallenges : challenges;
+  const all = useMemo(() => [blankChallenge, ...finalChallenges], [customChallenges]);
 
   // Enrich challenges with metadata for a better UI experience
   const enrichedChallenges = useMemo(() => {
@@ -1201,6 +1203,8 @@ function ChallengePicker({ onPick, onPickTemplate }) {
     }));
   }, [all]);
 
+  const finalTemplates = customTemplates.length > 0 ? customTemplates : templates;
+
   const enrichedTemplates = useMemo(() => {
     const categoriesMap = {
       "basic-web": "Basic",
@@ -1215,12 +1219,12 @@ function ChallengePicker({ onPick, onPickTemplate }) {
       "ai-saas": "AI"
     };
     
-    return templates.map(t => ({
+    return finalTemplates.map(t => ({
       ...t,
-      category: categoriesMap[t.id] || "Distributed Systems",
+      category: categoriesMap[t.id] || t.category || "Distributed Systems",
       description: t.description || `Prebuilt ${t.name} reference architecture. Tweak nodes, connect services, and simulate real load.`
     }));
-  }, []);
+  }, [customTemplates]);
 
   // Helper to map challenges to categories
   const getChallengeCategories = useCallback((ch) => {
@@ -1728,6 +1732,28 @@ export default function SystemDesignSimulator() {
   const [template, setTemplate] = useState(null);
   const user = useSelector((state) => state.user?.user);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [customChallenges, setCustomChallenges] = useState([]);
+  const [customTemplates, setCustomTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadSystemDesign = async () => {
+      try {
+        const response = await API.get("/system-design");
+        if (isMounted) {
+          if (response.data.challenges) setCustomChallenges(response.data.challenges);
+          if (response.data.templates) setCustomTemplates(response.data.templates);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("Failed to load system design API configurations", err);
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadSystemDesign();
+    return () => { isMounted = false; };
+  }, []);
 
   const handlePickChallenge = (c) => {
     if (c.id !== "blank" && !user?.is_premium) {
@@ -1751,8 +1777,8 @@ export default function SystemDesignSimulator() {
         brief:
           t.description ||
           `Prebuilt ${t.name} reference architecture. Study it, tweak nodes, or simulate load.`,
-        requirements: [],
-        hints: [],
+        requirements: t.requirements || [],
+        hints: t.hints || [],
       });
     }
   };
@@ -1764,6 +1790,9 @@ export default function SystemDesignSimulator() {
           <ChallengePicker
             onPick={handlePickChallenge}
             onPickTemplate={handlePickTemplate}
+            customChallenges={customChallenges}
+            customTemplates={customTemplates}
+            loading={loading}
           />
           <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
         </>

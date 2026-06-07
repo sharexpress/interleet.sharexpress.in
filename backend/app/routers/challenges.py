@@ -3,6 +3,7 @@ from typing import Optional
 
 from app.controllers.challenge import ChallengeController
 from app.middleware.user import Middleware as UserMiddleware
+from app.middleware.admin import AdminMiddleware
 
 router = APIRouter(prefix="/challenges", tags=["Challenges"])
 
@@ -31,6 +32,7 @@ async def get_challenge(slug: str, user_auth=Depends(UserMiddleware.me)):
 @router.post("/create")
 async def create_challenge(
     payload: dict = Body(...),
+    _admin=Depends(AdminMiddleware.is_admin),
 ):
     return await ChallengeController.create_challenge(payload)
 
@@ -39,7 +41,7 @@ async def create_challenge(
 async def update_challenge(
     slug: str,
     payload: dict = Body(...),
-    _user=Depends(UserMiddleware.me),
+    _admin=Depends(AdminMiddleware.is_admin),
 ):
     return await ChallengeController.update_challenge(slug, payload)
 
@@ -47,7 +49,7 @@ async def update_challenge(
 @router.delete("/{slug}")
 async def delete_challenge(
     slug: str,
-    _user=Depends(UserMiddleware.me),
+    _admin=Depends(AdminMiddleware.is_admin),
 ):
     return await ChallengeController.delete_challenge(slug)
 
@@ -55,7 +57,7 @@ async def delete_challenge(
 @router.post("/{slug}/featured")
 async def toggle_featured(
     slug: str,
-    _user=Depends(UserMiddleware.me),
+    _admin=Depends(AdminMiddleware.is_admin),
 ):
     return await ChallengeController.toggle_featured(slug)
 
@@ -63,6 +65,6 @@ async def toggle_featured(
 @router.post("/{slug}/publish")
 async def toggle_publish(
     slug: str,
-    _user=Depends(UserMiddleware.me),
+    _admin=Depends(AdminMiddleware.is_admin),
 ):
     return await ChallengeController.toggle_publish(slug)

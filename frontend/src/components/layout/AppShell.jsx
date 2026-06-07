@@ -44,15 +44,19 @@ const nav = [
   { to: "/app/leaderboard", label: "Leaderboard", icon: Trophy },
 ];
 
-const more = [
-  { to: "/app/settings", label: "Settings", icon: Settings },
-  { to: "/recruiter", label: "Recruiter", icon: Briefcase },
-  { to: "/admin", label: "Admin", icon: ShieldCheck },
-];
-
-function NavLinks({ orientation = "horizontal", onNavigate }) {
+function NavLinks({ user, orientation = "horizontal", onNavigate }) {
   const path = useLocation().pathname;
-  const items = orientation === "vertical" ? [...nav, ...more] : nav;
+  
+  const items = [...nav];
+  if (orientation === "vertical") {
+    items.push({ to: "/app/settings", label: "Settings", icon: Settings });
+    if (user?.role === "recruiter") {
+      items.push({ to: "/recruiter", label: "Recruiter", icon: Briefcase });
+    }
+    if (user?.role === "admin") {
+      items.push({ to: "/admin", label: "Admin", icon: ShieldCheck });
+    }
+  }
 
   return (
     <nav
@@ -129,14 +133,14 @@ export function AppShell({ children }) {
               </SheetTitle>
             </SheetHeader>
             <div className="flex h-[calc(100vh-56px)] flex-col py-2">
-              <NavLinks orientation="vertical" onNavigate={() => setMobileOpen(false)} />
+              <NavLinks user={user} orientation="vertical" onNavigate={() => setMobileOpen(false)} />
             </div>
           </SheetContent>
         </Sheet>
 
         <div className="flex items-center gap-6">
           <Logo />
-          <NavLinks />
+          <NavLinks user={user} />
         </div>
 
         <div className="relative ml-4 hidden flex-1 max-w-sm md:block">
@@ -173,55 +177,59 @@ export function AppShell({ children }) {
                 <span className="hidden text-sm font-medium md:inline">{firstName}</span>
               </button>
             </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">{user?.full_name || "Engineer"}</span>
-                  <span className="text-xs text-muted-foreground">@{user?.username || ""}</span>
-                </div>
-              </DropdownMenuLabel>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem asChild>
-                <Link to={`/app/profile/${user?.username}`}>
-                  <User className="mr-2 h-4 w-4" />
-                  View profile
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/app/settings">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/recruiter">
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  Recruiter
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/admin">
-                  <ShieldCheck className="mr-2 h-4 w-4" />
-                  Admin
-                </Link>
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="text-destructive focus:text-destructive cursor-pointer"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
+ 
+             <DropdownMenuContent align="end" className="w-56">
+               <DropdownMenuLabel>
+                 <div className="flex flex-col">
+                   <span className="text-sm font-medium">{user?.full_name || "Engineer"}</span>
+                   <span className="text-xs text-muted-foreground">@{user?.username || ""}</span>
+                 </div>
+               </DropdownMenuLabel>
+ 
+               <DropdownMenuSeparator />
+ 
+               <DropdownMenuItem asChild>
+                 <Link to={`/app/profile/${user?.username}`}>
+                   <User className="mr-2 h-4 w-4" />
+                   View profile
+                 </Link>
+               </DropdownMenuItem>
+               <DropdownMenuItem asChild>
+                 <Link to="/app/settings">
+                   <Settings className="mr-2 h-4 w-4" />
+                   Settings
+                 </Link>
+               </DropdownMenuItem>
+               {user?.role === "recruiter" && (
+                 <DropdownMenuItem asChild>
+                   <Link to="/recruiter">
+                     <Briefcase className="mr-2 h-4 w-4" />
+                     Recruiter
+                   </Link>
+                 </DropdownMenuItem>
+               )}
+               {user?.role === "admin" && (
+                 <DropdownMenuItem asChild>
+                   <Link to="/admin">
+                     <ShieldCheck className="mr-2 h-4 w-4" />
+                     Admin
+                   </Link>
+                 </DropdownMenuItem>
+               )}
+ 
+               <DropdownMenuSeparator />
+ 
+               <DropdownMenuItem
+                 onClick={handleLogout}
+                 className="text-destructive focus:text-destructive cursor-pointer"
+               >
+                 <LogOut className="mr-2 h-4 w-4" />
+                 Sign out
+               </DropdownMenuItem>
+             </DropdownMenuContent>
+           </DropdownMenu>
+         </div>
+       </header>
 
       <main className="min-w-0 flex-1">{children}</main>
     </div>

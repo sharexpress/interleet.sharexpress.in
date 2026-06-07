@@ -84,3 +84,11 @@ async def complete_onboarding(
     user=Depends(User_Middleware.me),
 ):
     return await UserController.complete_onboarding(payload, user)
+
+
+@router.post("/admin/login")
+async def admin_login(
+    payload: dict,
+    response: Response,
+):
+    return await UserController.admin_login(payload, response)

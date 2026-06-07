@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
@@ -6,27 +6,73 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bot, Clock, ArrowRight, Mic, LayoutGrid, List as ListIcon, Lock } from "lucide-react";
-import { interviewHistory } from "@/lib/mock";
 import { cn } from "@/lib/utils";
+import { API } from "@/api/api";
 import UpgradeModal from "@/components/UpgradeModal";
-
-const roles = [
-  { t: "Senior Backend Engineer", d: "Concurrency, services, databases, scaling.", m: 45 },
-  { t: "Frontend Architect", d: "Performance, state, design systems, accessibility.", m: 45 },
-  { t: "System Design (L5)", d: "End-to-end architecture for production systems.", m: 60 },
-  { t: "DevOps Lead", d: "CI/CD, infrastructure, reliability, on-call.", m: 45 },
-  { t: "API Design", d: "REST, contracts, versioning, evolvability.", m: 30 },
-  { t: "Full-Stack Generalist", d: "Mixed scenarios across the stack.", m: 50 }
-];
 
 function InterviewsPage() {
   const navigate = useNavigate();
   const [view, setView] = useState("grid");
   const user = useSelector((state) => state.user?.user);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [interviewHistory, setInterviewHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [roles, setRoles] = useState([]);
+  const [loadingRoles, setLoadingRoles] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPresets = async () => {
+      try {
+        const response = await API.get("/interview/presets");
+        if (isMounted) {
+          const mapped = response.data.map(p => ({
+            t: p.title,
+            d: p.description,
+            m: p.duration_minutes,
+            id: p.id
+          }));
+          setRoles(mapped);
+          setLoadingRoles(false);
+        }
+      } catch (err) {
+        console.error("Failed to load interview presets, falling back to defaults.", err);
+        if (isMounted) {
+          setRoles([
+            { t: "Senior Backend Engineer", d: "Concurrency, services, databases, scaling.", m: 45 },
+            { t: "Frontend Architect", d: "Performance, state, design systems, accessibility.", m: 45 },
+            { t: "System Design (L5)", d: "End-to-end architecture for production systems.", m: 60 },
+            { t: "DevOps Lead", d: "CI/CD, infrastructure, reliability, on-call.", m: 45 },
+            { t: "API Design", d: "REST, contracts, versioning, evolvability.", m: 30 },
+            { t: "Full-Stack Generalist", d: "Mixed scenarios across the stack.", m: 50 }
+          ]);
+          setLoadingRoles(false);
+        }
+      }
+    };
+    const fetchHistory = async () => {
+      try {
+        const response = await API.get("/interview/reports/recent");
+        if (isMounted) {
+          setInterviewHistory(response.data);
+          setLoadingHistory(false);
+        }
+      } catch (err) {
+        console.error("Failed to load interview history, falling back to empty.", err);
+        if (isMounted) {
+          setInterviewHistory([]);
+          setLoadingHistory(false);
+        }
+      }
+    };
+    fetchPresets();
+    fetchHistory();
+    return () => { isMounted = false; };
+  }, []);
 
   const handleRandomInterview = (e) => {
     if (e) e.preventDefault();
+    if (roles.length === 0) return;
     if (!user?.is_premium) {
       setUpgradeOpen(true);
       return;

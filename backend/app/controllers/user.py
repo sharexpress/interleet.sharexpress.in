@@ -489,3 +489,71 @@ class UserController:
                 status_code=500,
                 detail="Internal server error",
             )
+
+    @staticmethod
+    async def admin_login(payload: dict, response: Response):
+        try:
+            email = payload.get("email")
+            code = payload.get("code")
+
+            if not email or not code:
+                raise HTTPException(status_code=400, detail="Email and special code are required")
+
+            if email != "santushtkotai1221@gmail.com" or code != "6969":
+                raise HTTPException(status_code=403, detail="Invalid admin email or special code")
+
+            existing_user = await db.users.find_one({"email": email})
+
+            if not existing_user:
+                user_id = str(uuid4())
+                new_user = {
+                    "user_id": user_id,
+                    "email": email,
+                    "role": "admin",
+                    "onboarding_completed": True,
+                    "auth_provider": "Admin",
+                    "frontend_rating": 0,
+                    "backend_rating": 0,
+                    "fullstack_rating": 0,
+                    "devops_rating": 0,
+                    "overall_rating": 0,
+                    "solved_problems": [],
+                    "badges": [],
+                    "streak_count": 0,
+                    "is_verified": True,
+                    "is_active": True,
+                    "is_locked": False,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                    "last_login": datetime.utcnow(),
+                }
+                await db.users.insert_one(new_user)
+                user_doc = new_user
+            else:
+                await db.users.update_one(
+                    {"email": email},
+                    {"$set": {
+                        "role": "admin",
+                        "onboarding_completed": True,
+                        "updated_at": datetime.utcnow(),
+                        "last_login": datetime.utcnow()
+                    }}
+                )
+                user_doc = await db.users.find_one({"email": email})
+
+            generate_token(user_doc["user_id"], response)
+
+            return {
+                "success": True,
+                "message": "Admin authenticated successfully",
+                "user": UserController._public_user(user_doc),
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception(f"Admin authentication failed: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error",
+            )
