@@ -1,6 +1,7 @@
 import json
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Depends
+from app.middleware.user import Middleware as UserMiddleware
 
 from app.ai.graph.interview_graph import build_initial_state, run_interview_graph
 from app.ai.services.report_repository import InterviewReportRepository
@@ -19,7 +20,10 @@ def _interviewer_message(state: dict) -> str:
 
 
 @router.post("/start")
-async def start_interview(payload: dict):
+async def start_interview(payload: dict, user_auth=Depends(UserMiddleware.me)):
+    user_doc = user_auth.get("user")
+    if not user_doc.get("is_premium", False):
+        raise HTTPException(status_code=403, detail="AI Mock Interviews require an active Premium subscription.")
     state = build_initial_state(payload)
     state = await run_interview_graph(state)
     await SessionService.create_session(state["session_id"], state)

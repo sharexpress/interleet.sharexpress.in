@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Clock, ArrowRight, Mic, LayoutGrid, List as ListIcon } from "lucide-react";
+import { Bot, Clock, ArrowRight, Mic, LayoutGrid, List as ListIcon, Lock } from "lucide-react";
 import { interviewHistory } from "@/lib/mock";
 import { cn } from "@/lib/utils";
+import UpgradeModal from "@/components/UpgradeModal";
 
 const roles = [
   { t: "Senior Backend Engineer", d: "Concurrency, services, databases, scaling.", m: 45 },
@@ -20,9 +22,15 @@ const roles = [
 function InterviewsPage() {
   const navigate = useNavigate();
   const [view, setView] = useState("grid");
+  const user = useSelector((state) => state.user?.user);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const handleRandomInterview = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (!user?.is_premium) {
+      setUpgradeOpen(true);
+      return;
+    }
     const randomRole = roles[Math.floor(Math.random() * roles.length)];
     const difficulties = ["Easy", "Intermediate", "Hard"];
     const randomDiff = difficulties[Math.floor(Math.random() * difficulties.length)];
@@ -79,7 +87,10 @@ function InterviewsPage() {
                     <span className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background">
                       <Bot className="h-4 w-4 text-primary" />
                     </span>
-                    <h3 className="text-sm font-semibold">{r.t}</h3>
+                    <h3 className="text-sm font-semibold flex items-center gap-1.5">
+                      {!user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
+                      <span>{r.t}</span>
+                    </h3>
                   </div>
                   <p className="mt-3 text-sm text-muted-foreground">{r.d}</p>
 
@@ -91,13 +102,19 @@ function InterviewsPage() {
                         { l: "Intermediate", c: "text-warning border-warning/30 hover:bg-warning/10 bg-warning/5" },
                         { l: "Hard", c: "text-destructive border-destructive/30 hover:bg-destructive/10 bg-destructive/5" }
                       ].map((d) => (
-                        <Link
+                        <div
                           key={d.l}
-                          to={`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`}
-                          className={`rounded-md border px-2 py-1.5 text-center text-[11px] font-medium transition-colors ${d.c}`}
+                          onClick={() => {
+                            if (!user?.is_premium) {
+                              setUpgradeOpen(true);
+                            } else {
+                              navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`);
+                            }
+                          }}
+                          className={`rounded-md border px-2 py-1.5 text-center text-[11px] font-medium transition-colors cursor-pointer ${d.c}`}
                         >
                           {d.l}
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -106,12 +123,18 @@ function InterviewsPage() {
                     <span className="inline-flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />{r.m}m
                     </span>
-                    <Link 
-                      to={`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`} 
-                      className="inline-flex items-center text-primary hover:underline"
+                    <div 
+                      onClick={() => {
+                        if (!user?.is_premium) {
+                          setUpgradeOpen(true);
+                        } else {
+                          navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`);
+                        }
+                      }}
+                      className="inline-flex items-center text-primary hover:underline cursor-pointer"
                     >
                       Start <ArrowRight className="ml-1 h-3 w-3" />
-                    </Link>
+                    </div>
                   </div>
                 </Card>
               ))}
@@ -136,7 +159,8 @@ function InterviewsPage() {
                           <span className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background">
                             <Bot className="h-4 w-4 text-primary" />
                           </span>
-                          {r.t}
+                          {!user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
+                          <span>{r.t}</span>
                         </td>
                         <td className="px-4 py-4 text-muted-foreground text-xs">{r.d}</td>
                         <td className="px-4 py-4 font-mono text-xs text-zinc-400">
@@ -151,23 +175,35 @@ function InterviewsPage() {
                               { l: "Intermediate", c: "text-warning border-warning/30 hover:bg-warning/10 bg-warning/5" },
                               { l: "Hard", c: "text-destructive border-destructive/30 hover:bg-destructive/10 bg-destructive/5" }
                             ].map((d) => (
-                              <Link
+                              <div
                                 key={d.l}
-                                to={`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`}
-                                className={`rounded border px-2 py-1 text-[10px] font-medium transition-colors ${d.c}`}
+                                onClick={() => {
+                                  if (!user?.is_premium) {
+                                    setUpgradeOpen(true);
+                                  } else {
+                                    navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`);
+                                  }
+                                }}
+                                className={`rounded border px-2 py-1 text-[10px] font-medium transition-colors cursor-pointer ${d.c}`}
                               >
                                 {d.l}
-                              </Link>
+                              </div>
                             ))}
                           </div>
                         </td>
                         <td className="px-4 py-4 text-right">
-                          <Link 
-                            to={`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`}
-                            className="inline-flex items-center text-xs text-primary hover:underline font-semibold"
+                          <div 
+                            onClick={() => {
+                              if (!user?.is_premium) {
+                                setUpgradeOpen(true);
+                              } else {
+                                navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`);
+                              }
+                            }}
+                            className="inline-flex items-center text-xs text-primary hover:underline font-semibold cursor-pointer"
                           >
                             Start <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                          </Link>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -215,6 +251,7 @@ function InterviewsPage() {
           </Card>
         </section>
       </div>
+      <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </AppShell>
   );
 }

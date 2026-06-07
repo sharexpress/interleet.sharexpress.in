@@ -24,8 +24,8 @@ async def list_challenges(
 
 
 @router.get("/{slug}")
-async def get_challenge(slug: str):
-    return await ChallengeController.get_challenge(slug)
+async def get_challenge(slug: str, user_auth=Depends(UserMiddleware.me)):
+    return await ChallengeController.get_challenge(slug, requesting_user=user_auth["user"])
 
 
 @router.post("/create")

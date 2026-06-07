@@ -33,6 +33,7 @@ import { ArrowUpRight, Sparkles, Trophy, Flame, Target, Award, ChevronRight, Che
 import { activityWeekly, challenges, recentActivity } from "@/lib/mock";
 
 import { ChallengeCard } from "@/components/domain/ChallengeCard";
+import UpgradeModal from "@/components/UpgradeModal";
 
 function Dashboard() {
   // state.user.user is the flat user object — no double-nesting needed
@@ -123,6 +124,21 @@ function Dashboard() {
         description="Your engineering arena at a glance."
         actions={
           <>
+            {!activeUser.is_premium ? (
+              <UpgradeModal
+                trigger={
+                  <Button className="bg-gradient-to-r from-[#FF6500] to-orange-600 hover:from-[#E05900] hover:to-orange-700 text-white font-bold border-none shadow-lg shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+                    <Sparkles className="mr-1.5 h-4 w-4 fill-white text-white" />
+                    Go Premium
+                  </Button>
+                }
+              />
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FF6500]/10 border border-[#FF6500]/30 px-3.5 py-1.5 text-xs font-bold text-[#FF6500] shadow-[0_0_15px_rgba(255,101,0,0.1)]">
+                <Sparkles className="h-3.5 w-3.5 fill-[#FF6500] text-[#FF6500] animate-pulse" /> Pro Elite
+              </span>
+            )}
+
             <Button variant="outline" asChild>
               <Link to="/app/interviews/live">Start an interview</Link>
             </Button>

@@ -37,6 +37,7 @@ def _to_frontend(doc: dict) -> dict:
         "test_cases": doc.get("test_cases", []),
         "is_featured": doc.get("is_featured", False),
         "is_published": doc.get("is_published", True),
+        "is_premium": doc.get("is_premium", False) or doc.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"},
     }
 
 
@@ -105,7 +106,7 @@ class ChallengeController:
         }
 
     @staticmethod
-    async def get_challenge(slug: str):
+    async def get_challenge(slug: str, requesting_user: dict | None = None):
         doc = await db.problems.find_one({"slug": slug, "is_archived": {"$ne": True}})
 
         if not doc:
@@ -114,7 +115,18 @@ class ChallengeController:
         if not doc:
             raise HTTPException(status_code=404, detail="Challenge not found")
 
-        return {"success": True, "data": _to_frontend(_serialize(doc))}
+        challenge_data = _to_frontend(_serialize(doc))
+
+        # Access control: redact sensitive details for non-premium users on premium challenges
+        if challenge_data.get("is_premium"):
+            is_premium_user = requesting_user.get("is_premium", False) if requesting_user else False
+            if not is_premium_user:
+                challenge_data["locked"] = True
+                challenge_data["starter_code"] = {k: "/* PREMIUM CONTENT LOCKED */" for k in challenge_data.get("starter_code", {})}
+                challenge_data["test_cases"] = []
+                challenge_data["description"] = "This is a premium engineering challenge. Subscribe to unlock the interactive editor, test cases, and AI review."
+
+        return {"success": True, "data": challenge_data}
 
     @staticmethod
     async def create_challenge(payload: dict):
