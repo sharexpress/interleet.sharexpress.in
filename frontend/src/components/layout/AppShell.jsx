@@ -52,7 +52,7 @@ const nav = [
 
 function NavLinks({ user, orientation = "horizontal", onNavigate }) {
   const path = useLocation().pathname;
-  
+
   const items = [...nav];
   if (orientation === "vertical") {
     items.push({ to: "/app/settings", label: "Settings", icon: Settings });
@@ -152,11 +152,11 @@ export function AppShell({ children }) {
   // Initials from full_name e.g. "Santusht Kotai" → "SK"
   const initials = user?.full_name
     ? user.full_name
-        .split(" ")
-        .map((n) => n[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase()
+      .split(" ")
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase()
     : "??";
 
   const firstName = user?.full_name?.split(" ")[0] || "Engineer";
@@ -289,59 +289,59 @@ export function AppShell({ children }) {
                 <span className="hidden text-sm font-medium md:inline">{firstName}</span>
               </button>
             </DropdownMenuTrigger>
- 
-             <DropdownMenuContent align="end" className="w-56">
-               <DropdownMenuLabel>
-                 <div className="flex flex-col">
-                   <span className="text-sm font-medium">{user?.full_name || "Engineer"}</span>
-                   <span className="text-xs text-muted-foreground">@{user?.username || ""}</span>
-                 </div>
-               </DropdownMenuLabel>
- 
-               <DropdownMenuSeparator />
- 
-               <DropdownMenuItem asChild>
-                 <Link to={`/app/profile/${user?.username}`}>
-                   <User className="mr-2 h-4 w-4" />
-                   View profile
-                 </Link>
-               </DropdownMenuItem>
-               <DropdownMenuItem asChild>
-                 <Link to="/app/settings">
-                   <Settings className="mr-2 h-4 w-4" />
-                   Settings
-                 </Link>
-               </DropdownMenuItem>
-               {user?.role === "recruiter" && (
-                 <DropdownMenuItem asChild>
-                   <Link to="/recruiter">
-                     <Briefcase className="mr-2 h-4 w-4" />
-                     Recruiter
-                   </Link>
-                 </DropdownMenuItem>
-               )}
-               {user?.role === "admin" && (
-                 <DropdownMenuItem asChild>
-                   <Link to="/admin">
-                     <ShieldCheck className="mr-2 h-4 w-4" />
-                     Admin
-                   </Link>
-                 </DropdownMenuItem>
-               )}
- 
-               <DropdownMenuSeparator />
- 
-               <DropdownMenuItem
-                 onClick={handleLogout}
-                 className="text-destructive focus:text-destructive cursor-pointer"
-               >
-                 <LogOut className="mr-2 h-4 w-4" />
-                 Sign out
-               </DropdownMenuItem>
-             </DropdownMenuContent>
-           </DropdownMenu>
-         </div>
-       </header>
+
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">{user?.full_name || "Engineer"}</span>
+                  <span className="text-xs text-muted-foreground">@{user?.username || ""}</span>
+                </div>
+              </DropdownMenuLabel>
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem asChild>
+                <Link to={`/app/profile/${user?.username}`}>
+                  <User className="mr-2 h-4 w-4" />
+                  View profile
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to="/app/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              {user?.role === "recruiter" && (
+                <DropdownMenuItem asChild>
+                  <Link to="/recruiter">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Recruiter
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              {user?.role === "admin" && (
+                <DropdownMenuItem asChild>
+                  <Link to="/admin">
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Admin
+                  </Link>
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="text-destructive focus:text-destructive cursor-pointer"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
 
       <main className="min-w-0 flex-1">{children}</main>
     </div>

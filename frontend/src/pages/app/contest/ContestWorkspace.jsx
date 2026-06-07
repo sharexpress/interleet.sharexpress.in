@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Play, Send, FileCode2, Terminal as TerminalIcon, Check, X, ArrowLeft, Clock, ShieldAlert, Award, Loader2, RefreshCw, BookOpen, Sparkles, Users } from "lucide-react";
+import { Play, Send, FileCode2, Terminal as TerminalIcon, Check, X, ArrowLeft, Clock, ShieldAlert, Award, Loader2, RefreshCw, BookOpen, Sparkles, Users, Maximize, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -175,6 +175,32 @@ function ContestWorkspace() {
 
   const [outputTab, setOutputTab] = useState("testcase"); // "testcase" | "result"
   const [wsUpdateTrigger, setWsUpdateTrigger] = useState(0);
+
+  // Fullscreen variables & function
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const hasEnteredFullscreenOnce = useRef(false);
+
+  const enterFullscreen = () => {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch((err) => {
+          console.warn("Fullscreen request rejected:", err);
+        });
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+      setIsFullscreen(true);
+    } else if (elem.msRequestFullscreen) {
+      elem.msRequestFullscreen();
+      setIsFullscreen(true);
+    }
+  };
+
+  // Try entering fullscreen on page mount and whenever contest information loads
+  useEffect(() => {
+    enterFullscreen();
+  }, [contest]);
 
   const containerRef = useRef(null);
   const [leftW, setLeftW] = useState(380);
@@ -353,8 +379,18 @@ function ContestWorkspace() {
       logCheatingEvent("focus_loss");
     };
 
+    const handleFullscreenChange = () => {
+      const active = !!document.fullscreenElement;
+      setIsFullscreen(active);
+      if (!active && !disqualified && hasEnteredFullscreenOnce.current) {
+        toast.error("Warning: Fullscreen exited! Fullscreen is required for this contest.");
+        logCheatingEvent("fullscreen_exit");
+      }
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
 
     return () => {
       document.removeEventListener("copy", preventDefault);
@@ -362,6 +398,7 @@ function ContestWorkspace() {
       document.removeEventListener("cut", preventDefault);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
   }, [disqualified]);
 
@@ -423,15 +460,46 @@ function ContestWorkspace() {
           <div className="space-y-2 pt-4">
             <h2 className="text-xl font-bold text-white uppercase tracking-wider">Disqualified</h2>
             <p className="text-sm text-zinc-400">
-              Your session has been terminated due to multiple focus losses or tab switching actions, violating the contest integrity rules.
+              Your session has been terminated due to multiple cheating warnings or exiting fullscreen mode, violating the contest integrity rules.
             </p>
           </div>
           <div className="border-t border-zinc-800 pt-4 text-xs text-zinc-500">
-            Cheating Violations Limit: 3/3 Exceeded.
+            Contest integrity rules violated.
           </div>
           <Button className="w-full bg-red-600 hover:bg-red-500 text-white" asChild>
             <Link to="/app/contest">Exit Arena</Link>
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Fullscreen Lock Screen
+  if (!isFullscreen) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-zinc-950 px-4 text-center fixed inset-0 z-50">
+        <div className="max-w-md w-full bg-zinc-900 border border-amber-500/20 rounded-2xl p-8 space-y-6 shadow-2xl relative">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-amber-600/10 border border-amber-500 text-amber-500 flex items-center justify-center">
+            <Lock className="w-7 h-7 animate-pulse" />
+          </div>
+          <div className="space-y-2 pt-4">
+            <h2 className="text-xl font-bold text-white uppercase tracking-wider">Fullscreen Mode Required</h2>
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              To proceed in this contest, your screen must remain in fullscreen mode. This prevents anti-cheat flags and maintains competitive fairness.
+            </p>
+          </div>
+          <Button 
+            className="w-full bg-[#FF6500] hover:bg-orange-600 text-white font-bold"
+            onClick={() => {
+              hasEnteredFullscreenOnce.current = true;
+              enterFullscreen();
+            }}
+          >
+            Enter Fullscreen Mode
+          </Button>
+          <div className="text-[10px] text-zinc-500">
+            Exiting fullscreen mode during the contest session will record a warning.
+          </div>
         </div>
       </div>
     );
@@ -484,6 +552,15 @@ function ContestWorkspace() {
                 <SelectItem value="ts">TypeScript</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant={isFullscreen ? "ghost" : "outline"}
+              size="sm"
+              className={`h-8 text-xs gap-1.5 ${!isFullscreen ? "border-amber-500/50 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" : ""}`}
+              onClick={enterFullscreen}
+            >
+              <Maximize className="h-3.5 w-3.5" />
+              {isFullscreen ? "Fullscreen Active" : "Fullscreen Required"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
