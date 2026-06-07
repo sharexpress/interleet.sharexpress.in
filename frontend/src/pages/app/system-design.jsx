@@ -44,12 +44,14 @@ import {
   ArrowLeft,
   Clock,
   Users,
+  Lock,
 } from "lucide-react";
 import InfraNode from "@/components/nodes/InfraNode";
 import TrafficEdge from "@/components/edges/TrafficEdge";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { DifficultyPill, DomainTag } from "@/components/domain/Tags";
 import { Card } from "@/components/ui/card";
+import UpgradeModal from "@/components/UpgradeModal";
 import { Badge } from "@/components/ui/badge";
 import { Input as UiInput } from "@/components/ui/input";
 import {
@@ -1172,6 +1174,7 @@ function useSuggestions() {
 
 // ---------- Challenge picker ----------
 function ChallengePicker({ onPick, onPickTemplate }) {
+  const user = useSelector((s) => s.user?.user);
   const [tab, setTab] = useState("challenges"); // "challenges" | "practice"
   const [q, setQ] = useState("");
   const [diff, setDiff] = useState("all");
@@ -1541,7 +1544,8 @@ function ChallengePicker({ onPick, onPickTemplate }) {
                       </Badge>
                     </div>
                     <h3 className="text-xl font-bold group-hover:text-primary transition-colors flex items-center gap-2">
-                      {featuredChallenge.title}
+                      {!user?.is_premium && <Lock className="h-4 w-4 text-[#FF6500] shrink-0" />}
+                      <span>{featuredChallenge.title}</span>
                       {featuredChallenge.progress === "Completed" && (
                         <span className="h-2 w-2 rounded-full bg-emerald-500" title="Completed" />
                       )}
@@ -1623,7 +1627,10 @@ function ChallengePicker({ onPick, onPickTemplate }) {
                       )}
                     </div>
                     <h3 className="mt-3 text-base font-semibold leading-snug tracking-tight group-hover:text-primary transition-colors flex items-center justify-between gap-2">
-                      <span>{ch.title}</span>
+                      <span className="flex items-center gap-1.5">
+                        {ch.id !== "blank" && !user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
+                        <span>{ch.title}</span>
+                      </span>
                       {ch.progress === "Completed" && (
                         <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="Completed" />
                       )}
@@ -1682,8 +1689,9 @@ function ChallengePicker({ onPick, onPickTemplate }) {
                         Template
                       </Badge>
                     </div>
-                    <h3 className="mt-3 text-base font-semibold leading-snug tracking-tight group-hover:text-primary transition-colors">
-                      {t.name}
+                    <h3 className="mt-3 text-base font-semibold leading-snug tracking-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
+                      {!user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
+                      <span>{t.name}</span>
                     </h3>
                     <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{t.description}</p>
                   </div>
@@ -1718,29 +1726,47 @@ function ChallengePicker({ onPick, onPickTemplate }) {
 export default function SystemDesignSimulator() {
   const [challenge, setChallenge] = useState(null);
   const [template, setTemplate] = useState(null);
+  const user = useSelector((state) => state.user?.user);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  const handlePickChallenge = (c) => {
+    if (c.id !== "blank" && !user?.is_premium) {
+      setUpgradeOpen(true);
+    } else {
+      setChallenge(c);
+      setTemplate(null);
+    }
+  };
+
+  const handlePickTemplate = (t) => {
+    if (!user?.is_premium) {
+      setUpgradeOpen(true);
+    } else {
+      setTemplate(t);
+      setChallenge({
+        id: `tpl-${t.id}`,
+        title: t.name,
+        difficulty: "Template",
+        tags: ["Practice"],
+        brief:
+          t.description ||
+          `Prebuilt ${t.name} reference architecture. Study it, tweak nodes, or simulate load.`,
+        requirements: [],
+        hints: [],
+      });
+    }
+  };
+
   return (
     <ReactFlowProvider>
       {!challenge ? (
-        <ChallengePicker
-          onPick={(c) => {
-            setTemplate(null);
-            setChallenge(c);
-          }}
-          onPickTemplate={(t) => {
-            setTemplate(t);
-            setChallenge({
-              id: `tpl-${t.id}`,
-              title: t.name,
-              difficulty: "Template",
-              tags: ["Practice"],
-              brief:
-                t.description ||
-                `Prebuilt ${t.name} reference architecture. Study it, tweak nodes, or simulate load.`,
-              requirements: [],
-              hints: [],
-            });
-          }}
-        />
+        <>
+          <ChallengePicker
+            onPick={handlePickChallenge}
+            onPickTemplate={handlePickTemplate}
+          />
+          <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
+        </>
       ) : (
         <Workspace
           challenge={challenge}

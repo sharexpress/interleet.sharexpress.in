@@ -59,6 +59,7 @@ CHALLENGES = [
         "completion": 38,
         "tags": ["React", "Performance", "Accessibility"],
         "summary": "Render 100k rows with sticky headers, sorting, and keyboard navigation.",
+        "is_premium": True,
     },
     {
         "id": "3",
@@ -83,6 +84,7 @@ CHALLENGES = [
         "completion": 28,
         "tags": ["Fan-out", "Cache", "Sharding"],
         "summary": "Architect a low-latency timeline service for 500M daily users.",
+        "is_premium": True,
     },
     {
         "id": "5",
@@ -131,6 +133,7 @@ CHALLENGES = [
         "completion": 18,
         "tags": ["Kubernetes", "Helm", "Rollouts"],
         "summary": "Zero-downtime release with automated rollback on SLO breach.",
+        "is_premium": True,
     },
     {
         "id": "9",

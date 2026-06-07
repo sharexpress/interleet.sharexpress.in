@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { AppShell } from "@/components/layout/AppShell";
+import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
@@ -723,7 +724,7 @@ function EditorPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={handleRun} disabled={isRunning || isSubmitting}>
+          <Button variant="outline" size="sm" onClick={handleRun} disabled={c?.locked || isRunning || isSubmitting}>
             {isRunning ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -731,7 +732,7 @@ function EditorPage() {
             )}
             Run
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={isRunning || isSubmitting}>
+          <Button size="sm" onClick={handleSubmit} disabled={c?.locked || isRunning || isSubmitting}>
             {isSubmitting ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -759,239 +760,296 @@ function EditorPage() {
         </div>
       </div>
 
-      {/* Three-pane workspace */}
-      <div ref={containerRef} className="flex h-[calc(100vh-56px-49px)] overflow-hidden">
-        {/* LEFT: problem panel */}
-        <aside
-          className="hidden flex-col overflow-hidden border-r border-border bg-card md:flex"
-          style={{ width: leftW, minWidth: MIN_COL, flexShrink: 0 }}
-        >
-          <div className="border-b border-border px-4 py-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-primary" />
-              <p className="text-sm font-semibold">Problem</p>
-            </div>
-            <p className="mt-1 truncate text-base font-semibold">{c.title}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <DifficultyPill d={c.difficulty} />
-              <DomainTag d={c.domain} />
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Clock className="h-3 w-3" /> {c.minutes}m
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Sparkles className="h-3 w-3" /> {c.xp} XP
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                <Users className="h-3 w-3" /> {c.completion}%
-              </span>
-            </div>
-          </div>
-          <div className="flex-1 overflow-auto px-4 py-4 text-sm leading-relaxed text-foreground/90">
-            <p>{c.summary}</p>
-            {c.description && <p className="mt-3 text-muted-foreground">{c.description}</p>}
-            {c.test_cases?.filter((t) => !t.hidden).length > 0 && (
-              <>
-                <h3 className="mt-5 text-sm font-semibold">Examples</h3>
-                <div className="mt-2 space-y-2">
-                  {c.test_cases
-                    .filter((t) => !t.hidden)
-                    .map((t) => (
-                      <div
-                        key={t.id}
-                        className="rounded-md border border-border bg-background/60 p-3"
-                      >
-                        <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {t.name}
-                        </p>
-                        {t.stdin && (
-                          <div className="mb-1">
-                            <span className="text-[10px] text-muted-foreground">Input: </span>
-                            <code className="font-mono text-[11px] text-foreground/85">
-                              {t.stdin.trim()}
-                            </code>
-                          </div>
-                        )}
-                        {t.expected_output && (
-                          <div>
-                            <span className="text-[10px] text-muted-foreground">Output: </span>
-                            <code className="font-mono text-[11px] text-foreground/85">
-                              {t.expected_output.trim()}
-                            </code>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                </div>
-              </>
-            )}
-            {c.hints?.length > 0 && (
-              <>
-                <h3 className="mt-5 text-sm font-semibold">Hints</h3>
-                <ol className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
-                  {c.hints.map((h, i) => (
-                    <li key={i}>{h}</li>
-                  ))}
-                </ol>
-              </>
-            )}
-            {c.tags?.length > 0 && (
-              <>
-                <h3 className="mt-5 text-sm font-semibold">Tags</h3>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {c.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded border border-border bg-background/60 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </aside>
+      {/* Workspace Area: Locked check */}
+      {c?.locked ? (
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-56px-49px)] bg-zinc-950 px-4 text-center">
+          <div className="max-w-md w-full bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-8 space-y-6 shadow-xl relative overflow-hidden">
+            {/* Ambient orange glow */}
+            <div className="absolute -top-12 -left-12 w-24 h-24 bg-[#FF6500]/5 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -right-12 w-24 h-24 bg-[#FF6500]/5 rounded-full blur-2xl pointer-events-none" />
 
-        {/* DRAG: left | center */}
-        <DragHandle onDelta={onDragLeft} />
-
-        {/* CENTER: editor + bottom tabs */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* File tab bar */}
-          <div className="flex items-center gap-1 border-b border-border bg-background/60 px-2 py-1.5">
-            <div className="flex items-center gap-2 rounded-t border-b-2 border-primary bg-card px-3 py-1 font-mono text-xs text-foreground">
-              <FileCode2 className="h-3 w-3" /> {fileName}
-            </div>
-          </div>
-
-          {/* Monaco editor */}
-          <div className="min-h-0 flex-1 overflow-hidden bg-[#1E1E1E]">
-            <MonacoEditor value={code} language={lang} onChange={setCode} />
-          </div>
-
-          {/* Bottom panel */}
-          <div className="border-t border-border bg-background/60">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
-              <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
-                <TabsList className="h-8 bg-transparent p-0">
-                  <TabsTrigger value="testcase" className="h-7 px-3 text-xs">
-                    Testcase
-                  </TabsTrigger>
-                  <TabsTrigger value="result" className="h-7 px-3 text-xs">
-                    Test Result
-                  </TabsTrigger>
-                  <TabsTrigger value="console" className="h-7 px-3 text-xs">
-                    <TerminalIcon className="mr-1 h-3 w-3" /> Console
-                    {consoleResult && (
-                      <span
-                        className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold ${
-                          consoleResult.errors.length > 0
-                            ? "bg-destructive/20 text-destructive"
-                            : "bg-success/20 text-success"
-                        }`}
-                      >
-                        {consoleResult.errors.length > 0
-                          ? consoleResult.errors.length
-                          : consoleResult.logs.length}
-                      </span>
-                    )}
-                  </TabsTrigger>
-                </TabsList>
-                <div className="flex items-center gap-2">
-                  {activeTab === "console" && consoleResult && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                      onClick={() => setResult(null)}
-                      title="Clear console"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                  <Badge variant="outline" className="font-mono text-[10px]">
-                    {LANG_BADGE[lang]}
-                  </Badge>
-                </div>
+            <div className="flex flex-col items-center space-y-3">
+              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#FF6500]/10 border border-[#FF6500]/30 text-[#FF6500]">
+                <Lock className="w-6 h-6 animate-pulse" />
               </div>
+              <h2 className="text-xl font-bold tracking-tight text-white">
+                Premium Challenge Locked
+              </h2>
+              <p className="text-sm text-zinc-400 leading-relaxed">
+                This challenge requires an active Pro Elite subscription. Unlock the complete catalog, interactive test suites, and unlimited AI mock interviews today.
+              </p>
+            </div>
 
-              <TabsContent value="testcase" className="m-0 max-h-64 overflow-auto p-3">
-                {c.test_cases?.filter((t) => !t.hidden).length > 0 ? (
-                  <div className="grid gap-2 md:grid-cols-3">
+            <div className="border-t border-b border-zinc-800/60 py-4 my-2 text-left space-y-2.5">
+              <div className="flex items-center gap-2 text-xs text-zinc-300">
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Full access to all premium/expert challenges</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-zinc-300">
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Interactive editor, test cases, and solutions</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-zinc-300">
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Unlimited tailored AI interview feedback reports</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 border-zinc-800 hover:bg-zinc-850 hover:text-white text-zinc-400"
+                asChild
+              >
+                <Link to="/app/challenges">
+                  <ArrowLeft className="w-4 h-4 mr-1.5" /> Challenges
+                </Link>
+              </Button>
+              <UpgradeModal
+                trigger={
+                  <Button className="flex-1 bg-gradient-to-r from-[#FF6500] to-orange-600 hover:from-[#E05900] hover:to-orange-700 text-white font-bold border-none shadow-lg shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
+                    <Sparkles className="w-4 h-4 mr-1.5 fill-white text-white animate-pulse" />
+                    Unlock Pro
+                  </Button>
+                }
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div ref={containerRef} className="flex h-[calc(100vh-56px-49px)] overflow-hidden">
+          {/* LEFT: problem panel */}
+          <aside
+            className="hidden flex-col overflow-hidden border-r border-border bg-card md:flex"
+            style={{ width: leftW, minWidth: MIN_COL, flexShrink: 0 }}
+          >
+            <div className="border-b border-border px-4 py-3">
+              <div className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                <p className="text-sm font-semibold">Problem</p>
+              </div>
+              <p className="mt-1 truncate text-base font-semibold">{c.title}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <DifficultyPill d={c.difficulty} />
+                <DomainTag d={c.domain} />
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Clock className="h-3 w-3" /> {c.minutes}m
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Sparkles className="h-3 w-3" /> {c.xp} XP
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Users className="h-3 w-3" /> {c.completion}%
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto px-4 py-4 text-sm leading-relaxed text-foreground/90">
+              <p>{c.summary}</p>
+              {c.description && <p className="mt-3 text-muted-foreground">{c.description}</p>}
+              {c.test_cases?.filter((t) => !t.hidden).length > 0 && (
+                <>
+                  <h3 className="mt-5 text-sm font-semibold">Examples</h3>
+                  <div className="mt-2 space-y-2">
                     {c.test_cases
                       .filter((t) => !t.hidden)
                       .map((t) => (
                         <div
                           key={t.id}
-                          className="rounded-md border border-border bg-card/60 p-3 text-xs"
+                          className="rounded-md border border-border bg-background/60 p-3"
                         >
-                          <p className="font-mono text-[11px] text-muted-foreground">{t.name}</p>
+                          <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {t.name}
+                          </p>
                           {t.stdin && (
-                            <p className="mt-1.5 font-mono text-foreground">{t.stdin.trim()}</p>
+                            <div className="mb-1">
+                              <span className="text-[10px] text-muted-foreground">Input: </span>
+                              <code className="font-mono text-[11px] text-foreground/85">
+                                {t.stdin.trim()}
+                              </code>
+                            </div>
                           )}
                           {t.expected_output && (
-                            <p className="mt-1 font-mono text-muted-foreground">
-                              → {t.expected_output.trim()}
-                            </p>
+                            <div>
+                              <span className="text-[10px] text-muted-foreground">Output: </span>
+                              <code className="font-mono text-[11px] text-foreground/85">
+                                {t.expected_output.trim()}
+                              </code>
+                            </div>
                           )}
                         </div>
                       ))}
                   </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    No visible test cases for this challenge.
-                  </p>
-                )}
-              </TabsContent>
+                </>
+              )}
+              {c.hints?.length > 0 && (
+                <>
+                  <h3 className="mt-5 text-sm font-semibold">Hints</h3>
+                  <ol className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
+                    {c.hints.map((h, i) => (
+                      <li key={i}>{h}</li>
+                    ))}
+                  </ol>
+                </>
+              )}
+              {c.tags?.length > 0 && (
+                <>
+                  <h3 className="mt-5 text-sm font-semibold">Tags</h3>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {c.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="rounded border border-border bg-background/60 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </aside>
 
-              {/* Test Result tab: shows Run OR Submit results */}
-              <TabsContent value="result" className="m-0 max-h-72 overflow-auto p-3 space-y-3">
-                {/* Run result */}
-                {(execState.runStatus !== 'idle' || execState.runResult) && (
-                  <ExecutionResult
-                    mode="run"
-                    status={execState.runStatus}
-                    result={execState.runResult}
-                    error={execState.runError}
-                  />
-                )}
-                {/* Submit result */}
-                {(execState.submitStatus !== 'idle' || execState.submitResult) && (
-                  <ExecutionResult
-                    mode="submit"
-                    status={execState.submitStatus}
-                    result={execState.submitResult}
-                    error={execState.submitError}
-                  />
-                )}
-                {/* Idle placeholder */}
-                {execState.runStatus === 'idle' && execState.submitStatus === 'idle' && (
-                  <p className="text-xs text-muted-foreground italic">
-                    Click <strong>Run</strong> to test against sample cases, or <strong>Submit</strong> to judge all test cases.
-                  </p>
-                )}
-              </TabsContent>
+          {/* DRAG: left | center */}
+          <DragHandle onDelta={onDragLeft} />
 
-              {/* Console tab: legacy local output (JS/TS eval) */}
-              <TabsContent value="console" className="m-0 max-h-64 overflow-auto p-3">
-                <ConsoleOutput result={consoleResult} isRunning={false} />
-              </TabsContent>
+          {/* CENTER: editor + bottom tabs */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            {/* File tab bar */}
+            <div className="flex items-center gap-1 border-b border-border bg-background/60 px-2 py-1.5">
+              <div className="flex items-center gap-2 rounded-t border-b-2 border-primary bg-card px-3 py-1 font-mono text-xs text-foreground">
+                <FileCode2 className="h-3 w-3" /> {fileName}
+              </div>
+            </div>
 
-            </Tabs>
+            {/* Monaco editor */}
+            <div className="min-h-0 flex-1 overflow-hidden bg-[#1E1E1E]">
+              <MonacoEditor value={code} language={lang} onChange={setCode} />
+            </div>
+
+            {/* Bottom panel */}
+            <div className="border-t border-border bg-background/60">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
+                <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+                  <TabsList className="h-8 bg-transparent p-0">
+                    <TabsTrigger value="testcase" className="h-7 px-3 text-xs">
+                      Testcase
+                    </TabsTrigger>
+                    <TabsTrigger value="result" className="h-7 px-3 text-xs">
+                      Test Result
+                    </TabsTrigger>
+                    <TabsTrigger value="console" className="h-7 px-3 text-xs">
+                      <TerminalIcon className="mr-1 h-3 w-3" /> Console
+                      {consoleResult && (
+                        <span
+                          className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold ${
+                            consoleResult.errors.length > 0
+                              ? "bg-destructive/20 text-destructive"
+                              : "bg-success/20 text-success"
+                          }`}
+                        >
+                          {consoleResult.errors.length > 0
+                            ? consoleResult.errors.length
+                            : consoleResult.logs.length}
+                        </span>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                  <div className="flex items-center gap-2">
+                    {activeTab === "console" && consoleResult && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={() => setResult(null)}
+                        title="Clear console"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      {LANG_BADGE[lang]}
+                    </Badge>
+                  </div>
+                </div>
+
+                <TabsContent value="testcase" className="m-0 max-h-64 overflow-auto p-3">
+                  {c.test_cases?.filter((t) => !t.hidden).length > 0 ? (
+                    <div className="grid gap-2 md:grid-cols-3">
+                      {c.test_cases
+                        .filter((t) => !t.hidden)
+                        .map((t) => (
+                          <div
+                            key={t.id}
+                            className="rounded-md border border-border bg-card/60 p-3 text-xs"
+                          >
+                            <p className="font-mono text-[11px] text-muted-foreground">{t.name}</p>
+                            {t.stdin && (
+                              <p className="mt-1.5 font-mono text-foreground">{t.stdin.trim()}</p>
+                            )}
+                            {t.expected_output && (
+                              <p className="mt-1 font-mono text-muted-foreground">
+                                → {t.expected_output.trim()}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No visible test cases for this challenge.
+                    </p>
+                  )}
+                </TabsContent>
+
+                {/* Test Result tab: shows Run OR Submit results */}
+                <TabsContent value="result" className="m-0 max-h-72 overflow-auto p-3 space-y-3">
+                  {/* Run result */}
+                  {(execState.runStatus !== 'idle' || execState.runResult) && (
+                    <ExecutionResult
+                      mode="run"
+                      status={execState.runStatus}
+                      result={execState.runResult}
+                      error={execState.runError}
+                    />
+                  )}
+                  {/* Submit result */}
+                  {(execState.submitStatus !== 'idle' || execState.submitResult) && (
+                    <ExecutionResult
+                      mode="submit"
+                      status={execState.submitStatus}
+                      result={execState.submitResult}
+                      error={execState.submitError}
+                    />
+                  )}
+                  {/* Idle placeholder */}
+                  {execState.runStatus === 'idle' && execState.submitStatus === 'idle' && (
+                    <p className="text-xs text-muted-foreground italic">
+                      Click <strong>Run</strong> to test against sample cases, or <strong>Submit</strong> to judge all test cases.
+                    </p>
+                  )}
+                </TabsContent>
+
+                {/* Console tab: legacy local output (JS/TS eval) */}
+                <TabsContent value="console" className="m-0 max-h-64 overflow-auto p-3">
+                  <ConsoleOutput result={consoleResult} isRunning={false} />
+                </TabsContent>
+
+              </Tabs>
+            </div>
           </div>
+
+          {/* DRAG: center | right */}
+          <DragHandle onDelta={onDragRight} />
+
+          {/* RIGHT: browser preview */}
+          <aside
+            className="hidden flex-col overflow-hidden bg-card xl:flex"
+            style={{ width: rightW, minWidth: MIN_COL, flexShrink: 0 }}
+          >
+            <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} />
+          </aside>
         </div>
-
-        {/* DRAG: center | right */}
-        <DragHandle onDelta={onDragRight} />
-
-        {/* RIGHT: browser preview */}
-        <aside
-          className="hidden flex-col overflow-hidden bg-card xl:flex"
-          style={{ width: rightW, minWidth: MIN_COL, flexShrink: 0 }}
-        >
-          <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} />
-        </aside>
-      </div>
+      )}
     </AppShell>
   );
 }

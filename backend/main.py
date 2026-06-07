@@ -31,6 +31,7 @@ from app.routers.face import router as face_router
 from app.routers.passkey import router as passkey_router
 from app.routers.execution import router as execution_router
 from app.routers.platform import router as platform_router
+from app.routers.payment import router as payment_router
 
 # ─── Judge Engine ──────────────────────────────────────────────────
 from app.api.v1.execute import engine_router
@@ -147,6 +148,7 @@ app.include_router(face_router)
 app.include_router(passkey_router)
 app.include_router(execution_router)  # Legacy: /api/execution/* (backward compat)
 app.include_router(platform_router)
+app.include_router(payment_router)
 
 
 if __name__ == "__main__":

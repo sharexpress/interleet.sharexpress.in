@@ -8,8 +8,10 @@ Legacy routes are preserved to avoid breaking existing frontend code.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body, HTTPException, Depends
 
+from app.middleware.user import Middleware as UserMiddleware
+from app.core.db import get_db
 from app.engine.controllers.submission_controller import EngineSubmissionController
 from app.engine.schemas import ExecuteRequest, SubmissionRequest
 
@@ -31,11 +33,37 @@ async def run_code(payload: ExecuteRequest = Body(...)):
 
 
 @router.post("/submit", summary="Submit code (legacy route)")
-async def submit_code(payload: SubmissionRequest = Body(...)):
+async def submit_code(
+    payload: SubmissionRequest = Body(...),
+    user_auth=Depends(UserMiddleware.me),
+):
     """
     Legacy submit endpoint — proxied to the new Docker-based engine.
     Prefer: POST /api/v1/submissions
     """
+    # Overwrite user_id with the authenticated user's ID to prevent spoofing
+    user_doc = user_auth.get("user")
+    payload.user_id = str(user_doc["user_id"])
+
+    # Access Control Security: check if challenge is premium
+    if payload.problem_slug:
+        db = get_db()
+        challenge = await db.problems.find_one({"slug": payload.problem_slug})
+        is_premium = False
+        if challenge:
+            is_premium = challenge.get("is_premium", False) or challenge.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
+        else:
+            from app.data.seed import CHALLENGES
+            c_seed = next((c for c in CHALLENGES if c.get("slug") == payload.problem_slug), None)
+            if c_seed:
+                is_premium = c_seed.get("is_premium", False) or c_seed.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
+
+        if is_premium and not user_doc.get("is_premium", False):
+            raise HTTPException(
+                status_code=403,
+                detail="This challenge requires an active Premium subscription. Please upgrade to unlock."
+            )
+
     try:
         return await EngineSubmissionController.create_submission(payload)
     except ValueError as exc:

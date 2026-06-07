@@ -27,8 +27,8 @@ async def create_challenge(payload: dict = Body(...)):
 
 
 @router.get("/challenges/{slug}")
-async def get_challenge(slug: str):
-    return await PlatformController.get_challenge(slug)
+async def get_challenge(slug: str, user=Depends(UserMiddleware.me)):
+    return await PlatformController.get_challenge(slug, requesting_user=user["user"])
 
 
 @router.get("/leaderboard")

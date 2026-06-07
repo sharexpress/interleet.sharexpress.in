@@ -17,8 +17,10 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query, Depends
 
+from app.middleware.user import Middleware as UserMiddleware
+from app.core.db import get_db
 from app.engine.controllers.submission_controller import EngineSubmissionController
 from app.engine.docker.pool import get_available_languages, verify_sandbox_images
 from app.engine.executors.factory import LANGUAGE_META, ExecutorFactory
@@ -145,6 +147,7 @@ async def create_submission(
             }
         },
     ),
+    user_auth=Depends(UserMiddleware.me),
 ) -> dict[str, Any]:
     """
     **Async code submission against a problem's testcases.**
@@ -157,6 +160,29 @@ async def create_submission(
     guard = CodeGuard.check(request.code, request.language.value)
     if not guard.allowed:
         raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
+
+    # Overwrite user_id with the authenticated user's ID to prevent spoofing
+    user_doc = user_auth.get("user")
+    request.user_id = str(user_doc["user_id"])
+
+    # Access Control Security: check if challenge is premium
+    if request.problem_slug:
+        db = get_db()
+        challenge = await db.problems.find_one({"slug": request.problem_slug})
+        is_premium = False
+        if challenge:
+            is_premium = challenge.get("is_premium", False) or challenge.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
+        else:
+            from app.data.seed import CHALLENGES
+            c_seed = next((c for c in CHALLENGES if c.get("slug") == request.problem_slug), None)
+            if c_seed:
+                is_premium = c_seed.get("is_premium", False) or c_seed.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
+
+        if is_premium and not user_doc.get("is_premium", False):
+            raise HTTPException(
+                status_code=403,
+                detail="This challenge requires an active Premium subscription. Please upgrade to unlock."
+            )
 
     try:
         result = await EngineSubmissionController.create_submission(request)

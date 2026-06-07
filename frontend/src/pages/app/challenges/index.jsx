@@ -12,10 +12,11 @@ import {
 } from "@/redux/slices/challengesSlice";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { ChallengeCard } from "@/components/domain/ChallengeCard";
+import UpgradeModal from "@/components/UpgradeModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, SlidersHorizontal, LayoutGrid, List as ListIcon, RefreshCw } from "lucide-react";
+import { Search, SlidersHorizontal, LayoutGrid, List as ListIcon, RefreshCw, Lock } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -31,6 +32,9 @@ const DIFFICULTIES = ["Easy", "Medium", "Hard", "Expert"];
 function ChallengesPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
+  const { user } = useSelector((state) => state.user);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const items = useSelector(selectChallengesList);
   const domains = useSelector(selectChallengesDomains);
@@ -56,7 +60,13 @@ function ChallengesPage() {
     );
   }, [dispatch, q, domain, diff, sort]);
 
-  const openChallenge = (slug) => navigate(`/app/challenges/${slug}`);
+  const openChallenge = (c) => {
+    if (c.is_premium && !user?.is_premium) {
+      setUpgradeOpen(true);
+    } else {
+      navigate(`/app/challenges/${c.slug}`);
+    }
+  };
 
   // ── Loading state ──────────────────────────────────────────────────────────
   if (loading && items.length === 0) {
@@ -248,16 +258,21 @@ function ChallengesPage() {
                     role="link"
                     tabIndex={0}
                     aria-label={`Open challenge ${c.title}`}
-                    onClick={() => openChallenge(c.slug)}
+                    onClick={() => openChallenge(c)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        openChallenge(c.slug);
+                        openChallenge(c);
                       }
                     }}
                     className="cursor-pointer border-t border-border hover:bg-accent/40 focus-visible:bg-accent/40"
                   >
-                    <td className="px-3 py-3 font-medium md:px-4">{c.title}</td>
+                    <td className="px-3 py-3 font-medium md:px-4">
+                      <div className="flex items-center gap-1.5">
+                        {c.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] flex-shrink-0" />}
+                        <span>{c.title}</span>
+                      </div>
+                    </td>
                     <td className="px-3 py-3 md:px-4">
                       <DomainTag d={c.domain} />
                     </td>
@@ -284,6 +299,7 @@ function ChallengesPage() {
           </div>
         )}
       </div>
+      <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
     </AppShell>
   );
 }
