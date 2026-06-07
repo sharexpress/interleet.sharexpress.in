@@ -3,12 +3,12 @@ import { API } from '@/api/api';
 
 // Map frontend editor lang codes → backend Language enum values
 const LANG_MAP = {
-  js:   'javascript',
-  ts:   'typescript',
-  py:   'python',
-  go:   'go',
-  cpp:  'cpp',
-  rs:   'rust',
+  js: 'javascript',
+  ts: 'typescript',
+  py: 'python',
+  go: 'go',
+  cpp: 'cpp',
+  rs: 'rust',
   java: 'java',
 };
 
@@ -168,5 +168,5 @@ export default challengeExecutionSlice.reducer;
 
 // ─── Selectors ───────────────────────────────────────────────────────────────
 export const selectChallengeExecution = (state) => state.challengeExecution;
-export const selectRunResult   = (state) => state.challengeExecution.runResult;
+export const selectRunResult = (state) => state.challengeExecution.runResult;
 export const selectSubmitResult = (state) => state.challengeExecution.submitResult;
