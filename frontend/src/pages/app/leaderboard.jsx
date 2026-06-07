@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
-import { Link } from "react-router-dom";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Trophy, TrendingUp, TrendingDown, Minus, Crown, Medal, Flame, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Flame, Sparkles } from "lucide-react";
 import { API } from "@/api/api";
 import { leaderboard as mockLeaderboard } from "@/lib/mock";
 
+/* ─── Helpers ─────────────────────────────────────────────── */
 const getDivisionTier = (rating, rank) => {
-  if (rank === 1) return { name: "Grandmaster Elite", color: "bg-purple-500/15 text-purple-400 border-purple-500/30 glow-sm" };
+  if (rank === 1) return { name: "Grandmaster Elite", color: "bg-purple-500/15 text-purple-400 border-purple-500/30" };
   if (rank <= 3) return { name: "Grandmaster", color: "bg-pink-500/15 text-pink-400 border-pink-500/30" };
   if (rank <= 5) return { name: "Master Architect", color: "bg-indigo-500/15 text-indigo-400 border-indigo-500/30" };
   if (rating >= 2500) return { name: "Diamond Stack", color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
@@ -20,10 +20,186 @@ const getDivisionTier = (rating, rank) => {
   return { name: "Bronze Apprentice", color: "bg-orange-950/20 text-orange-400 border-orange-900/30" };
 };
 
+
+/* ─── Trophy SVG Components ───────────────────────────────── */
+const TrophyGold = () => (
+  <svg viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-16 h-16 drop-shadow-2xl">
+    <defs>
+      <radialGradient id="tg1" cx="50%" cy="30%" r="60%">
+        <stop offset="0%" stopColor="#FFE066" />
+        <stop offset="60%" stopColor="#FFB800" />
+        <stop offset="100%" stopColor="#B8860B" />
+      </radialGradient>
+      <radialGradient id="tg2" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stopColor="#FFF3A0" />
+        <stop offset="100%" stopColor="#FFB800" />
+      </radialGradient>
+    </defs>
+    {/* cup body */}
+    <path d="M20 8 H60 L55 45 Q40 55 25 45 Z" fill="url(#tg1)" />
+    {/* handles */}
+    <path d="M20 15 Q8 20 10 32 Q12 42 22 40" stroke="#B8860B" strokeWidth="4" fill="none" strokeLinecap="round" />
+    <path d="M60 15 Q72 20 70 32 Q68 42 58 40" stroke="#B8860B" strokeWidth="4" fill="none" strokeLinecap="round" />
+    {/* shine */}
+    <ellipse cx="32" cy="22" rx="5" ry="8" fill="url(#tg2)" opacity="0.55" transform="rotate(-15 32 22)" />
+    {/* stem */}
+    <rect x="34" y="55" width="12" height="14" rx="2" fill="#B8860B" />
+    {/* base */}
+    <rect x="24" y="69" width="32" height="6" rx="3" fill="#FFB800" />
+    {/* medal circle */}
+    <circle cx="40" cy="30" r="9" fill="#FFF3A0" opacity="0.9" />
+    <text x="40" y="34" textAnchor="middle" fontSize="11" fontWeight="bold" fill="#B8860B">1</text>
+    {/* sparkle dots */}
+    <circle cx="14" cy="10" r="2" fill="#FFE066" opacity="0.8" />
+    <circle cx="66" cy="8" r="1.5" fill="#FFE066" opacity="0.7" />
+    <circle cx="68" cy="50" r="1.5" fill="#FFE066" opacity="0.6" />
+  </svg>
+);
+
+const TrophySilver = () => (
+  <svg viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 drop-shadow-lg">
+    <defs>
+      <radialGradient id="ts1" cx="50%" cy="30%" r="60%">
+        <stop offset="0%" stopColor="#E8E8E8" />
+        <stop offset="60%" stopColor="#A8A8A8" />
+        <stop offset="100%" stopColor="#606060" />
+      </radialGradient>
+    </defs>
+    <path d="M20 8 H60 L55 45 Q40 55 25 45 Z" fill="url(#ts1)" />
+    <path d="M20 15 Q8 20 10 32 Q12 42 22 40" stroke="#606060" strokeWidth="4" fill="none" strokeLinecap="round" />
+    <path d="M60 15 Q72 20 70 32 Q68 42 58 40" stroke="#606060" strokeWidth="4" fill="none" strokeLinecap="round" />
+    <ellipse cx="32" cy="22" rx="5" ry="8" fill="white" opacity="0.4" transform="rotate(-15 32 22)" />
+    <rect x="34" y="55" width="12" height="14" rx="2" fill="#808080" />
+    <rect x="24" y="69" width="32" height="6" rx="3" fill="#A8A8A8" />
+    <circle cx="40" cy="30" r="9" fill="white" opacity="0.75" />
+    <text x="40" y="34" textAnchor="middle" fontSize="11" fontWeight="bold" fill="#606060">2</text>
+  </svg>
+);
+
+const TrophyBronze = () => (
+  <svg viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-11 h-11 drop-shadow-lg">
+    <defs>
+      <radialGradient id="tb1" cx="50%" cy="30%" r="60%">
+        <stop offset="0%" stopColor="#E8A87C" />
+        <stop offset="60%" stopColor="#CD7F32" />
+        <stop offset="100%" stopColor="#7B4A1E" />
+      </radialGradient>
+    </defs>
+    <path d="M20 8 H60 L55 45 Q40 55 25 45 Z" fill="url(#tb1)" />
+    <path d="M20 15 Q8 20 10 32 Q12 42 22 40" stroke="#7B4A1E" strokeWidth="4" fill="none" strokeLinecap="round" />
+    <path d="M60 15 Q72 20 70 32 Q68 42 58 40" stroke="#7B4A1E" strokeWidth="4" fill="none" strokeLinecap="round" />
+    <ellipse cx="32" cy="22" rx="5" ry="8" fill="#E8A87C" opacity="0.5" transform="rotate(-15 32 22)" />
+    <rect x="34" y="55" width="12" height="14" rx="2" fill="#7B4A1E" />
+    <rect x="24" y="69" width="32" height="6" rx="3" fill="#CD7F32" />
+    <circle cx="40" cy="30" r="9" fill="#E8A87C" opacity="0.8" />
+    <text x="40" y="34" textAnchor="middle" fontSize="11" fontWeight="bold" fill="#7B4A1E">3</text>
+  </svg>
+);
+
+/* ─── Podium Card Component ───────────────────────────────── */
+const PodiumCard = ({ userData, spot, visible }) => {
+  const isFirst = spot === 1;
+  const isSecond = spot === 2;
+
+  const delay = spot === 1 ? "0ms" : spot === 2 ? "150ms" : "300ms";
+  const translateY = spot === 1 ? "-translate-y-6" : "";
+  const podiumHeight = isFirst ? "h-28" : isSecond ? "h-20" : "h-14";
+  const podiumGradient = isFirst
+    ? "from-yellow-600/50 to-yellow-900/60 border-yellow-500/40"
+    : isSecond
+      ? "from-zinc-600/50 to-zinc-800/60 border-zinc-600/40"
+      : "from-amber-900/50 to-amber-950/60 border-amber-700/40";
+  const ringColor = isFirst
+    ? "ring-yellow-500/40 border-yellow-500/60 shadow-[0_0_30px_rgba(255,184,0,0.25)]"
+    : isSecond
+      ? "ring-zinc-500/30 border-zinc-500/40"
+      : "ring-amber-700/30 border-amber-700/40";
+  const avatarBorder = isFirst ? "border-yellow-500" : isSecond ? "border-zinc-400" : "border-amber-700";
+  const avatarSize = isFirst ? "h-20 w-20 md:h-16 md:w-16" : "h-16 w-16 md:h-12 md:w-12";
+  const labelColor = isFirst ? "text-yellow-400" : isSecond ? "text-zinc-300" : "text-amber-600";
+  const podiumNumeral = isFirst ? "I" : isSecond ? "II" : "III";
+  const podiumNumeralColor = isFirst ? "text-yellow-400" : isSecond ? "text-zinc-400" : "text-amber-700";
+  const podiumNumeralSize = isFirst ? "text-4xl" : isSecond ? "text-3xl" : "text-2xl";
+
+  return (
+    <div
+      className={`flex flex-col items-center flex-1 max-w-[260px] md:max-w-[260px] min-w-0 w-full group transition-all duration-700 ease-out ${translateY} ${
+        visible
+          ? "opacity-100 translate-y-0 scale-100"
+          : "opacity-0 translate-y-10 scale-95"
+      }`}
+      style={{
+        transitionDelay: delay,
+        transform: visible
+          ? spot === 1
+            ? "translateY(-1.5rem)"
+            : "translateY(0)"
+          : "translateY(2.5rem) scale(0.95)",
+      }}
+    >
+      {/* Trophy */}
+      <div
+        className={`mb-2 flex flex-col items-center transition-all duration-700 ease-out ${
+          visible ? "opacity-100 scale-100" : "opacity-0 scale-50"
+        }`}
+        style={{ transitionDelay: `${parseInt(delay) + 200}ms` }}
+      >
+        <div className={isFirst ? "scale-125 md:scale-100" : "scale-110 md:scale-100"}>
+          {isFirst ? <TrophyGold /> : isSecond ? <TrophySilver /> : <TrophyBronze />}
+        </div>
+        <span className={`text-xs md:text-[11px] font-mono font-bold tracking-widest mt-1 ${labelColor}`}>
+          {isFirst ? "Champion" : isSecond ? "2nd Place" : "3rd Place"}
+        </span>
+      </div>
+
+      {/* Card */}
+      <Card
+        className={`w-full ${isFirst ? "p-5 md:p-5" : "p-4 md:p-4"} text-center transition-all duration-300 group-hover:-translate-y-1 shadow-xl ring-1 border bg-zinc-950/70 ${ringColor}`}
+      >
+        <Avatar className={`${avatarSize} mx-auto border-2 ${avatarBorder} shadow-lg`}>
+          <AvatarImage src={userData.avatar} />
+          <AvatarFallback className={`${isFirst ? "bg-yellow-950 text-yellow-300" : "bg-zinc-800 text-zinc-200"} font-bold ${isFirst ? "text-base" : "text-sm"}`}>
+            {userData.username.slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <p className={`mt-3 truncate font-extrabold text-white ${isFirst ? "text-base" : "text-sm md:text-sm"}`}>
+          @{userData.username}
+        </p>
+        <p className={`text-xs mt-0.5 font-semibold ${isFirst ? "text-yellow-400" : "text-muted-foreground"}`}>
+          Rating {userData.rating}
+        </p>
+        <div
+          className={`mt-3 inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-mono border
+            ${isFirst
+              ? "bg-yellow-950/20 border-yellow-500/25 text-yellow-400"
+              : isSecond
+                ? "bg-zinc-900 border-zinc-700 text-zinc-300"
+                : "bg-zinc-900 border-zinc-700 text-zinc-400"
+            }`}
+        >
+          {isFirst && <Sparkles className="h-3 w-3 text-yellow-500" />}
+          {userData.xp.toLocaleString()} XP
+        </div>
+      </Card>
+
+      {/* Podium Base */}
+      <div
+        className={`w-full ${podiumHeight} bg-gradient-to-b ${podiumGradient} border-t rounded-t-md flex items-center justify-center mt-2`}
+      >
+        <span className={`font-mono font-black ${podiumNumeralSize} ${podiumNumeralColor}`}>
+          {podiumNumeral}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+/* ─── Main Component ──────────────────────────────────────── */
 function Leaderboard() {
   const { user } = useSelector((state) => state.user);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [podiumVisible, setPodiumVisible] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -43,12 +219,17 @@ function Leaderboard() {
       }
     };
     fetchLeaderboard();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
-  // Podium sorting: 2nd Place, 1st Place, 3rd Place
+  // Trigger pop-in once data loads
+  useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => setPodiumVisible(true), 120);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
   const getPodiumList = () => {
     if (leaderboardData.length === 0) return [];
     const podium = [];
@@ -67,119 +248,54 @@ function Leaderboard() {
         title="Leaderboard"
         description="Rated by domain. Ranked weekly. Climb the arena."
       />
-      <div className="px-4 py-6 md:px-8 space-y-8">
+      <div className="px-0 pb-6 md:px-0 space-y-6">
 
-        {/* Visual Podium Section */}
+        {/* ── Podium Section ── */}
         {!loading && podiumUsers.length > 0 && (
-          <div className="flex flex-col items-center justify-center pt-8 pb-4 relative">
-            <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-transparent blur-3xl pointer-events-none" />
+          <div className="relative flex flex-col items-center justify-center pt-8 pb-4 overflow-hidden border-b border-zinc-800/50">
 
-            <div className="flex items-end justify-center gap-3 md:gap-8 w-full max-w-4xl px-2">
+            {/* Dot bg — exact homepage hero pattern */}
+            <div className="dot-bg pointer-events-none absolute inset-0 opacity-40" />
+            {/* Orange radial glow — exact homepage hero gradient */}
+            <div
+              className="pointer-events-none absolute inset-x-0 -top-32 h-[500px] bg-[radial-gradient(ellipse_at_top,theme(colors.primary/15),transparent_60%)]"
+              aria-hidden
+            />
 
-              {/* 2nd Place - Silver */}
-              {podiumUsers.find(u => u.spot === 2) && (
-                <div className="flex flex-col items-center flex-1 max-w-[240px] group">
-                  <div className="mb-3 text-center">
-                    <Medal className="h-6 w-6 text-zinc-400 mx-auto animate-bounce duration-1000" />
-                    <span className="text-xs font-mono font-semibold text-zinc-400">2nd Place</span>
-                  </div>
-                  <Card className="w-full border-zinc-700 bg-zinc-950/40 p-4 text-center transition-all duration-300 group-hover:-translate-y-1 group-hover:border-zinc-500 shadow-md">
-                    <Avatar className="h-12 w-12 mx-auto border-2 border-zinc-400 shadow-lg">
-                      <AvatarImage src={podiumUsers.find(u => u.spot === 2).avatar} />
-                      <AvatarFallback className="bg-zinc-800 text-zinc-300 font-bold text-sm">
-                        {podiumUsers.find(u => u.spot === 2).username.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <p className="mt-3 truncate text-sm font-bold text-white">
-                      @{podiumUsers.find(u => u.spot === 2).username}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Rating {podiumUsers.find(u => u.spot === 2).rating}
-                    </p>
-                    <div className="mt-3 inline-flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded text-[10px] font-mono text-zinc-300">
-                      {podiumUsers.find(u => u.spot === 2).xp.toLocaleString()} XP
-                    </div>
-                  </Card>
-                  {/* Podium Base */}
-                  <div className="w-full h-16 bg-gradient-to-b from-zinc-800/80 to-zinc-900/90 border-t border-zinc-700 rounded-t-md flex items-center justify-center mt-2 shadow-inner">
-                    <span className="font-mono text-3xl font-extrabold text-zinc-500">II</span>
-                  </div>
-                </div>
-              )}
 
-              {/* 1st Place - Gold */}
-              {podiumUsers.find(u => u.spot === 1) && (
-                <div className="flex flex-col items-center flex-1 max-w-[260px] group relative z-10 -translate-y-4">
-                  <div className="absolute -top-16 inset-x-0 h-40 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none" />
-                  <div className="mb-3 text-center">
-                    <Crown className="h-8 w-8 text-yellow-500 mx-auto animate-pulse" />
-                    <span className="text-xs font-mono font-bold text-yellow-500 tracking-wider">Champion</span>
-                  </div>
-                  <Card className="w-full border-yellow-500/50 bg-zinc-950/60 p-5 text-center transition-all duration-300 group-hover:-translate-y-1 group-hover:border-yellow-400 shadow-xl ring-1 ring-yellow-500/30">
-                    <Avatar className="h-16 w-16 mx-auto border-2 border-yellow-500 shadow-2xl">
-                      <AvatarImage src={podiumUsers.find(u => u.spot === 1).avatar} />
-                      <AvatarFallback className="bg-yellow-950 text-yellow-400 font-bold text-base">
-                        {podiumUsers.find(u => u.spot === 1).username.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <p className="mt-3 truncate text-base font-extrabold text-white">
-                      @{podiumUsers.find(u => u.spot === 1).username}
-                    </p>
-                    <p className="text-xs text-yellow-500 font-semibold mt-0.5">
-                      Rating {podiumUsers.find(u => u.spot === 1).rating}
-                    </p>
-                    <div className="mt-3 inline-flex items-center gap-1 bg-yellow-950/20 border border-yellow-500/25 px-2.5 py-0.5 rounded text-[10px] font-mono text-yellow-400">
-                      <Sparkles className="h-3 w-3 text-yellow-500 animate-spin duration-3000" />
-                      {podiumUsers.find(u => u.spot === 1).xp.toLocaleString()} XP
-                    </div>
-                  </Card>
-                  {/* Podium Base */}
-                  <div className="w-full h-24 bg-gradient-to-b from-yellow-600/40 to-yellow-900/50 border-t border-yellow-500/40 rounded-t-md flex items-center justify-center mt-2 shadow-2xl">
-                    <span className="font-mono text-4xl font-black text-yellow-500">I</span>
-                  </div>
-                </div>
-              )}
+            {/* Title with sparkle */}
+            <div
+              className={`flex items-center gap-2 mb-6 transition-all duration-700 ${podiumVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}`}
+            >
+              <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
+              <span className="text-xs font-mono font-bold tracking-[0.25em] uppercase text-yellow-500/80">
+                Hall of Champions
+              </span>
+              <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
+            </div>
 
-              {/* 3rd Place - Bronze */}
-              {podiumUsers.find(u => u.spot === 3) && (
-                <div className="flex flex-col items-center flex-1 max-w-[240px] group">
-                  <div className="mb-3 text-center">
-                    <Medal className="h-6 w-6 text-amber-700 mx-auto animate-bounce duration-1000 delay-300" />
-                    <span className="text-xs font-mono font-semibold text-amber-600">3rd Place</span>
-                  </div>
-                  <Card className="w-full border-zinc-700 bg-zinc-950/40 p-4 text-center transition-all duration-300 group-hover:-translate-y-1 group-hover:border-zinc-500 shadow-md">
-                    <Avatar className="h-12 w-12 mx-auto border-2 border-amber-700 shadow-lg">
-                      <AvatarImage src={podiumUsers.find(u => u.spot === 3).avatar} />
-                      <AvatarFallback className="bg-zinc-800 text-amber-600 font-bold text-sm">
-                        {podiumUsers.find(u => u.spot === 3).username.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <p className="mt-3 truncate text-sm font-bold text-white">
-                      @{podiumUsers.find(u => u.spot === 3).username}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Rating {podiumUsers.find(u => u.spot === 3).rating}
-                    </p>
-                    <div className="mt-3 inline-flex items-center gap-1 bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded text-[10px] font-mono text-zinc-300">
-                      {podiumUsers.find(u => u.spot === 3).xp.toLocaleString()} XP
-                    </div>
-                  </Card>
-                  {/* Podium Base */}
-                  <div className="w-full h-12 bg-gradient-to-b from-zinc-800/80 to-zinc-900/90 border-t border-zinc-700 rounded-t-md flex items-center justify-center mt-2 shadow-inner">
-                    <span className="font-mono text-2xl font-extrabold text-amber-700">III</span>
-                  </div>
-                </div>
-              )}
-
+            {/* Podium Row */}
+            <div className="flex items-end justify-center gap-2 md:gap-6 w-full max-w-3xl px-6 md:px-20 relative z-10">
+              {podiumUsers.map((u) => (
+                <PodiumCard
+                  key={u.username}
+                  userData={u}
+                  spot={u.spot}
+                  visible={podiumVisible}
+                />
+              ))}
             </div>
           </div>
         )}
 
-        {/* User Spotlight Banner */}
+        {/* ── Below-podium content wrapper ── */}
+        <div className="px-4 md:px-8 space-y-6">
+
+        {/* ── User Spotlight Banner ── */}
         {user && !loading && (
-          <Card className="border-primary/25 bg-gradient-to-r from-primary/5 via-zinc-950 to-primary/5 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg glow-soft">
+          <Card className="border-[#FF6500]/25 bg-gradient-to-r from-[#FF6500]/5 via-zinc-950 to-[#FF6500]/5 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg glow-soft">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 border border-primary/30 text-primary">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF6500]/15 border border-[#FF6500]/30 text-[#FF6500]">
                 <Flame className="h-6 w-6 animate-pulse" />
               </div>
               <div>
@@ -200,9 +316,7 @@ function Leaderboard() {
               </div>
               <div className="text-center sm:text-right">
                 <span className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Level</span>
-                <span className="text-lg font-bold text-primary">
-                  {Math.floor((user.xp || 0) / 1000) + 1}
-                </span>
+                <span className="text-lg font-bold text-[#FF6500]">{Math.floor((user.xp || 0) / 1000) + 1}</span>
               </div>
               <div className="text-center sm:text-right">
                 <span className="block text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Streak</span>
@@ -215,7 +329,7 @@ function Leaderboard() {
           </Card>
         )}
 
-        {/* Leaderboard Lists */}
+        {/* ── Leaderboard Lists ── */}
         <Tabs defaultValue="global" className="w-full">
           <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
             <TabsList className="bg-zinc-900 border border-zinc-800">
@@ -250,7 +364,7 @@ function Leaderboard() {
                       {loading ? (
                         <tr>
                           <td colSpan="7" className="py-20 text-center text-muted-foreground">
-                            <Sparkles className="h-6 w-6 animate-spin mx-auto text-primary mb-2" />
+                            <Sparkles className="h-6 w-6 animate-spin mx-auto text-[#FF6500] mb-2" />
                             Loading arena records...
                           </td>
                         </tr>
@@ -267,14 +381,15 @@ function Leaderboard() {
                           return (
                             <tr
                               key={row.username}
-                              className={`border-t border-border hover:bg-zinc-900/40 transition-colors ${isSelf ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
+                              className={`border-t border-border hover:bg-zinc-900/40 transition-colors ${isSelf ? "bg-[#FF6500]/5 border-l-2 border-l-[#FF6500]" : ""}`}
                             >
                               <td className="px-5 py-4 text-center">
-                                <span className={`inline-flex items-center justify-center font-mono font-bold text-sm w-7 h-7 rounded-full ${row.rank === 1 ? "bg-yellow-500/15 text-yellow-400" :
+                                <span className={`inline-flex items-center justify-center font-mono font-bold text-sm w-7 h-7 rounded-full ${
+                                  row.rank === 1 ? "bg-yellow-500/15 text-yellow-400" :
                                   row.rank === 2 ? "bg-zinc-300/15 text-zinc-300" :
-                                    row.rank === 3 ? "bg-amber-700/20 text-amber-500" :
-                                      "text-muted-foreground"
-                                  }`}>
+                                  row.rank === 3 ? "bg-amber-700/20 text-amber-500" :
+                                  "text-muted-foreground"
+                                }`}>
                                   #{row.rank}
                                 </span>
                               </td>
@@ -326,13 +441,11 @@ function Leaderboard() {
                 <ul className="divide-y divide-border md:hidden">
                   {loading ? (
                     <li className="py-12 text-center text-muted-foreground">
-                      <Sparkles className="h-5 w-5 animate-spin mx-auto text-primary mb-2" />
+                      <Sparkles className="h-5 w-5 animate-spin mx-auto text-[#FF6500] mb-2" />
                       Loading arena records...
                     </li>
                   ) : leaderboardData.length === 0 ? (
-                    <li className="py-8 text-center text-muted-foreground">
-                      No active participants.
-                    </li>
+                    <li className="py-8 text-center text-muted-foreground">No active participants.</li>
                   ) : (
                     leaderboardData.map((row) => {
                       const isSelf = user && row.username === user.username;
@@ -340,13 +453,14 @@ function Leaderboard() {
                       return (
                         <li
                           key={row.username}
-                          className={`flex items-center gap-3 p-4 hover:bg-zinc-900/20 ${isSelf ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
+                          className={`flex items-center gap-3 p-4 hover:bg-zinc-900/20 ${isSelf ? "bg-[#FF6500]/5 border-l-2 border-l-[#FF6500]" : ""}`}
                         >
-                          <span className={`w-8 font-mono text-center font-bold text-xs ${row.rank === 1 ? "text-yellow-500" :
+                          <span className={`w-8 font-mono text-center font-bold text-xs ${
+                            row.rank === 1 ? "text-yellow-500" :
                             row.rank === 2 ? "text-zinc-300" :
-                              row.rank === 3 ? "text-amber-600" :
-                                "text-muted-foreground"
-                            }`}>
+                            row.rank === 3 ? "text-amber-600" :
+                            "text-muted-foreground"
+                          }`}>
                             #{row.rank}
                           </span>
                           <Avatar className="h-9 w-9 border border-border shrink-0">
@@ -358,7 +472,7 @@ function Leaderboard() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <p className="truncate text-sm font-semibold text-white">@{row.username}</p>
-                              <Badge variant="outline" className={`font-mono text-[8px] px-1 py-0.01 border shrink-0 ${tier.color}`}>
+                              <Badge variant="outline" className={`font-mono text-[8px] px-1 border shrink-0 ${tier.color}`}>
                                 {tier.name.split(" ")[0]}
                               </Badge>
                             </div>
@@ -376,7 +490,8 @@ function Leaderboard() {
             </TabsContent>
           ))}
         </Tabs>
-      </div>
+        </div>{/* end px-4 md:px-8 wrapper */}
+      </div>{/* end outer spacer */}
     </AppShell>
   );
 }
