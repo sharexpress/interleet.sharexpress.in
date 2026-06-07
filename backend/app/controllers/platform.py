@@ -745,3 +745,58 @@ class PlatformController:
         )
         
         return {"success": True, "evaluation": evaluation_data}
+
+    @staticmethod
+    async def search(q: str, user: dict | None = None):
+        if not q or not q.strip():
+            return {
+                "success": True,
+                "results": {
+                    "challenges": [],
+                    "users": [],
+                    "topics": []
+                }
+            }
+
+        query = q.strip()
+        regex_query = {"$regex": query, "$options": "i"}
+
+        # 1. Search problems/challenges
+        problems_cursor = db.problems.find({
+            "$or": [
+                {"title": regex_query},
+                {"slug": regex_query},
+                {"description": regex_query},
+                {"tags": regex_query}
+            ]
+        })
+        problems = [_serialize(p) for p in await problems_cursor.to_list(length=5)]
+
+        # 2. Search users
+        users_cursor = db.users.find({
+            "$or": [
+                {"username": regex_query},
+                {"full_name": regex_query},
+                {"email": regex_query}
+            ]
+        }, {
+            "_id": 0,
+            "password_hash": 0,
+            "password_salt": 0
+        })
+        users = await users_cursor.to_list(length=5)
+
+        # 3. Search system design topics from seed static list
+        matching_topics = []
+        for topic in SYSTEM_DESIGN_TOPICS:
+            if query.lower() in topic.get("title", "").lower() or query.lower() in topic.get("description", "").lower():
+                matching_topics.append(topic)
+
+        return {
+            "success": True,
+            "results": {
+                "challenges": problems,
+                "users": users,
+                "topics": matching_topics[:5]
+            }
+        }
