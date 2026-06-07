@@ -619,7 +619,14 @@ class PlatformController:
 
     @staticmethod
     async def system_design():
-        return {"topics": SYSTEM_DESIGN_TOPICS}
+        from app.controllers.admin import AdminController
+        ch = await AdminController.list_system_design_challenges()
+        tpl = await AdminController.list_system_design_templates()
+        return {
+            "topics": SYSTEM_DESIGN_TOPICS,
+            "challenges": ch,
+            "templates": tpl
+        }
 
     @staticmethod
     async def candidates():
