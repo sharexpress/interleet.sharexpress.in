@@ -94,6 +94,9 @@ async def record_contest_submission(
 
     for p in participants:
         if str(p.get("user_id")) == str(user_id):
+            if p.get("disqualified", False):
+                logger.info(f"User {user_id} is disqualified in contest {contest_id}. Ignoring submission.")
+                return
             scores = p.setdefault("scores", {})
             prob_score = scores.setdefault(problem_slug, {
                 "solved": False,
@@ -378,6 +381,13 @@ async def record_cheating_warning(
 
     for p in participants:
         if str(p.get("user_id")) == user_id_str:
+            # If already disqualified, keep disqualified status
+            if p.get("disqualified", False):
+                disqualified = True
+                warnings_count = len(p.get("warnings", []))
+                updated = True
+                break
+
             warnings = p.setdefault("warnings", [])
             warnings.append({
                 "type": event_type,
@@ -385,8 +395,12 @@ async def record_cheating_warning(
             })
             warnings_count = len(warnings)
             
+            # Count occurrences of fullscreen exits
+            fullscreen_exits = sum(1 for w in warnings if w.get("type") == "fullscreen_exit")
+            
             # If warning count exceeds 3 (which means 4th warning triggers disqualification)
-            if warnings_count > 3:
+            # Or if the user exits fullscreen more than 2 times (3rd exit triggers disqualification)
+            if warnings_count > 3 or fullscreen_exits > 2:
                 p["disqualified"] = True
                 disqualified = True
             

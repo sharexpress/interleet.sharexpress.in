@@ -189,7 +189,16 @@ async def create_submission(
                 "status": "active"
             })
             if contest:
-                is_participant = any(str(p.get("user_id")) == str(user_doc.get("user_id")) for p in contest.get("participants", []))
+                participant = next((p for p in contest.get("participants", []) if str(p.get("user_id")) == str(user_doc.get("user_id"))), None)
+                if participant:
+                    if participant.get("disqualified", False):
+                        raise HTTPException(
+                            status_code=403,
+                            detail="You are disqualified from this contest."
+                        )
+                    is_participant = True
+                else:
+                    is_participant = False
                 slug_in_contest = request.problem_slug in contest.get("challenges", [])
                 if is_participant and slug_in_contest:
                     bypassed = True
