@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
-import { UserCheck, CornerDownRight, ArrowRight, UserPlus, Info } from "lucide-react";
+import { UserCheck, CornerDownRight, ArrowRight, UserPlus, Info, Fingerprint, Camera, Cpu, Sparkles } from "lucide-react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { FaceScanner } from "@/components/auth/FaceScanner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RegisterFace } from "@/redux/slices/userSlice";
 import { API } from "@/api/api";
+import { base64urlToBuffer, bufferToBase64url, isLocalBiometricsAvailable } from "@/lib/webauthn";
 
 const ENROLL_STEPS = [
   { key: "front", label: "Front Look", instruction: "Look directly at the camera with a neutral face", angle: "front" },
@@ -27,11 +28,15 @@ export default function RegisterFacePage() {
   const [emailInput, setEmailInput] = useState("");
   const [emailSubmitted, setEmailSubmitted] = useState(false);
   
+  // Method selection states
+  const [methodSelected, setMethodSelected] = useState(null); // null, 'passkey', 'scanner'
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [capturedData, setCapturedData] = useState({}); // { front: base64, left: base64... }
   const [blinkFrames, setBlinkFrames] = useState([]);
   
-  const [scanStatus, setScanStatus] = useState("idle"); // idle, scanning, validating, success, error
+  const [scanStatus, setScanStatus] = useState("idle"); // idle, loading, scanning, validating, success, error, uploading
   const [scanError, setScanError] = useState("");
   const [challengeProgress, setChallengeProgress] = useState(0);
 
@@ -40,20 +45,23 @@ export default function RegisterFacePage() {
   // Auto-redirect if already logged in and face registered
   useEffect(() => {
     if (isAuthenticated) {
-      // If user is already authed, they can complete the onboarding or go to dashboard
       navigate(onboardingCompleted ? "/app/dashboard" : "/onboarding");
     }
   }, [isAuthenticated, onboardingCompleted, navigate]);
+
+  // Check if native biometrics (like Apple Face ID) are available on this browser/device
+  useEffect(() => {
+    isLocalBiometricsAvailable().then(setBiometricsAvailable);
+  }, []);
 
   const handleEmailSubmit = async (e) => {
     e.preventDefault();
     if (!emailInput.trim()) return;
     
-    // Check if user exists
     try {
       setScanStatus("loading");
-      const res = await API.post("/auth/send-otp", { email: emailInput.trim() });
-      // If OTP goes through, user exists, we can enroll their face.
+      // Verify user has set up an account
+      await API.post("/auth/send-otp", { email: emailInput.trim() });
       setEmailSubmitted(true);
       setScanStatus("idle");
     } catch (err) {
@@ -62,8 +70,81 @@ export default function RegisterFacePage() {
     }
   };
 
+  const handlePasskeyEnroll = async () => {
+    setScanStatus("loading");
+    setScanError("");
+    
+    try {
+      // 1. Fetch registration options from backend
+      const optionsRes = await API.post("/api/passkey/register/options", {
+        email: emailInput.trim().lower(),
+      });
+      const options = optionsRes.data;
+
+      // 2. Decode base64url strings to ArrayBuffers for browser credentials API
+      options.challenge = base64urlToBuffer(options.challenge);
+      options.user.id = base64urlToBuffer(options.user.id);
+      if (options.excludeCredentials) {
+        options.excludeCredentials = options.excludeCredentials.map(cred => ({
+          ...cred,
+          id: base64urlToBuffer(cred.id)
+        }));
+      }
+
+      toast.info("Follow your browser's prompt to register native biometrics.");
+
+      // 3. Trigger native Apple Face ID / biometric registration prompt
+      const credential = await navigator.credentials.create({
+        publicKey: options
+      });
+
+      if (!credential) {
+        throw new Error("Failed to capture native credentials");
+      }
+
+      setScanStatus("validating");
+
+      // 4. Encode ArrayBuffers to base64url strings for JSON transmission
+      const verificationPayload = {
+        email: emailInput.trim().lower(),
+        credential: {
+          id: credential.id,
+          rawId: bufferToBase64url(credential.rawId),
+          type: credential.type,
+          response: {
+            clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+            attestationObject: bufferToBase64url(credential.response.attestationObject),
+          }
+        }
+      };
+
+      // 5. Send to backend to verify and store the credential key
+      const verifyRes = await API.post("/api/passkey/register/verify", verificationPayload);
+
+      if (verifyRes.data.success) {
+        setScanStatus("success");
+        toast.success("Native biometrics registered successfully!");
+        setTimeout(() => {
+          navigate(onboardingCompleted ? "/app/dashboard" : "/onboarding");
+        }, 1500);
+      } else {
+        setScanStatus("error");
+        setScanError("Verification failed on the security server.");
+      }
+
+    } catch (err) {
+      console.error("Passkey registration error:", err);
+      setScanStatus("error");
+      if (err.name === "NotAllowedError") {
+        setScanError("Biometric verification prompt was cancelled or timed out.");
+      } else {
+        setScanError(err.response?.data?.detail || "Passkey registration failed. Please try again.");
+      }
+    }
+  };
+
   const handleFrameCaptured = (frameB64) => {
-    // For regular steps, we just wait for the auto interval to capture 1 frame
+    // For regular steps, we wait for auto capture
   };
 
   const handleCaptureComplete = async (frames) => {
@@ -73,9 +154,7 @@ export default function RegisterFacePage() {
     const frame = frames[0];
 
     if (activeStep.key !== "blink") {
-      // Regular angle step: save frame and advance step
       setCapturedData(prev => ({ ...prev, [activeStep.key]: frame }));
-      
       toast.success(`${activeStep.label} captured!`);
       
       setTimeout(() => {
@@ -83,7 +162,6 @@ export default function RegisterFacePage() {
         setCurrentStepIndex(prev => prev + 1);
       }, 800);
     } else {
-      // Liveness step: captures 5 frames to verify blinking liveness on backend
       setBlinkFrames(frames);
       setChallengeProgress(50);
       
@@ -97,11 +175,10 @@ export default function RegisterFacePage() {
         
         if (livenessRes.data.success) {
           setChallengeProgress(100);
-          setCapturedData(prev => ({ ...prev, blink: frames[2] })); // Use middle frame for neural face
+          setCapturedData(prev => ({ ...prev, blink: frames[2] })); // Middle frame for embedding
           setScanStatus("success");
           toast.success("Biometrics liveness verified!");
           
-          // Complete full enrollment upload
           setTimeout(() => {
             submitFullRegistration({
               ...capturedData,
@@ -144,7 +221,6 @@ export default function RegisterFacePage() {
     if (RegisterFace.fulfilled.match(result)) {
       setScanStatus("success");
       toast.success("Face ID enrolled successfully!");
-      // Redirect to onboarding or dashboard
       setTimeout(() => {
         navigate(onboardingCompleted ? "/app/dashboard" : "/onboarding");
       }, 1500);
@@ -154,12 +230,20 @@ export default function RegisterFacePage() {
     }
   };
 
+  const getSubtitle = () => {
+    if (!emailSubmitted) return "Verify email to set up custom biometrics.";
+    if (!methodSelected) return "Choose your preferred biometric security method.";
+    if (methodSelected === "passkey") return "Enroll Apple Face ID / native platform biometrics.";
+    return `Step ${currentStepIndex + 1} of 5: Biometric Scanner`;
+  };
+
   return (
     <AuthShell
       title="Enroll your Face ID"
-      subtitle={!emailSubmitted ? "Verify email to set up custom biometrics." : `Step ${currentStepIndex + 1} of 5: Biometric Scanner`}
+      subtitle={getSubtitle()}
     >
       {!emailSubmitted ? (
+        // Step 1: Email verification
         <form onSubmit={handleEmailSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Confirm Account Email</Label>
@@ -181,9 +265,146 @@ export default function RegisterFacePage() {
             <span>Ensure you have registered an account first via standard Email/OTP. Set up Face ID is added to secure existing profile logins.</span>
           </div>
         </form>
+      ) : !methodSelected ? (
+        // Step 2: Choose Method
+        <div className="space-y-4">
+          <div className="text-center pb-2">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">Select Enrolment Type</span>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-4">
+            {/* Passkey option */}
+            <button
+              type="button"
+              onClick={() => setMethodSelected("passkey")}
+              className={`flex items-start text-left gap-4 p-4 rounded-xl border transition-all duration-300 ${
+                biometricsAvailable 
+                  ? "bg-zinc-900/30 border-zinc-800 hover:border-indigo-500 hover:bg-zinc-900/60 cursor-pointer group" 
+                  : "bg-zinc-950/20 border-zinc-900 opacity-60 cursor-not-allowed"
+              }`}
+            >
+              <div className={`p-2.5 rounded-lg border transition-all duration-300 ${
+                biometricsAvailable 
+                  ? "bg-indigo-950/20 border-indigo-900 group-hover:border-indigo-500/50 group-hover:bg-indigo-950/40 text-indigo-400" 
+                  : "bg-zinc-900 border-zinc-800 text-zinc-600"
+              }`}>
+                <Fingerprint className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-200">Native Face ID</h4>
+                  {biometricsAvailable && (
+                    <span className="text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded-full font-mono font-bold uppercase tracking-wider">
+                      Recommended
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Uses Apple's native biometric engine. Safe, 100% private, runs entirely inside the secure hardware enclave.
+                </p>
+                {!biometricsAvailable && (
+                  <span className="text-[9px] text-rose-500/80 font-mono uppercase tracking-wider block pt-1">
+                    Not supported on this device/browser
+                  </span>
+                )}
+              </div>
+            </button>
+
+            {/* Custom Face Scan option */}
+            <button
+              type="button"
+              onClick={() => setMethodSelected("scanner")}
+              className="flex items-start text-left gap-4 p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/60 cursor-pointer group transition-all duration-300"
+            >
+              <div className="p-2.5 rounded-lg border border-zinc-800 bg-zinc-900 text-zinc-400 group-hover:text-zinc-200 transition-all duration-300">
+                <Camera className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-xs font-mono uppercase tracking-wider text-zinc-200">Custom Face Scanner</h4>
+                <p className="text-[11px] text-zinc-500 leading-relaxed">
+                  Generates biometric embeddings via multi-angle webcam scans. Verified using our servers.
+                </p>
+              </div>
+            </button>
+          </div>
+
+          <div className="text-center pt-4 border-t border-zinc-900/60">
+            <button
+              onClick={() => setEmailSubmitted(false)}
+              className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors uppercase tracking-widest"
+            >
+              ← Back to email
+            </button>
+          </div>
+        </div>
+      ) : methodSelected === "passkey" ? (
+        // Passkey flow screen
+        <div className="space-y-6 flex flex-col items-center">
+          <div className="relative flex items-center justify-center h-[200px] w-[200px] rounded-full border border-zinc-800/80 bg-zinc-950 shadow-[0_0_50px_rgba(99,102,241,0.02)]">
+            <div className="absolute inset-0 rounded-full border border-dashed border-indigo-500/20 animate-spin" style={{ animationDuration: '40s' }} />
+            {scanStatus === "loading" ? (
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <Cpu className="h-8 w-8 text-indigo-500 animate-pulse mb-2" />
+                <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Awaiting Prompt...</span>
+              </div>
+            ) : scanStatus === "validating" ? (
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <UserCheck className="h-8 w-8 text-emerald-500 animate-bounce mb-2" />
+                <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">Verifying Passkey...</span>
+              </div>
+            ) : scanStatus === "success" ? (
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <Sparkles className="h-8 w-8 text-indigo-400 mb-2" />
+                <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase tracking-widest">Enrolled!</span>
+              </div>
+            ) : scanStatus === "error" ? (
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <Fingerprint className="h-8 w-8 text-rose-500 mb-2" />
+                <span className="text-[10px] font-mono text-rose-400 uppercase tracking-widest">Failed</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <Fingerprint className="h-8 w-8 text-indigo-500/60 mb-2" />
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Ready</span>
+              </div>
+            )}
+          </div>
+
+          {scanStatus === "error" && (
+            <div className="w-full text-center px-3 py-2 bg-rose-950/20 border border-rose-900/50 rounded-lg text-[11px] font-mono text-rose-400">
+              {scanError}
+            </div>
+          )}
+
+          <div className="w-full space-y-3">
+            {scanStatus !== "success" && (
+              <Button
+                type="button"
+                className="w-full text-xs font-mono uppercase tracking-wider"
+                disabled={scanStatus === "loading" || scanStatus === "validating"}
+                onClick={handlePasskeyEnroll}
+              >
+                Trigger Biometric Enrollment
+              </Button>
+            )}
+            
+            <Button
+              variant="outline"
+              className="w-full text-xs font-mono uppercase tracking-wider border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+              disabled={scanStatus === "loading" || scanStatus === "validating"}
+              onClick={() => {
+                setMethodSelected(null);
+                setScanStatus("idle");
+                setScanError("");
+              }}
+            >
+              Change Method
+            </Button>
+          </div>
+        </div>
       ) : (
+        // Step 3: Webcam Scanner (Option 2)
         <div className="space-y-6">
-          {/* Circular Stepper Visuals */}
           <div className="flex justify-between items-center px-6">
             {ENROLL_STEPS.map((step, idx) => (
               <div key={step.key} className="flex items-center">
@@ -209,7 +430,6 @@ export default function RegisterFacePage() {
             ))}
           </div>
 
-          {/* Camera Frame Ingest component */}
           <FaceScanner
             onFrameCaptured={handleFrameCaptured}
             onCaptureComplete={handleCaptureComplete}
@@ -243,10 +463,27 @@ export default function RegisterFacePage() {
             </Button>
           )}
 
-          <div className="text-center">
+          <div className="text-center space-y-2">
             <button
-              onClick={() => setEmailSubmitted(false)}
-              className="text-[11px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors uppercase tracking-widest"
+              onClick={() => {
+                setMethodSelected(null);
+                setScanStatus("idle");
+                setScanError("");
+                setCurrentStepIndex(0);
+              }}
+              className="text-[10px] font-mono text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-widest block mx-auto"
+            >
+              ← Choose another method
+            </button>
+            <button
+              onClick={() => {
+                setEmailSubmitted(false);
+                setMethodSelected(null);
+                setScanStatus("idle");
+                setScanError("");
+                setCurrentStepIndex(0);
+              }}
+              className="text-[10px] font-mono text-zinc-500 hover:text-zinc-300 transition-colors uppercase tracking-widest block mx-auto"
             >
               ← Back to email verification
             </button>

@@ -87,3 +87,14 @@ pnpm-lock.yaml
 # Remove above lockfiles if you WANT them tracked
 
 .DS_Store.DS_Store
+
+# =========================
+# ML Models / Large Binaries
+# =========================
+*.onnx
+*.task
+*.caffemodel
+*.pb
+*.h5
+*.tflite
+

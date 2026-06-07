@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { runCode, submitCode, resetExecution, selectChallengeExecution } from "@/redux/slices/challengeExecutionSlice";
+import ExecutionResult from "@/components/ExecutionResult";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DifficultyPill, DomainTag } from "@/components/domain/Tags";
 import {
@@ -332,7 +334,7 @@ function getStarter(slug, lang) {
 
 // ─── Sandboxed JS/TS runner ───────────────────────────────────────────────────
 
-function runCode(code, lang) {
+function runCodeLocally(code, lang) {
   const logs = [],
     errors = [];
   const t0 = performance.now();
@@ -597,6 +599,8 @@ function DragHandle({ onDelta }) {
 function EditorPage() {
   const { id: slug } = useParams();
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.user);
+  const execState = useSelector(selectChallengeExecution);
   const c = useSelector(selectChallengeDetail(slug));
   const loading = useSelector(selectDetailLoading);
   const detailError = useSelector(selectDetailError);
@@ -604,8 +608,11 @@ function EditorPage() {
   const [lang, setLang] = useState("ts");
   const [code, setCode] = useState(() => getStarter(slug, "ts"));
   const [consoleResult, setResult] = useState(null);
-  const [isRunning, setRunning] = useState(false);
   const [activeTab, setActiveTab] = useState("testcase");
+
+  // Derived busy flags
+  const isRunning    = execState.runStatus === 'loading';
+  const isSubmitting = execState.submitStatus === 'loading';
 
   const containerRef = useRef(null);
   const [leftW, setLeftW] = useState(340);
@@ -641,23 +648,20 @@ function EditorPage() {
     [slug],
   );
 
+  // Run — executes visible sample test cases only
   const handleRun = useCallback(() => {
-    if (lang === "py" || lang === "go") {
-      setActiveTab("console");
-      setResult({
-        logs: [],
-        errors: [`${LANG_LABEL[lang]} execution requires Judge0 API (coming soon)`],
-        ms: "0",
-      });
-      return;
-    }
-    setRunning(true);
-    setActiveTab("console");
-    setTimeout(() => {
-      setResult(runCode(code, lang));
-      setRunning(false);
-    }, 30);
-  }, [code, lang]);
+    dispatch(resetExecution());
+    setActiveTab("result");
+    const sampleTests = (c?.test_cases ?? []).filter((t) => !t.hidden);
+    dispatch(runCode({ code, language: lang, testCases: sampleTests }));
+  }, [code, lang, c, dispatch]);
+
+  // Submit — runs against all test cases (including hidden) via backend DB
+  const handleSubmit = useCallback(() => {
+    dispatch(resetExecution());
+    setActiveTab("result");
+    dispatch(submitCode({ code, language: lang, slug, userId: user?.user_id }));
+  }, [code, lang, slug, dispatch, user]);
 
   if (loading && !c)
     return (
@@ -719,7 +723,7 @@ function EditorPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={handleRun} disabled={isRunning}>
+          <Button variant="outline" size="sm" onClick={handleRun} disabled={isRunning || isSubmitting}>
             {isRunning ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -727,8 +731,13 @@ function EditorPage() {
             )}
             Run
           </Button>
-          <Button size="sm">
-            <Send className="mr-1.5 h-3.5 w-3.5" /> Submit
+          <Button size="sm" onClick={handleSubmit} disabled={isRunning || isSubmitting}>
+            {isSubmitting ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            Submit
           </Button>
           <Drawer>
             <DrawerTrigger asChild>
@@ -935,43 +944,39 @@ function EditorPage() {
                 )}
               </TabsContent>
 
-              <TabsContent value="result" className="m-0 max-h-64 overflow-auto p-3">
-                <div className="mb-3 flex items-center gap-3">
-                  <Badge className="bg-success text-success-foreground hover:bg-success">
-                    <Check className="mr-1 h-3 w-3" /> Accepted
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    Runtime <span className="font-mono text-foreground">42 ms</span> · Memory{" "}
-                    <span className="font-mono text-foreground">38.1 MB</span>
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {[
-                    { l: "allows up to capacity", p: true },
-                    { l: "refills at configured rate", p: true },
-                    { l: "handles concurrent allow()", p: true },
-                    { l: "rejects burst overflow", p: true },
-                    { l: "respects refill cap", p: true },
-                    { l: "drops under zero refill", p: false },
-                  ].map((t) => (
-                    <div
-                      key={t.l}
-                      className="flex items-center gap-2 rounded-md border border-border bg-background/40 px-3 py-1.5 text-xs"
-                    >
-                      {t.p ? (
-                        <Check className="h-3.5 w-3.5 text-success" />
-                      ) : (
-                        <X className="h-3.5 w-3.5 text-destructive" />
-                      )}
-                      <span className="font-mono">{t.l}</span>
-                    </div>
-                  ))}
-                </div>
+              {/* Test Result tab: shows Run OR Submit results */}
+              <TabsContent value="result" className="m-0 max-h-72 overflow-auto p-3 space-y-3">
+                {/* Run result */}
+                {(execState.runStatus !== 'idle' || execState.runResult) && (
+                  <ExecutionResult
+                    mode="run"
+                    status={execState.runStatus}
+                    result={execState.runResult}
+                    error={execState.runError}
+                  />
+                )}
+                {/* Submit result */}
+                {(execState.submitStatus !== 'idle' || execState.submitResult) && (
+                  <ExecutionResult
+                    mode="submit"
+                    status={execState.submitStatus}
+                    result={execState.submitResult}
+                    error={execState.submitError}
+                  />
+                )}
+                {/* Idle placeholder */}
+                {execState.runStatus === 'idle' && execState.submitStatus === 'idle' && (
+                  <p className="text-xs text-muted-foreground italic">
+                    Click <strong>Run</strong> to test against sample cases, or <strong>Submit</strong> to judge all test cases.
+                  </p>
+                )}
               </TabsContent>
 
-              <TabsContent value="console" className="m-0">
-                <ConsoleOutput result={consoleResult} isRunning={isRunning} />
+              {/* Console tab: legacy local output (JS/TS eval) */}
+              <TabsContent value="console" className="m-0 max-h-64 overflow-auto p-3">
+                <ConsoleOutput result={consoleResult} isRunning={false} />
               </TabsContent>
+
             </Tabs>
           </div>
         </div>

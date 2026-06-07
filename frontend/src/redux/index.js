@@ -7,6 +7,7 @@ import interviewsReducer from "./slices/interviewsSlice";
 import systemDesignReducer from "./slices/systemDesignSlice";
 import candidatesReducer from "./slices/candidatesSlice";
 import simulatorReducer from "./slices/simulatorSlice";
+import challengeExecutionReducer from "./slices/challengeExecutionSlice";
 
 export const store = configureStore({
   reducer: {
@@ -18,5 +19,6 @@ export const store = configureStore({
     systemDesign: systemDesignReducer,
     candidates: candidatesReducer,
     simulator: simulatorReducer,
+    challengeExecution: challengeExecutionReducer,
   },
 });
