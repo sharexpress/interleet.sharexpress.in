@@ -17,6 +17,7 @@ from app.engine.queue.redis_queue import ExecutionJob, get_execution_queue
 from app.engine.schemas import (
     ExecuteRequest,
     ExecutionResult,
+    RunRequest,
     SubmissionRequest,
     TestCaseSchema,
 )
@@ -99,6 +100,73 @@ class EngineSubmissionController:
             "status": status.get("status", ExecutionStatus.QUEUED.value),
             "verdict": Verdict.INTERNAL_ERROR.value,
             "error": "Execution timed out waiting for worker. Check /api/v1/results/{submission_id} later.",
+        }
+
+    # ─── Run (inline test cases — for the "Run" button) ───────────────────
+
+    @classmethod
+    async def create_run(cls, request: RunRequest) -> dict[str, Any]:
+        """
+        Run code against inline test cases (from the frontend Run button).
+        Converts inline test cases to TestCaseSchema and runs synchronously.
+        """
+        submission_id = str(uuid4())
+        queue = get_execution_queue()
+
+        # Convert InlineTestCase → TestCaseSchema
+        testcases = [
+            TestCaseSchema(
+                id=tc.id,
+                stdin=tc.stdin,
+                expected_output=tc.expected_output,
+                hidden=tc.hidden,
+                name=tc.name,
+                weight=1.0,
+                time_limit=request.time_limit,
+                memory_limit=request.memory_limit,
+            )
+            for tc in request.test_cases
+        ]
+
+        # Fall back to empty stdin run if no test cases provided
+        if not testcases:
+            testcases = [
+                TestCaseSchema(
+                    id="tc_default",
+                    stdin="",
+                    expected_output="",
+                    hidden=False,
+                    weight=1.0,
+                )
+            ]
+
+        job = ExecutionJob(
+            submission_id=submission_id,
+            language=request.language,
+            code=request.code,
+            stdin=testcases[0].stdin,
+            time_limit=request.time_limit,
+            memory_limit=request.memory_limit,
+            comparison_mode=request.comparison_mode,
+            mode="run",
+            testcases=testcases,
+        )
+
+        await queue.set_status(submission_id, ExecutionStatus.QUEUED.value)
+        await queue.enqueue(job)
+
+        result = await cls._poll_for_result(submission_id, queue)
+        if result:
+            return result
+
+        # Timeout
+        status = await queue.get_status(submission_id)
+        return {
+            "success": False,
+            "submission_id": submission_id,
+            "status": status.get("status", ExecutionStatus.QUEUED.value) if status else "QUEUED",
+            "verdict": Verdict.INTERNAL_ERROR.value,
+            "error": "Execution timed out. The sandbox may be busy.",
         }
 
     # ─── Submit (async — returns immediately) ─────────────────────────────

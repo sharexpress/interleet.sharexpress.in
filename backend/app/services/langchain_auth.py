@@ -21,10 +21,11 @@ class LangChainAuthDecisionService:
         device_trusted: bool,
         recent_failures_count: int,
         ip_anomaly: bool,
-        liveness_data: Dict[str, Any]
+        liveness_data: Dict[str, Any],
+        using_arcface: bool = False
     ) -> AuthDecisionSchema:
         """Rule-based security fallback in case the AI Client / LLM is unavailable."""
-        logger.info("Executing rule-based biometric verification fallback")
+        logger.info("Executing rule-based biometric verification fallback (using_arcface=%s)", using_arcface)
         
         threat_detected = False
         reasoning_parts = []
@@ -37,7 +38,6 @@ class LangChainAuthDecisionService:
             reasoning_parts.append("IP address anomaly detected on untrusted device.")
             
         # 2. Score mapping
-        # Let's assess threshold bounds (0.70 is standard high confidence for ArcFace vectors)
         if threat_detected:
             return AuthDecisionSchema(
                 decision="DENY",
@@ -50,10 +50,12 @@ class LangChainAuthDecisionService:
         # Biometric decision matrix
         # Note: geometric embeddings (HOG+histogram) have lower cosine similarity than
         # full ArcFace ONNX embeddings, so thresholds are calibrated accordingly.
-        # ArcFace ONNX (when available): use 0.85 / 0.70
-        # Geometric fallback:            use 0.65 / 0.40
-        high_thresh = 0.65
-        low_thresh  = 0.40
+        if using_arcface:
+            high_thresh = 0.82
+            low_thresh  = 0.72
+        else:
+            high_thresh = 0.88
+            low_thresh  = 0.82
 
         if similarity_score >= high_thresh:
             # Strong match — always allow if liveness is valid
@@ -87,21 +89,34 @@ class LangChainAuthDecisionService:
         device_trusted: bool,
         recent_failures_count: int,
         ip_anomaly: bool,
-        liveness_data: Dict[str, Any]
+        liveness_data: Dict[str, Any],
+        using_arcface: bool = False
     ) -> AuthDecisionSchema:
         """
         Evaluate Face ID login request using LangChain LLM reasoning and threat modeling.
         Falls back to rule-based verification on any LLM provider error.
         """
+        if using_arcface:
+            model_info = "this system uses high-accuracy ArcFace ONNX face embeddings."
+            threshold_info = (
+                "- score >= 0.82 + liveness valid → ALLOW (strong match)\n"
+                "- score >= 0.72 + liveness valid → ALLOW (moderate match)\n"
+                "- score < 0.72 → DENY"
+            )
+        else:
+            model_info = "this system uses geometric HOG+histogram face embeddings, which require tight security bounds."
+            threshold_info = (
+                "- score >= 0.88 + liveness valid → ALLOW (strong match)\n"
+                "- score >= 0.82 + liveness valid → ALLOW (moderate match)\n"
+                "- score < 0.82 → DENY"
+            )
+
         system_prompt = (
             "You are a biometric authentication security expert. "
             "Analyze a Face ID login attempt and decide: ALLOW, DENY, or CHALLENGE.\n\n"
-            "IMPORTANT — this system uses a geometric HOG+histogram face embedding (NOT ArcFace ONNX), "
-            "so similarity scores are LOWER than typical ArcFace systems. "
+            f"IMPORTANT — {model_info} "
             "Use these adjusted thresholds:\n"
-            "- score >= 0.65 + liveness valid → ALLOW\n"
-            "- score >= 0.40 + liveness valid → ALLOW (moderate match)\n"
-            "- score < 0.40 → DENY\n"
+            f"{threshold_info}\n"
             "- Never CHALLENGE just because the device is untrusted on a first login.\n"
             "Output a JSON object matching the schema."
         )
@@ -133,5 +148,6 @@ class LangChainAuthDecisionService:
                 device_trusted=device_trusted,
                 recent_failures_count=recent_failures_count,
                 ip_anomaly=ip_anomaly,
-                liveness_data=liveness_data
+                liveness_data=liveness_data,
+                using_arcface=using_arcface
             )

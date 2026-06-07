@@ -118,11 +118,16 @@ def _detect_face_bbox(image: np.ndarray):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class FaceAnalysisService:
-    MODEL_URL  = "https://github.com/onnx/models/raw/main/validated/vision/body_analysis/arcface/model/arcface-10.onnx"
+    MODEL_URL  = "https://huggingface.co/onnxmodelzoo/arcfaceresnet100-8/resolve/main/arcfaceresnet100-8.onnx"
     MODEL_DIR  = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ai", "models")
-    MODEL_PATH = os.path.join(MODEL_DIR, "arcface.onnx")
+    MODEL_PATH = os.path.join(MODEL_DIR, "arcfaceresnet100-8.onnx")
 
     _ort_session = None
+
+    LANDMARKER_URL  = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+    LANDMARKER_PATH = os.path.join(MODEL_DIR, "face_landmarker.task")
+
+    _landmarker = None
 
     # ── ArcFace ONNX session ───────────────────────────────────────────────
 
@@ -159,6 +164,47 @@ class FaceAnalysisService:
             logger.error("ONNX session init failed: %s", e)
             return None
 
+    # ── MediaPipe Face Landmarker ──────────────────────────────────────────
+
+    @classmethod
+    def _download_landmarker_if_missing(cls) -> bool:
+        if os.path.exists(cls.LANDMARKER_PATH):
+            return True
+        os.makedirs(cls.MODEL_DIR, exist_ok=True)
+        logger.info("Downloading MediaPipe Face Landmarker model from %s…", cls.LANDMARKER_URL)
+        try:
+            urllib.request.urlretrieve(cls.LANDMARKER_URL, cls.LANDMARKER_PATH)
+            logger.info("MediaPipe Landmarker model downloaded to %s", cls.LANDMARKER_PATH)
+            return True
+        except Exception as e:
+            logger.error("MediaPipe Landmarker download failed: %s", e)
+            return False
+
+    @classmethod
+    def _get_landmarker(cls):
+        if cls._landmarker:
+            return cls._landmarker
+        if not cls._download_landmarker_if_missing():
+            return None
+        try:
+            import mediapipe as mp
+            from mediapipe.tasks import python
+            from mediapipe.tasks.python import vision
+            
+            base_options = python.BaseOptions(model_asset_path=cls.LANDMARKER_PATH)
+            options = vision.FaceLandmarkerOptions(
+                base_options=base_options,
+                output_face_blendshapes=False,
+                output_facial_transformation_matrixes=False,
+                num_faces=1
+            )
+            cls._landmarker = vision.FaceLandmarker.create_from_options(options)
+            logger.info("MediaPipe FaceLandmarker session ready")
+            return cls._landmarker
+        except Exception as e:
+            logger.error("MediaPipe FaceLandmarker init failed: %s", e)
+            return None
+
     # ── Image helpers ──────────────────────────────────────────────────────
 
     @staticmethod
@@ -180,60 +226,109 @@ class FaceAnalysisService:
     @staticmethod
     def analyze_face(image: np.ndarray) -> Optional[Dict[str, Any]]:
         """
-        Detect a face using the OpenCV DNN (or Haar cascade) detector.
-        Returns a dict with the fields expected by the controller:
-          landmarks, pose, ear, smile, lips_open, symmetry, crop_box
-        No MediaPipe required.
+        Detect a face and extract precise landmarks, pose, and liveness signals using MediaPipe Face Mesh.
         """
         if image is None:
             return None
 
         h, w = image.shape[:2]
-        bbox = _detect_face_bbox(image)
-        if bbox is None:
-            logger.warning("No face detected in frame (h=%d, w=%d)", h, w)
+        
+        landmarker = FaceAnalysisService._get_landmarker()
+        if not landmarker:
+            logger.error("MediaPipe FaceLandmarker model is not loaded")
             return None
 
-        x, y, fw, fh = bbox
-        # Add generous padding so the crop includes forehead & chin
-        pad_x = int(fw * 0.25)
-        pad_y = int(fh * 0.35)
-        x_min = max(0, x - pad_x)
-        y_min = max(0, y - pad_y)
-        x_max = min(w, x + fw + pad_x)
-        y_max = min(h, y + fh + pad_y)
+        try:
+            import mediapipe as mp
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
+            results = landmarker.detect(mp_image)
+            
+            if not results or not results.face_landmarks:
+                logger.warning("MediaPipe: No face detected in frame")
+                return None
+                
+            face_landmarks = results.face_landmarks[0]
+        except Exception as e:
+            logger.error("MediaPipe FaceLandmarker processing failed: %s", e)
+            return None
 
-        # ── Synthesise minimal landmark-like data from bbox ────────────────
-        # We derive the same keys that the rest of the system uses so the
-        # controller and embedding generator work without modification.
-        cx  = x + fw / 2
-        cy  = y + fh / 2
+        # Convert landmarks to list of [x, y, z] in pixel coordinates
+        landmarks_raw = []
+        for lm in face_landmarks:
+            # Scale z by width to maintain proportions
+            landmarks_raw.append([lm.x * w, lm.y * h, lm.z * w])
+            
+        landmarks_np = np.array(landmarks_raw)
 
-        # 8 synthetic "landmarks": corners + midpoints of the face rect
-        # normalised to image coords — sufficient for the geometric embedding
-        landmarks_raw = [
-            [float(x),        float(y),        0.0],   # top-left
-            [float(x + fw),   float(y),        0.0],   # top-right
-            [float(x),        float(y + fh),   0.0],   # bottom-left
-            [float(x + fw),   float(y + fh),   0.0],   # bottom-right
-            [float(cx),       float(y),        0.0],   # top-mid
-            [float(cx),       float(y + fh),   0.0],   # bottom-mid
-            [float(x),        float(cy),       0.0],   # left-mid
-            [float(x + fw),   float(cy),       0.0],   # right-mid
-        ]
+        # ── Calculate Head Pose ───────────────────────────────────────────
+        left_eye  = landmarks_np[33]
+        right_eye = landmarks_np[263]
+        nose      = landmarks_np[4] # tip of the nose
+        
+        dl = np.linalg.norm(nose[:2] - left_eye[:2])
+        dr = np.linalg.norm(right_eye[:2] - nose[:2])
+        yaw = float((dl - dr) / (dl + dr + 1e-6) * 90.0)
+        
+        forehead = landmarks_np[10]
+        chin     = landmarks_np[152]
+        dt = np.linalg.norm(forehead[:2] - nose[:2])
+        db = np.linalg.norm(nose[:2] - chin[:2])
+        pitch = float((db - dt) / (dt + db + 1e-6) * 60.0)
+        
+        dy   = right_eye[1] - left_eye[1]
+        dx   = right_eye[0] - left_eye[0]
+        roll = float(np.degrees(np.arctan2(dy, dx)))
+        
+        pose = {"yaw": yaw, "pitch": pitch, "roll": roll}
 
-        # ── Pose (approximate from eye-level midline) ──────────────────────
-        # Without landmarks we can't compute real pose — return zeros.
-        # The geometric embedding does not depend on pose values.
-        yaw, pitch, roll = 0.0, 0.0, 0.0
+        # ── Calculate EAR (Eye Aspect Ratio) for Blinking ──────────────────
+        left_eye_pts = [landmarks_raw[idx] for idx in [362, 385, 387, 263, 373, 380]]
+        right_eye_pts = [landmarks_raw[idx] for idx in [33, 160, 158, 133, 153, 144]]
+        
+        ear_left = FaceAnalysisService.calculate_ear(left_eye_pts)
+        ear_right = FaceAnalysisService.calculate_ear(right_eye_pts)
+        ear_avg = (ear_left + ear_right) / 2.0
+        
+        ear = {"left": ear_left, "right": ear_right, "avg": ear_avg}
+
+        # ── Calculate Smile ───────────────────────────────────────────────
+        # Smile can be measured by ratio of mouth width to outer eye distance
+        mouth_width = np.linalg.norm(landmarks_np[61][:2] - landmarks_np[291][:2])
+        eye_distance = np.linalg.norm(landmarks_np[33][:2] - landmarks_np[263][:2])
+        smile_score = float(mouth_width / (eye_distance + 1e-6))
+        
+        # ── Lips Open (for mouth validation) ──────────────────────────────
+        lips_gap = np.linalg.norm(landmarks_np[13][:2] - landmarks_np[14][:2])
+        lips_open = float(lips_gap / (eye_distance + 1e-6))
+
+        # ── Symmetry ──────────────────────────────────────────────────────
+        left_dist = np.linalg.norm(landmarks_np[4][:2] - landmarks_np[234][:2])
+        right_dist = np.linalg.norm(landmarks_np[4][:2] - landmarks_np[454][:2])
+        symmetry = float(min(left_dist, right_dist) / (max(left_dist, right_dist) + 1e-6))
+
+        # ── Crop Box ──────────────────────────────────────────────────────
+        xs = landmarks_np[:, 0]
+        ys = landmarks_np[:, 1]
+        x_min = int(max(0, np.min(xs)))
+        y_min = int(max(0, np.min(ys)))
+        x_max = int(min(w, np.max(xs)))
+        y_max = int(min(h, np.max(ys)))
+        
+        pad_x = int((x_max - x_min) * 0.1)
+        pad_y = int((y_max - y_min) * 0.1)
+        x_min = max(0, x_min - pad_x)
+        y_min = max(0, y_min - pad_y)
+        x_max = min(w, x_max + pad_x)
+        y_max = min(h, y_max + pad_y)
 
         return {
             "landmarks":  landmarks_raw,
-            "pose":       {"yaw": yaw, "pitch": pitch, "roll": roll},
-            "ear":        {"left": 0.3, "right": 0.3, "avg": 0.3},
-            "smile":      1.0,
-            "lips_open":  0.1,
-            "symmetry":   1.0,
+            "pose":       pose,
+            "ear":        ear,
+            "smile":      smile_score,
+            "lips_open":  lips_open,
+            "symmetry":   symmetry,
             "crop_box":   (x_min, y_min, x_max, y_max),
         }
 
@@ -244,7 +339,7 @@ class FaceAnalysisService:
         cls, image: np.ndarray, analysis: Dict[str, Any] = None
     ) -> List[float]:
         """
-        Generate a 512-dim face embedding.
+        Generate an aligned 512-dim face embedding.
         Tries ArcFace ONNX first; falls back to deterministic geometric embedding.
         """
         if analysis is None:
@@ -256,10 +351,41 @@ class FaceAnalysisService:
 
         if session:
             try:
-                x_min, y_min, x_max, y_max = analysis["crop_box"]
-                face_crop     = image[y_min:y_max, x_min:x_max]
-                face_resized  = cv2.resize(face_crop, (112, 112))
-                face_rgb      = cv2.cvtColor(face_resized, cv2.COLOR_BGR2RGB)
+                # ── Perform Face Alignment using 5 Reference Points ─────────
+                landmarks = np.array(analysis["landmarks"])
+                
+                det_left_eye = (landmarks[33] + landmarks[133]) / 2.0
+                det_right_eye = (landmarks[263] + landmarks[362]) / 2.0
+                det_nose = landmarks[4]
+                det_left_mouth = landmarks[61]
+                det_right_mouth = landmarks[291]
+                
+                detected_pts = np.array([
+                    det_left_eye[:2],
+                    det_right_eye[:2],
+                    det_nose[:2],
+                    det_left_mouth[:2],
+                    det_right_mouth[:2]
+                ], dtype=np.float32)
+                
+                # Standard ArcFace target points in a 112x112 space
+                STANDARD_LANDMARKS = np.array([
+                    [38.2946, 51.6963],  # left eye
+                    [73.5318, 51.5014],  # right eye
+                    [56.0252, 71.7366],  # nose
+                    [41.5493, 92.3655],  # left mouth corner
+                    [70.7299, 92.2041]   # right mouth corner
+                ], dtype=np.float32)
+                
+                M, _ = cv2.estimateAffinePartial2D(detected_pts, STANDARD_LANDMARKS)
+                if M is not None:
+                    face_aligned = cv2.warpAffine(image, M, (112, 112))
+                else:
+                    x_min, y_min, x_max, y_max = analysis["crop_box"]
+                    face_crop = image[y_min:y_max, x_min:x_max]
+                    face_aligned = cv2.resize(face_crop, (112, 112))
+                
+                face_rgb      = cv2.cvtColor(face_aligned, cv2.COLOR_BGR2RGB)
                 face_t        = np.transpose(face_rgb, (2, 0, 1)).astype(np.float32)
                 face_norm     = (face_t - 127.5) / 128.0
                 input_blob    = np.expand_dims(face_norm, axis=0)

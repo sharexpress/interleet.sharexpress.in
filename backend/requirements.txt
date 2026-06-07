@@ -21,6 +21,7 @@ python-dotenv>=1.0.1
 # Auth
 authlib>=1.3.0
 python-jose[cryptography]>=3.3.0
+webauthn>=2.0.0
 
 # HTTP client
 httpx>=0.27.0
@@ -45,6 +46,8 @@ langchain-openai>=0.1.0
 langchain-groq>=0.1.0
 langgraph>=0.1.0
 groq>=0.9.0
+onnxruntime>=1.16.0
+mediapipe>=0.10.0
 
 # ─── File / Media ─────────────────────────────
 PyMuPDF>=1.24.0

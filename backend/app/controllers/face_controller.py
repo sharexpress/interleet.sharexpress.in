@@ -3,7 +3,7 @@ import cv2
 import uuid
 import logging
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any, Tuple, Optional
 from fastapi import HTTPException, Response, Request
 
@@ -25,6 +25,16 @@ import numpy as np
 logger = logging.getLogger(__name__)
 db = get_db()
 is_prod = PROJECT_ENVIRONMENT == "PRODUCTION"
+
+# ── Security thresholds ────────────────────────────────────────────────────
+# ArcFace ONNX cosine similarity — strict (same identity ~0.85+, different ~0.3)
+SIMILARITY_THRESHOLD_ARCFACE = float(os.getenv("FACE_SIMILARITY_THRESHOLD", "0.72"))
+# Geometric fallback is less discriminative — slightly looser but still tight
+SIMILARITY_THRESHOLD_GEOMETRIC = float(os.getenv("FACE_SIMILARITY_THRESHOLD_GEO", "0.68"))
+
+# Rate limiting — max failures before temporary lockout
+MAX_FAILURES_BEFORE_LOCKOUT = int(os.getenv("FACE_MAX_FAILURES", "5"))
+LOCKOUT_WINDOW_MINUTES = int(os.getenv("FACE_LOCKOUT_MINUTES", "15"))
 
 
 class FaceController:
@@ -115,6 +125,14 @@ class FaceController:
 
             embeddings = []
             landmark_records = []
+
+            using_arcface = FaceAnalysisService._get_ort_session() is not None
+            if not using_arcface:
+                logger.error("Face registration failed: ArcFace ML model session is not initialized")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Biometric registration is currently unavailable (ML model engine offline)."
+                )
 
             # Reset existing embeddings for clean registration
             await VectorSearchService.delete_user_embeddings(user_id)
@@ -261,12 +279,13 @@ class FaceController:
 
         elif challenge_type == "smile":
             # Smile expands mouth width relative to eye distance
-            # Compare maximum smile to baseline (usually smile increases score by 0.1-0.2)
-            if metrics["max_smile"] > 0.43:
+            # Compare maximum smile to baseline and ensure there is an active smile change (delta)
+            smile_delta = metrics["max_smile"] - metrics["min_smile"]
+            if metrics["max_smile"] > 0.44 and smile_delta > 0.03:
                 liveness_passed = True
             else:
                 metrics["reason"] = (
-                    f"Smile not detected. Max smile score: {metrics['max_smile']:.2f}"
+                    f"Smile not detected or mouth did not change expression. Max: {metrics['max_smile']:.2f}, Delta: {smile_delta:.2f}"
                 )
 
         elif challenge_type == "move_closer":
@@ -337,129 +356,166 @@ class FaceController:
     ):
         """
         Authenticates user via face recognition.
-        Performs vector search in ChromaDB, liveness check, LangChain threat assessment,
-        and starts a JWT session on success.
+
+        Security pipeline:
+          1. Decode + validate frame (real face must be detected)
+          2. Generate biometric embedding
+          3. Vector search against all enrolled users
+          4. HARD similarity threshold gate (denies if score < threshold)
+          5. Confirm matched user has face_registered flag
+          6. Email filter validation (optional, additional guard)
+          7. Rate-limit check (lockout after N failures)
+          8. Device trust + IP anomaly detection
+          9. Liveness check (EAR + recent challenge log)
+         10. LangChain adaptive risk evaluation
+         11. Issue JWT on ALLOW, challenge on CHALLENGE, deny on DENY
         """
+        ip_address = request.client.host if request.client else "127.0.0.1"
+
         try:
-            # 1. Decode frame
+            # ── Step 1: Validate email and load user ──────────────────────
+            if not payload.email or not payload.email.strip():
+                raise HTTPException(
+                    status_code=400, detail="Email address is required for Face ID."
+                )
+
+            email = payload.email.strip().lower()
+            matched_user = await db.users.find_one({"email": email})
+            if not matched_user:
+                logger.warning("Face login: user not found for email %s", email)
+                raise HTTPException(
+                    status_code=401, detail="Biometric credentials match failed. Face not recognized."
+                )
+
+            # Face must be explicitly enrolled
+            if not matched_user.get("face_registered"):
+                logger.warning("Face login: face not registered for email %s", email)
+                raise HTTPException(
+                    status_code=403,
+                    detail="Face ID not registered. Please enroll your face in Settings → Security.",
+                )
+
+            matched_user_id = str(matched_user["user_id"])
+
+            # ── Step 2: Decode and validate frame ─────────────────────────
             img = FaceAnalysisService.base64_to_image(payload.frame)
             if img is None:
                 raise HTTPException(
-                    status_code=400, detail="Invalid camera frame image format"
+                    status_code=400, detail="Invalid camera frame image format."
                 )
 
-            # 2. Extract landmark biometric metrics
+            # ── Step 3: Detect face landmarks ─────────────────────────────
             analysis = FaceAnalysisService.analyze_face(img)
             if not analysis:
                 raise HTTPException(
-                    status_code=400, detail="No face detected in camera stream"
+                    status_code=400,
+                    detail="No face detected in the camera stream. Please align your face clearly.",
                 )
 
-            # 3. Generate query vector
+            # ── Step 4: Generate query embedding ──────────────────────────
             query_vector = FaceAnalysisService.generate_face_embedding(img, analysis)
 
-            # 4. Search database
+            # ── Step 5: 1-1 Nearest-neighbour search (filtered by user_id) ──
             hits = await VectorSearchService.search_nearest_neighbors(
-                query_vector, limit=5
+                query_vector, limit=5, user_id=matched_user_id
             )
             if not hits:
+                logger.warning("Face login: no enrolled face templates found for user %s", email)
                 raise HTTPException(
-                    status_code=401, detail="Biometric identity matches not found"
+                    status_code=401, detail="Biometric credentials match failed. Face not recognized."
                 )
 
-            # 5. Check top candidate
             top_hit = hits[0]
-            similarity_score = top_hit["similarity"]
-            matched_user_id = top_hit["userId"]
+            similarity_score: float = top_hit["similarity"]
 
-            # Load matched user
-            matched_user = await db.users.find_one({"user_id": matched_user_id})
-            if not matched_user:
+            # ── Step 6: HARD SIMILARITY THRESHOLD ────────────────────────
+            using_arcface = FaceAnalysisService._get_ort_session() is not None
+            if not using_arcface:
+                logger.error("Face login failed: ArcFace ML model session is not initialized")
                 raise HTTPException(
-                    status_code=401, detail="Matched biometric identity does not exist"
+                    status_code=500,
+                    detail="Biometric authentication is currently unavailable (ML model engine offline)."
                 )
 
-            email = matched_user["email"]
+            threshold = SIMILARITY_THRESHOLD_ARCFACE
 
-            # Filter validation if email is provided
-            if payload.email:
-                filtered_email = payload.email.strip().lower()
-                if matched_user["email"] != filtered_email:
-                    raise HTTPException(
-                        status_code=401,
-                        detail="Biometric credentials do not match this account",
-                    )
-
-            # Face ID must be enrolled before login is allowed
-            if not matched_user.get("face_registered"):
-                raise HTTPException(
-                    status_code=403,
-                    detail="Face ID not registered. Please enroll your face in settings.",
+            if similarity_score < threshold:
+                logger.warning(
+                    "Face login DENIED — user=%s similarity %.4f < threshold %.4f (arcface=%s) ip=%s",
+                    email, similarity_score, threshold, using_arcface, ip_address,
                 )
-
-            # 6. Gather threat & device context
-            ip_address = request.client.host if request.client else "127.0.0.1"
-
-            # Check device trust status
-            device_trusted = False
-            trust_doc = await db.device_trust.find_one(
-                {
-                    "userId": matched_user_id,
+                # Log the failed attempt
+                await db.face_login_attempts.insert_one({
+                    "userId":            matched_user_id,
+                    "email":             email,
+                    "success":           False,
+                    "confidenceScore":   similarity_score,
+                    "decision":          "DENY",
+                    "reason":            f"Similarity {similarity_score:.4f} below threshold {threshold:.4f}",
+                    "ipAddress":         ip_address,
                     "deviceFingerprint": payload.device_fingerprint,
-                }
-            )
-            if trust_doc:
-                device_trusted = True
+                    "timestamp":         datetime.utcnow(),
+                })
+                raise HTTPException(
+                    status_code=401,
+                    detail="Biometric credentials match failed. Face not recognized.",
+                )
 
-            # Count recent login failures in last 10 minutes
-            recent_failures_count = await db.face_login_attempts.count_documents(
-                {
-                    "email": email,
-                    "success": False,
-                    "timestamp": {
-                        "$gt": datetime.fromtimestamp(
-                            datetime.utcnow().timestamp() - 600
-                        )
-                    },
-                }
-            )
+            # ── Step 7: Rate-limit check ───────────────────────────────────
+            lockout_window = datetime.utcnow() - timedelta(minutes=LOCKOUT_WINDOW_MINUTES)
+            recent_failures_count = await db.face_login_attempts.count_documents({
+                "email":   email,
+                "success": False,
+                "timestamp": {"$gt": lockout_window},
+            })
 
-            # Check for IP anomalies (if user has logged in from different IPs before)
+            if recent_failures_count >= MAX_FAILURES_BEFORE_LOCKOUT:
+                logger.warning(
+                    "Face login rate-limited — email=%s failures=%d ip=%s",
+                    email, recent_failures_count, ip_address,
+                )
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        f"Too many failed attempts ({recent_failures_count}). "
+                        f"Try again in {LOCKOUT_WINDOW_MINUTES} minutes or use Email/OTP login."
+                    ),
+                )
+
+            # ── Step 8: Device trust + IP anomaly ─────────────────────────
+            trust_doc = await db.device_trust.find_one({
+                "userId":            matched_user_id,
+                "deviceFingerprint": payload.device_fingerprint,
+            })
+            device_trusted = trust_doc is not None
+
             past_ips = await db.face_login_attempts.distinct(
                 "ipAddress", {"userId": matched_user_id, "success": True}
             )
             ip_anomaly = len(past_ips) > 0 and ip_address not in past_ips
 
-            # Basic local liveness check based on frame metrics
-            # Normal blink-level EAR is > 0.22 (eyes open)
-            liveness_valid = analysis["ear"]["avg"] > 0.20
+            # ── Step 9: Liveness validation ───────────────────────────────
+            liveness_valid = analysis["ear"]["avg"] > 0.22
 
-            # Check if this device recently completed a successful liveness challenge (within last 5 minutes)
-            challenge_passed_recently = await db.anti_spoofing_logs.find_one(
-                {
-                    "email": email,
-                    "livenessPassed": True,
-                    "deviceFingerprint": payload.device_fingerprint,
-                    "timestamp": {
-                        "$gt": datetime.fromtimestamp(
-                            datetime.utcnow().timestamp() - 300
-                        )
-                    },
-                }
-            )
+            # Allow bypass if device recently passed a full liveness challenge
+            challenge_cutoff = datetime.utcnow() - timedelta(minutes=5)
+            challenge_passed_recently = await db.anti_spoofing_logs.find_one({
+                "email":             email,
+                "livenessPassed":    True,
+                "deviceFingerprint": payload.device_fingerprint,
+                "timestamp":         {"$gt": challenge_cutoff},
+            })
             if challenge_passed_recently:
                 liveness_valid = True
-                logger.info(
-                    "Found recent successful liveness verification for %s on this device. Bypassing live EAR check.",
-                    email,
-                )
+                logger.info("Liveness bypass granted — recent challenge passed for %s", email)
+
             liveness_data = {
-                "ear": analysis["ear"]["avg"],
-                "pose": analysis["pose"],
+                "ear":   analysis["ear"]["avg"],
+                "pose":  analysis["pose"],
                 "smile": analysis["smile"],
             }
 
-            # 7. LangChain Adaptive Risk assessment
+            # ── Step 10: LangChain adaptive risk assessment ────────────────
             decision = await LangChainAuthDecisionService.evaluate_auth_request(
                 similarity_score=similarity_score,
                 liveness_valid=liveness_valid,
@@ -467,85 +523,76 @@ class FaceController:
                 recent_failures_count=recent_failures_count,
                 ip_anomaly=ip_anomaly,
                 liveness_data=liveness_data,
+                using_arcface=using_arcface,
             )
 
-            # Record login attempt
-            await db.face_login_attempts.insert_one(
-                {
-                    "userId": matched_user_id,
-                    "email": email,
-                    "success": decision.decision == "ALLOW",
-                    "confidenceScore": similarity_score,
-                    "decision": decision.decision,
-                    "reason": decision.reasoning,
-                    "ipAddress": ip_address,
-                    "deviceFingerprint": payload.device_fingerprint,
-                    "timestamp": datetime.utcnow(),
-                }
-            )
+            # ── Step 11: Record attempt ────────────────────────────────────
+            await db.face_login_attempts.insert_one({
+                "userId":            matched_user_id,
+                "email":             email,
+                "success":           decision.decision == "ALLOW",
+                "confidenceScore":   similarity_score,
+                "similarityThreshold": threshold,
+                "decision":          decision.decision,
+                "reason":            decision.reasoning,
+                "ipAddress":         ip_address,
+                "deviceFingerprint": payload.device_fingerprint,
+                "livenessValid":     liveness_valid,
+                "usingArcface":      using_arcface,
+                "timestamp":         datetime.utcnow(),
+            })
 
-            # 8. Handle Auth Decisions
+            # ── Step 11b: Handle decisions ────────────────────────────────
             if decision.decision == "ALLOW":
-                # Check locked/active account status
                 if matched_user.get("is_locked"):
-                    raise HTTPException(status_code=403, detail="Account is locked")
+                    raise HTTPException(status_code=403, detail="Account is locked.")
                 if not matched_user.get("is_active", True):
-                    raise HTTPException(
-                        status_code=403, detail="Account is deactivated"
-                    )
+                    raise HTTPException(status_code=403, detail="Account is deactivated.")
 
-                # Update device trust timestamp
+                # Promote device trust
                 await db.device_trust.update_one(
-                    {
-                        "userId": matched_user_id,
-                        "deviceFingerprint": payload.device_fingerprint,
-                    },
+                    {"userId": matched_user_id, "deviceFingerprint": payload.device_fingerprint},
                     {"$set": {"lastUsedAt": datetime.utcnow(), "trustScore": 1.0}},
                     upsert=True,
                 )
-
-                # Update user last login
+                # Update last login
                 await db.users.update_one(
                     {"user_id": matched_user_id},
-                    {
-                        "$set": {
-                            "last_login": datetime.utcnow(),
-                            "updated_at": datetime.utcnow(),
-                        }
-                    },
+                    {"$set": {"last_login": datetime.utcnow(), "updated_at": datetime.utcnow()}},
                 )
 
-                # Set JWT Cookie
                 generate_token(matched_user_id, response)
-                logger.info("Face ID authentication successful for user %s", email)
-
+                logger.info(
+                    "Face ID ALLOW — user=%s score=%.4f threshold=%.4f arcface=%s ip=%s",
+                    email, similarity_score, threshold, using_arcface, ip_address,
+                )
                 return {
                     "success": True,
                     "message": "Authenticated successfully via Face ID",
                     "user": {
-                        "user_id": matched_user_id,
-                        "email": email,
-                        "username": matched_user.get("username"),
-                        "full_name": matched_user.get("full_name"),
-                        "onboarding_completed": matched_user.get(
-                            "onboarding_completed", False
-                        ),
-                        "avatar": matched_user.get("avatar"),
+                        "user_id":              matched_user_id,
+                        "email":                email,
+                        "username":             matched_user.get("username"),
+                        "full_name":            matched_user.get("full_name"),
+                        "onboarding_completed": matched_user.get("onboarding_completed", False),
+                        "avatar":               matched_user.get("avatar"),
                     },
                 }
 
             elif decision.decision == "CHALLENGE":
-                # Return challenge requirement response
                 return {
-                    "success": False,
+                    "success":           False,
                     "challenge_required": True,
-                    "email": email,
-                    "userId": matched_user_id,
-                    "message": "Device verification required. Perform biometrics liveness check.",
-                    "reason": decision.reasoning,
+                    "email":             email,
+                    "userId":            matched_user_id,
+                    "message":           "Liveness verification required.",
+                    "reason":            decision.reasoning,
                 }
             else:
-                # DENY authentication
+                logger.warning(
+                    "Face ID DENY — user=%s score=%.4f reason=%s ip=%s",
+                    email, similarity_score, decision.reasoning, ip_address,
+                )
                 raise HTTPException(
                     status_code=401,
                     detail=f"Face ID authentication failed: {decision.reasoning}",
@@ -565,6 +612,13 @@ class FaceController:
         try:
             user = current_user.get("user")
             user_id = user["user_id"]
+
+            using_arcface = FaceAnalysisService._get_ort_session() is not None
+            if not using_arcface:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Biometric verification is currently unavailable (ML model engine offline)."
+                )
 
             img = FaceAnalysisService.base64_to_image(payload.frame)
             if img is None:
@@ -595,7 +649,7 @@ class FaceController:
                 if sim > max_sim:
                     max_sim = sim
 
-            passed = max_sim >= 0.70
+            passed = max_sim >= 0.75
 
             return {
                 "success": passed,

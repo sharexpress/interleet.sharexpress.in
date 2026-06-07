@@ -9,7 +9,7 @@ class FaceRegisterRequest(BaseModel):
     device_fingerprint: str
 
 class FaceLoginRequest(BaseModel):
-    email: Optional[str] = Field(None, description="Optional email for filtered verification")
+    email: str = Field(..., description="Email for biometric verification")
     frame: str = Field(..., description="Base64 encoded image frame")
     device_fingerprint: str
 

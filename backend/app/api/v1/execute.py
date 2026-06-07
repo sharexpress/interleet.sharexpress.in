@@ -23,7 +23,8 @@ from app.engine.controllers.submission_controller import EngineSubmissionControl
 from app.engine.docker.pool import get_available_languages, verify_sandbox_images
 from app.engine.executors.factory import LANGUAGE_META, ExecutorFactory
 from app.engine.queue.redis_queue import get_execution_queue
-from app.engine.schemas import ExecuteRequest, SubmissionRequest
+from app.engine.schemas import ExecuteRequest, RunRequest, SubmissionRequest, InlineTestCase, TestCaseSchema
+from app.engine.security.code_guard import CodeGuard
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +60,12 @@ async def execute_code(
 
     Submit code and wait for the execution result (up to 30 seconds).
     Use for quick runs and playground-style execution.
-
-    Returns a complete `ExecutionResult` including:
-    - `verdict`: ACCEPTED | WRONG_ANSWER | TIME_LIMIT_EXCEEDED | etc.
-    - `stdout`, `stderr`, `compile_output`
-    - `time` (seconds), `memory` (MB)
-    - `exit_code`
     """
+    # Security guard
+    guard = CodeGuard.check(request.code, request.language.value)
+    if not guard.allowed:
+        raise HTTPException(status_code=400, detail=f"Code blocked by security policy: {guard.reason}")
+
     try:
         result = await EngineSubmissionController.create_execute(request)
         return result
@@ -73,6 +73,51 @@ async def execute_code(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Execute endpoint error: %s", exc)
+        raise HTTPException(status_code=500, detail="Internal execution error") from exc
+
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# POST /api/v1/run
+# Run against inline sample test cases. Fast path for the "Run" button.
+# ─────────────────────────────────────────────────────────────────────────────────
+
+@engine_router.post("/run", summary="Run against sample test cases (inline)")
+async def run_code(
+    request: RunRequest = Body(
+        ...,
+        examples={
+            "two_sum_js": {
+                "summary": "Run Two-Sum in JavaScript",
+                "value": {
+                    "language": "javascript",
+                    "code": "const lines = require('fs').readFileSync('/dev/stdin','utf8').trim().split('\\n'); console.log(lines[0]);",
+                    "test_cases": [
+                        {"stdin": "[2,7,11,15]\\n9", "expected_output": "[0,1]", "name": "Example 1"},
+                        {"stdin": "[3,2,4]\\n6",      "expected_output": "[1,2]", "name": "Example 2"},
+                    ],
+                },
+            }
+        },
+    ),
+) -> dict[str, Any]:
+    """
+    **Run code against visible sample test cases.**
+
+    Test cases are passed inline (not fetched from DB).
+    Returns per-testcase results immediately (synchronous, waits up to 30s).
+    """
+    # Security guard
+    guard = CodeGuard.check(request.code, request.language.value)
+    if not guard.allowed:
+        raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
+
+    try:
+        result = await EngineSubmissionController.create_run(request)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Run endpoint error: %s", exc)
         raise HTTPException(status_code=500, detail="Internal execution error") from exc
 
 
@@ -108,6 +153,11 @@ async def create_submission(
     - **WebSocket**: `WS /api/v1/ws/{submission_id}`
     - **Polling**: `GET /api/v1/results/{submission_id}`
     """
+    # Security guard
+    guard = CodeGuard.check(request.code, request.language.value)
+    if not guard.allowed:
+        raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
+
     try:
         result = await EngineSubmissionController.create_submission(request)
         return result

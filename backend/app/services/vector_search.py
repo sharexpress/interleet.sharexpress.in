@@ -125,6 +125,7 @@ class VectorSearchService:
     async def search_nearest_neighbors(
         query_vector: List[float],
         limit: int = 5,
+        user_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """
         Nearest-neighbour search using cosine similarity.
@@ -133,10 +134,15 @@ class VectorSearchService:
         # ── Pinecone path ──────────────────────────────────────────────────
         if PINECONE_AVAILABLE and pinecone_index is not None:
             try:
+                filter_dict = {}
+                if user_id:
+                    filter_dict["user_id"] = {"$eq": user_id}
+                
                 result = pinecone_index.query(
                     vector=query_vector,
                     top_k=limit,
                     include_metadata=True,
+                    filter=filter_dict if filter_dict else None,
                 )
                 hits = []
                 for match in result.get("matches", []):
@@ -155,8 +161,12 @@ class VectorSearchService:
 
         # ── MongoDB + Numpy fallback ───────────────────────────────────────
         logger.info("Running MongoDB+Numpy similarity search")
+        query_filter = {}
+        if user_id:
+            query_filter["userId"] = user_id
+            
         cursor = db.face_embeddings.find(
-            {},
+            query_filter,
             {"userId": 1, "embeddingVector": 1, "angle": 1, "lightingCondition": 1},
         )
         all_docs = await cursor.to_list(length=1000)

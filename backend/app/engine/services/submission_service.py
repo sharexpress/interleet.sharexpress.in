@@ -119,17 +119,39 @@ class SubmissionService:
         problem_slug: str,
         include_hidden: bool = False,
     ) -> list[dict[str, Any]]:
-        """Fetch test cases for a problem from MongoDB."""
+        """Fetch test cases for a problem from the embedded array in the problems collection."""
         db = get_db()
-        query: dict[str, Any] = {"problem_slug": problem_slug}
-        if not include_hidden:
-            query["hidden"] = {"$ne": True}
 
-        testcases = []
-        async for doc in db.test_cases.find(query).sort("weight", 1):
-            doc.pop("_id", None)
-            testcases.append(doc)
-        return testcases
+        # Test cases are embedded inside the problem document, not a separate collection
+        doc = await db.problems.find_one({"slug": problem_slug})
+        if not doc:
+            logger.warning("Problem '%s' not found in DB — no test cases", problem_slug)
+            return []
+
+        raw_cases: list[dict] = doc.get("test_cases", [])
+
+        if not include_hidden:
+            raw_cases = [tc for tc in raw_cases if not tc.get("hidden", False)]
+
+        # Ensure each test case has the expected fields
+        result = []
+        for tc in raw_cases:
+            result.append({
+                "id":              tc.get("id", ""),
+                "stdin":           tc.get("stdin", ""),
+                "expected_output": tc.get("expected_output", ""),
+                "hidden":          tc.get("hidden", False),
+                "weight":          float(tc.get("weight", 1.0)),
+                "name":            tc.get("name"),
+                "time_limit":      tc.get("time_limit"),
+                "memory_limit":    tc.get("memory_limit"),
+            })
+
+        logger.info(
+            "Loaded %d test cases for problem '%s' (include_hidden=%s)",
+            len(result), problem_slug, include_hidden,
+        )
+        return result
 
     @staticmethod
     async def health() -> dict[str, Any]:

@@ -36,6 +36,25 @@ class ExecuteRequest(BaseModel):
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
 
 
+class InlineTestCase(BaseModel):
+    """Lightweight test case passed inline from the frontend."""
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    stdin: str = ""
+    expected_output: str = ""
+    name: Optional[str] = None
+    hidden: bool = False
+
+
+class RunRequest(BaseModel):
+    """POST /api/v1/run — run against sample test cases provided inline by the frontend."""
+    language: Language
+    code: str
+    test_cases: list[InlineTestCase] = []
+    time_limit: float = Field(default=5.0, ge=0.5, le=30.0, description="Seconds")
+    memory_limit: int = Field(default=256, ge=32, le=1024, description="MB")
+    comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
+
+
 class SubmissionRequest(ExecuteRequest):
     """POST /api/v1/submissions — async submission linked to a problem"""
 

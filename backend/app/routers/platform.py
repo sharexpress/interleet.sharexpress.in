@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Query, Depends
 
 from app.controllers.platform import PlatformController
+from app.middleware.user import Middleware as UserMiddleware
 
 router = APIRouter(prefix="/api", tags=["Platform"])
 
@@ -36,13 +37,18 @@ async def leaderboard(limit: int = 50):
 
 
 @router.get("/profile")
-async def my_profile():
-    return await PlatformController.profile()
+async def my_profile(user=Depends(UserMiddleware.me)):
+    return await PlatformController.profile(username=user["user"]["username"])
 
 
 @router.get("/profile/{username}")
 async def profile(username: str):
     return await PlatformController.profile(username=username)
+
+
+@router.get("/profile/{username}/ai-evaluation")
+async def profile_ai_evaluation(username: str, force: bool = False):
+    return await PlatformController.ai_evaluation(username=username, force_refresh=force)
 
 
 @router.get("/activity")

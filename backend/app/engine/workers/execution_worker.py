@@ -316,6 +316,10 @@ class ExecutionWorker:
                     {"$set": submission_doc},
                     upsert=True,
                 )
+                
+                # Update user profile dynamically
+                if job.user_id:
+                    await _update_user_ratings_and_badges(job.user_id)
         except Exception as exc:
             logger.error("Failed to save result to MongoDB: %s", exc)
 
@@ -350,3 +354,109 @@ def _map_verdict_to_status(verdict: Verdict) -> str:
         Verdict.INTERNAL_ERROR: "failed",
     }
     return mapping.get(verdict, "failed")
+
+
+async def _update_user_ratings_and_badges(user_id: str) -> None:
+    """Recalculate and update the user's proficiency, streak, and badges in the DB."""
+    try:
+        from datetime import datetime, timedelta
+        db = get_db()
+        
+        # 1. Fetch user's submissions
+        submissions_cursor = db.submissions.find({"user_id": user_id})
+        submissions = await submissions_cursor.to_list(length=1000)
+        accepted_subs = [s for s in submissions if s.get("status") == "accepted"]
+        solved_slugs = {s["problem_slug"] for s in accepted_subs if s.get("problem_slug")}
+        
+        # 2. Fetch all challenges from problems
+        problems_cursor = db.problems.find({})
+        all_problems = await problems_cursor.to_list(length=1000)
+        problems_by_slug = {p["slug"]: p for p in all_problems}
+        
+        # Calculate domain ratings
+        domain_list = ["Frontend", "Backend", "DevOps", "APIs", "Databases", "System Design"]
+        domain_challenges = {d: [] for d in domain_list}
+        for p in all_problems:
+            d = p.get("domain", "Backend")
+            if d in domain_challenges:
+                domain_challenges[d].append(p)
+                
+        updates = {}
+        for d in domain_list:
+            ch_list = domain_challenges[d]
+            total_in_domain = len(ch_list)
+            solved_in_domain = sum(1 for p in ch_list if p["slug"] in solved_slugs)
+            
+            if total_in_domain > 0:
+                score = min(100, int((solved_in_domain / total_in_domain) * 100))
+                if solved_in_domain > 0:
+                    score = min(100, max(score, 30 + solved_in_domain * 20))
+                else:
+                    score = 10
+            else:
+                score = 10
+                
+            key_name = f"{d.lower().replace(' ', '')}_rating"
+            updates[key_name] = score
+            
+        solved_count = len(solved_slugs)
+        xp = sum(problems_by_slug[slug].get("xp_reward", 100) for slug in solved_slugs if slug in problems_by_slug)
+        
+        updates["overall_rating"] = 1000 + solved_count * 100 + int(xp * 0.1)
+        updates["total_xp"] = xp
+        updates["solved_problems"] = list(solved_slugs)
+        
+        # Heatmap
+        cutoff = datetime.utcnow() - timedelta(days=182)
+        sub_activity_cursor = db.submissions.find({
+            "user_id": user_id,
+            "created_at": {"$gte": cutoff}
+        })
+        sub_activities = await sub_activity_cursor.to_list(length=1000)
+        
+        rep_activity_cursor = db.interview_reports.find({
+            "user_id": user_id,
+            "created_at": {"$gte": cutoff}
+        })
+        rep_activities = await rep_activity_cursor.to_list(length=1000)
+        
+        heatmap_dates = set()
+        for act in sub_activities + rep_activities:
+            dt = act.get("created_at")
+            if isinstance(dt, datetime):
+                heatmap_dates.add(dt.strftime("%Y-%m-%d"))
+                
+        updates["streak_count"] = len(heatmap_dates)
+        
+        badges = []
+        if solved_count >= 1:
+            badges.append("First Milestone")
+        if len(rep_activities) >= 1:
+            badges.append("Interview Scholar")
+        if "build-a-rate-limiter" in solved_slugs:
+            badges.append("Concurrency Expert")
+        if "rest-versioning" in solved_slugs:
+            badges.append("API Architect")
+            
+        solved_domains = set()
+        for slug in solved_slugs:
+            if slug in problems_by_slug:
+                solved_domains.add(problems_by_slug[slug].get("domain"))
+        if "Backend" in solved_domains:
+            badges.append("Top 5% Backend")
+        if len(solved_domains) >= 3:
+            badges.append("Fullstack Wizard")
+        if solved_count >= 5:
+            badges.append("Algorithm Master")
+            
+        if not badges:
+            badges = ["Novice Engineer"]
+            
+        updates["badges"] = badges
+        
+        await db.users.update_one({"user_id": user_id}, {"$set": updates})
+        logger.info("Successfully updated user=%s ratings, badges, and streak in DB", user_id)
+        
+    except Exception as exc:
+        logger.exception("Failed to update user ratings and badges: %s", exc)
+
