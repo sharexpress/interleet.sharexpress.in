@@ -460,11 +460,11 @@ function ContestWorkspace() {
           <div className="space-y-2 pt-4">
             <h2 className="text-xl font-bold text-white uppercase tracking-wider">Disqualified</h2>
             <p className="text-sm text-zinc-400">
-              Your session has been terminated due to multiple focus losses or tab switching actions, violating the contest integrity rules.
+              Your session has been terminated due to multiple cheating warnings or exiting fullscreen mode, violating the contest integrity rules.
             </p>
           </div>
           <div className="border-t border-zinc-800 pt-4 text-xs text-zinc-500">
-            Cheating Violations Limit: 3/3 Exceeded.
+            Contest integrity rules violated.
           </div>
           <Button className="w-full bg-red-600 hover:bg-red-500 text-white" asChild>
             <Link to="/app/contest">Exit Arena</Link>
