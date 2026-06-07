@@ -19,6 +19,7 @@ from app.models.face_models import (
 )
 from app.services.face_analysis import FaceAnalysisService
 from app.services.vector_search import VectorSearchService
+from app.services.deepface_service import DeepFaceService
 from app.services.langchain_auth import LangChainAuthDecisionService
 import numpy as np
 
@@ -27,14 +28,18 @@ db = get_db()
 is_prod = PROJECT_ENVIRONMENT == "PRODUCTION"
 
 # ── Security thresholds ────────────────────────────────────────────────────
-# ArcFace ONNX cosine similarity — strict (same identity ~0.85+, different ~0.3)
-SIMILARITY_THRESHOLD_ARCFACE = float(os.getenv("FACE_SIMILARITY_THRESHOLD", "0.72"))
-# Geometric fallback is less discriminative — slightly looser but still tight
-SIMILARITY_THRESHOLD_GEOMETRIC = float(os.getenv("FACE_SIMILARITY_THRESHOLD_GEO", "0.68"))
+# ArcFace ONNX cosine similarity — raised to 0.80 for stricter identity matching
+# (same person in good conditions typically scores 0.88–0.97)
+SIMILARITY_THRESHOLD_ARCFACE = float(os.getenv("FACE_SIMILARITY_THRESHOLD", "0.80"))
+# Geometric fallback — raised from 0.68 → 0.75
+SIMILARITY_THRESHOLD_GEOMETRIC = float(os.getenv("FACE_SIMILARITY_THRESHOLD_GEO", "0.75"))
 
-# Rate limiting — max failures before temporary lockout
-MAX_FAILURES_BEFORE_LOCKOUT = int(os.getenv("FACE_MAX_FAILURES", "5"))
-LOCKOUT_WINDOW_MINUTES = int(os.getenv("FACE_LOCKOUT_MINUTES", "15"))
+# Rate limiting — tightened: 3 failures → 30-min lockout (was 5 / 15 min)
+MAX_FAILURES_BEFORE_LOCKOUT = int(os.getenv("FACE_MAX_FAILURES", "3"))
+LOCKOUT_WINDOW_MINUTES = int(os.getenv("FACE_LOCKOUT_MINUTES", "30"))
+
+# Liveness — minimum Eye Aspect Ratio to consider eyes open (was 0.22)
+MIN_EAR_LIVENESS = float(os.getenv("FACE_MIN_EAR", "0.25"))
 
 
 class FaceController:
@@ -146,12 +151,80 @@ class FaceController:
                         detail=f"Invalid image format for angle {angle}",
                     )
 
-                analysis = FaceAnalysisService.analyze_face(img)
+                # For registration, non-frontal angles should use strict=False to bypass pose and symmetry limits
+                strict_check = (angle == "front")
+                analysis = FaceAnalysisService.analyze_face(img, strict=strict_check)
                 if not analysis:
                     raise HTTPException(
                         status_code=400,
                         detail=f"No face detected in the frame for angle {angle}",
                     )
+                # Multi-face guard during registration (DeepFace count)
+                face_count = DeepFaceService.count_faces(img, strict=strict_check)
+                if face_count > 1:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Multiple people ({face_count}) detected in frame for angle '{angle}'. "
+                            "Only the enrolling user may be in frame during Face ID registration."
+                        ),
+                    )
+                # Also check MediaPipe sentinel
+                if analysis.get("multi_face_detected"):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(
+                            f"Multiple people ({analysis['face_count']}) detected in frame for angle '{angle}'. "
+                            "Only the enrolling user may be in frame during Face ID registration."
+                        ),
+                    )
+
+                # Compare captured face with the user's profile avatar (Google/GitHub profile picture)
+                if angle == "front":
+                    user_doc = await db.users.find_one({"user_id": user_id})
+                    if user_doc and user_doc.get("avatar"):
+                        avatar_url = user_doc["avatar"]
+                        avatar_img = None
+                        if avatar_url.startswith("/uploads/"):
+                            local_path = os.path.join(
+                                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                                avatar_url.lstrip("/"),
+                            )
+                            if os.path.exists(local_path):
+                                avatar_img = cv2.imread(local_path)
+                        elif avatar_url.startswith("http"):
+                            import urllib.request
+                            import tempfile
+                            tmp_f = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                            try:
+                                urllib.request.urlretrieve(avatar_url, tmp_f.name)
+                                avatar_img = cv2.imread(tmp_f.name)
+                            except Exception as dl_err:
+                                logger.warning("Could not download profile avatar: %s", dl_err)
+                            finally:
+                                try:
+                                    os.unlink(tmp_f.name)
+                                except Exception:
+                                    pass
+
+                        if avatar_img is not None:
+                            # Verify if the profile avatar actually contains a face
+                            avatar_emb = DeepFaceService.get_embedding(avatar_img)
+                            if avatar_emb is None:
+                                logger.warning("Profile avatar does not contain a recognizable face. Bypassing cross-verification.")
+                            else:
+                                # Compare captured face with profile avatar face
+                                df_result = DeepFaceService.verify(img, avatar_img)
+                                if not df_result["verified"]:
+                                    logger.warning(
+                                        "Face registration BLOCKED — captured face does not match profile picture for user_id=%s. Distance: %.4f",
+                                        user_id, df_result["distance"]
+                                    )
+                                    raise HTTPException(
+                                        status_code=400,
+                                        detail="Biometric verification failed: The captured face does not match the profile picture associated with this account.",
+                                    )
+                                logger.info("Profile picture cross-verification passed successfully.")
 
                 # Calculate embedding vector
                 embedding = FaceAnalysisService.generate_face_embedding(img, analysis)
@@ -225,7 +298,8 @@ class FaceController:
             img = FaceAnalysisService.base64_to_image(frame_b64)
             if img is None:
                 continue
-            analysis = FaceAnalysisService.analyze_face(img)
+            # Liveness frames should not be subject to strict frontal pose or symmetry checks
+            analysis = FaceAnalysisService.analyze_face(img, strict=False)
             if not analysis:
                 continue
 
@@ -404,18 +478,156 @@ class FaceController:
                     status_code=400, detail="Invalid camera frame image format."
                 )
 
-            # ── Step 3: Detect face landmarks ─────────────────────────────
-            analysis = FaceAnalysisService.analyze_face(img)
+            # ── Step 2a: Multi-face check via DeepFace BEFORE anything else ──
+            # This is the fastest guard — count faces directly from raw image
+            early_face_count = DeepFaceService.count_faces(img)
+            if early_face_count > 1:
+                logger.warning(
+                    "Face login BLOCKED — DeepFace detected %d faces for email=%s ip=%s",
+                    early_face_count, email, ip_address,
+                )
+                await db.face_login_attempts.insert_one({
+                    "userId":            matched_user_id,
+                    "email":             email,
+                    "success":           False,
+                    "decision":          "DENY_MULTI_FACE",
+                    "reason":            f"{early_face_count} faces detected in frame (DeepFace)",
+                    "ipAddress":         ip_address,
+                    "deviceFingerprint": payload.device_fingerprint,
+                    "timestamp":         datetime.utcnow(),
+                })
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        f"Security violation: {early_face_count} people detected in frame. "
+                        "Only the account holder may be present during Face ID authentication."
+                    ),
+                )
+
+            # ── Step 3: Detect face landmarks (strict mode enforces 1-face rule) ──
+            analysis = FaceAnalysisService.analyze_face(img, strict=True)
             if not analysis:
                 raise HTTPException(
                     status_code=400,
-                    detail="No face detected in the camera stream. Please align your face clearly.",
+                    detail="No face detected. Ensure good lighting, look directly at camera, and no obstructions.",
+                )
+            # Hard block: multiple people in frame
+            if analysis.get("multi_face_detected"):
+                logger.warning(
+                    "Face login BLOCKED — multiple faces (%d) detected for email=%s ip=%s",
+                    analysis["face_count"], email, ip_address,
+                )
+                await db.face_login_attempts.insert_one({
+                    "userId":            matched_user_id,
+                    "email":             email,
+                    "success":           False,
+                    "decision":          "DENY_MULTI_FACE",
+                    "reason":            f"{analysis['face_count']} faces detected in frame",
+                    "ipAddress":         ip_address,
+                    "deviceFingerprint": payload.device_fingerprint,
+                    "timestamp":         datetime.utcnow(),
+                })
+                raise HTTPException(
+                    status_code=403,
+                    detail=(
+                        f"Security violation: {analysis['face_count']} people detected in frame. "
+                        "Only the account holder may be present during Face ID authentication."
+                    ),
                 )
 
             # ── Step 4: Generate query embedding ──────────────────────────
             query_vector = FaceAnalysisService.generate_face_embedding(img, analysis)
 
-            # ── Step 5: 1-1 Nearest-neighbour search (filtered by user_id) ──
+            # ── Step 5: DeepFace verify — compare live frame against enrolled crop ──
+            # Load the best registered face crop for comparison
+            deepface_verified = False
+            deepface_distance = 1.0
+            deepface_model = "unavailable"
+            try:
+                landmark_doc = await db.face_landmarks.find_one(
+                    {"userId": matched_user_id, "angle": "front"},
+                )
+                if not landmark_doc:
+                    # Fall back to any registered angle
+                    landmark_doc = await db.face_landmarks.find_one({"userId": matched_user_id})
+
+                if landmark_doc and landmark_doc.get("cropUrl"):
+                    crop_url = landmark_doc["cropUrl"]
+                    enrolled_img = None
+
+                    # Try to load the enrolled crop image
+                    if crop_url.startswith("/uploads/"):
+                        # Local file path
+                        local_path = os.path.join(
+                            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                            crop_url.lstrip("/"),
+                        )
+                        if os.path.exists(local_path):
+                            enrolled_img = cv2.imread(local_path)
+                    elif crop_url.startswith("http"):
+                        # Download from Cloudinary / remote URL
+                        import urllib.request
+                        import tempfile
+                        tmp_f = tempfile.NamedTemporaryFile(suffix=".jpg", delete=False)
+                        try:
+                            urllib.request.urlretrieve(crop_url, tmp_f.name)
+                            enrolled_img = cv2.imread(tmp_f.name)
+                        except Exception as dl_err:
+                            logger.warning("Could not download enrolled crop: %s", dl_err)
+                        finally:
+                            try:
+                                os.unlink(tmp_f.name)
+                            except Exception:
+                                pass
+
+                    if enrolled_img is not None:
+                        df_result = DeepFaceService.verify(img, enrolled_img)
+                        deepface_verified = df_result["verified"]
+                        deepface_distance = df_result["distance"]
+                        deepface_model = df_result["model"]
+
+                        if not deepface_verified:
+                            logger.warning(
+                                "DeepFace DENY — user=%s distance=%.4f threshold=%.4f model=%s ip=%s",
+                                email, deepface_distance, df_result["threshold"], deepface_model, ip_address,
+                            )
+                            await db.face_login_attempts.insert_one({
+                                "userId":            matched_user_id,
+                                "email":             email,
+                                "success":           False,
+                                "decision":          "DENY_DEEPFACE",
+                                "reason":            f"DeepFace distance {deepface_distance:.4f} >= threshold {df_result['threshold']:.4f}",
+                                "deepfaceModel":     deepface_model,
+                                "deepfaceDistance":  deepface_distance,
+                                "ipAddress":         ip_address,
+                                "deviceFingerprint": payload.device_fingerprint,
+                                "timestamp":         datetime.utcnow(),
+                            })
+                            raise HTTPException(
+                                status_code=401,
+                                detail="Biometric credentials match failed. Face not recognized.",
+                            )
+                        else:
+                            logger.info(
+                                "DeepFace PASS — user=%s distance=%.4f model=%s",
+                                email, deepface_distance, deepface_model,
+                            )
+                    else:
+                        logger.warning(
+                            "DeepFace: no enrolled crop available for user=%s — skipping DeepFace verify",
+                            matched_user_id,
+                        )
+                else:
+                    logger.warning(
+                        "DeepFace: no landmark doc or cropUrl for user=%s — skipping DeepFace verify",
+                        matched_user_id,
+                    )
+            except HTTPException:
+                raise
+            except Exception as df_err:
+                logger.warning("DeepFace verify error (non-fatal, continuing pipeline): %s", df_err)
+
+            # ── Step 6: 1-1 Nearest-neighbour vector search (filtered by user_id) ──
             hits = await VectorSearchService.search_nearest_neighbors(
                 query_vector, limit=5, user_id=matched_user_id
             )
@@ -495,7 +707,7 @@ class FaceController:
             ip_anomaly = len(past_ips) > 0 and ip_address not in past_ips
 
             # ── Step 9: Liveness validation ───────────────────────────────
-            liveness_valid = analysis["ear"]["avg"] > 0.22
+            liveness_valid = analysis["ear"]["avg"] > MIN_EAR_LIVENESS
 
             # Allow bypass if device recently passed a full liveness challenge
             challenge_cutoff = datetime.utcnow() - timedelta(minutes=5)

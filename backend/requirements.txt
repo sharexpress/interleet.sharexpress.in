@@ -56,3 +56,16 @@ cloudinary>=1.40.0
 # ─── Utilities ────────────────────────────────
 python-slugify>=8.0.4
 pinecone
+
+# ─── Face Recognition (optional deep learning) ─
+# deepface + tf-keras requires Python ≤3.12 (TensorFlow limitation).
+# face_recognition (dlib) requires Visual C++ on Windows.
+# Current implementation uses ArcFace ONNX (already via onnxruntime above)
+# via app/services/deepface_service.py which is API-compatible with deepface.
+#
+# To enable deepface on Python 3.12 venv:
+#   pip install deepface tf-keras
+# Then uncomment the DEEPFACE_AVAILABLE block in deepface_service.py.
+#
+# deepface>=0.0.93   # Python 3.12 only
+# tf-keras            # required by deepface

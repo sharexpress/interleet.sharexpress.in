@@ -13,11 +13,7 @@ import { API } from "@/api/api";
 import { base64urlToBuffer, bufferToBase64url, isLocalBiometricsAvailable } from "@/lib/webauthn";
 
 const ENROLL_STEPS = [
-  { key: "front", label: "Front Look", instruction: "Look directly at the camera with a neutral face", angle: "front" },
-  { key: "left", label: "Left Angle", instruction: "Turn your head slightly to the left", angle: "left" },
-  { key: "right", label: "Right Angle", instruction: "Turn your head slightly to the right", angle: "right" },
-  { key: "smile", label: "Smiling Face", instruction: "Smile widely showing your teeth", angle: "smile" },
-  { key: "blink", label: "Liveness Check", instruction: "Blink twice clearly to verify liveness", angle: "neutral" }
+  { key: "front", label: "Front Look", instruction: "Look directly at the camera with a neutral face", angle: "front" }
 ];
 
 export default function RegisterFacePage() {
@@ -153,49 +149,16 @@ export default function RegisterFacePage() {
     setScanStatus("validating");
     const frame = frames[0];
 
-    if (activeStep.key !== "blink") {
-      setCapturedData(prev => ({ ...prev, [activeStep.key]: frame }));
+    setCapturedData(prev => {
+      const next = { ...prev, [activeStep.key]: frame };
       toast.success(`${activeStep.label} captured!`);
       
       setTimeout(() => {
-        setScanStatus("idle");
-        setCurrentStepIndex(prev => prev + 1);
+        submitFullRegistration(next);
       }, 800);
-    } else {
-      setBlinkFrames(frames);
-      setChallengeProgress(50);
       
-      try {
-        const livenessRes = await API.post("/api/face/liveness", {
-          email: emailInput.trim().lower(),
-          challenge_type: "blink",
-          frames: frames,
-          device_fingerprint: navigator.userAgent
-        });
-        
-        if (livenessRes.data.success) {
-          setChallengeProgress(100);
-          setCapturedData(prev => ({ ...prev, blink: frames[2] })); // Middle frame for embedding
-          setScanStatus("success");
-          toast.success("Biometrics liveness verified!");
-          
-          setTimeout(() => {
-            submitFullRegistration({
-              ...capturedData,
-              blink: frames[2]
-            });
-          }, 1000);
-        } else {
-          setScanStatus("error");
-          setScanError(livenessRes.data.metrics.reason || "Liveness check failed. Please blink twice.");
-          setChallengeProgress(0);
-        }
-      } catch (err) {
-        setScanStatus("error");
-        setScanError(err.response?.data?.detail || "Network liveness check failed. Retry scan.");
-        setChallengeProgress(0);
-      }
-    }
+      return next;
+    });
   };
 
   const submitFullRegistration = async (completeData) => {

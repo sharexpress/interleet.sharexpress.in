@@ -78,15 +78,18 @@ def _get_face_detector():
     return (None, None)
 
 
-def _detect_face_bbox(image: np.ndarray):
+def _detect_all_face_bboxes(image: np.ndarray, strict: bool = True) -> list:
     """
-    Return (x, y, w, h) bounding box of the largest detected face, or None.
+    Return a list of (x, y, w, h) bounding boxes for ALL detected faces.
+    Callers MUST enforce single-face policy themselves.
+    Raises no exception — returns empty list if no face found.
     """
     det_type, det = _get_face_detector()
     if det is None:
-        return None
+        return []
 
     h, w = image.shape[:2]
+    boxes = []
 
     if det_type == "dnn":
         blob = cv2.dnn.blobFromImage(
@@ -95,24 +98,64 @@ def _detect_face_bbox(image: np.ndarray):
         )
         det.setInput(blob)
         detections = det.forward()
-        best = None
-        best_conf = 0.5  # confidence threshold
+        # Stricter confidence threshold: 0.65 when strict (was 0.50), relaxed to 0.45 when non-strict
+        conf_threshold = 0.65 if strict else 0.45
         for i in range(detections.shape[2]):
             conf = float(detections[0, 0, i, 2])
-            if conf > best_conf:
-                best_conf = conf
+            if conf > conf_threshold:
                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
                 x1, y1, x2, y2 = box.astype(int)
-                best = (max(0, x1), max(0, y1), min(w, x2) - max(0, x1), min(h, y2) - max(0, y1))
-        return best
+                bx = max(0, x1)
+                by = max(0, y1)
+                bw = min(w, x2) - bx
+                bh = min(h, y2) - by
+                if bw > 0 and bh > 0:
+                    boxes.append((bx, by, bw, bh))
+        return boxes
 
-    # Haar
+    # Haar — stricter minNeighbors=6 when strict, relaxed to 4 when non-strict
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    faces = det.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
-    if len(faces) == 0:
+    min_neighbors = 6 if strict else 4
+    min_size = (80, 80) if strict else (60, 60)
+    faces = det.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=min_neighbors, minSize=min_size)
+    return [tuple(f) for f in faces]
+
+
+def _detect_face_bbox(image: np.ndarray, strict: bool = True):
+    """
+    Return (x, y, w, h) bounding box of the largest detected face, or None.
+    NOTE: prefer _detect_all_face_bboxes for security-critical code paths.
+    """
+    boxes = _detect_all_face_bboxes(image, strict=strict)
+    if not boxes:
         return None
-    # Largest face
-    return max(faces, key=lambda f: f[2] * f[3])
+    return max(boxes, key=lambda f: f[2] * f[3])
+
+
+def _check_image_quality(image: np.ndarray) -> tuple[bool, str]:
+    """
+    Check image quality: blur, brightness, contrast.
+    Returns (is_acceptable, reason_if_not).
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    # Laplacian variance — low value = blurry
+    blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+    if blur_score < 40.0:
+        return False, f"Image is too blurry (score={blur_score:.1f}). Hold camera steady."
+
+    # Brightness check
+    mean_brightness = float(np.mean(gray))
+    if mean_brightness < 35:
+        return False, "Image is too dark. Improve lighting."
+    if mean_brightness > 230:
+        return False, "Image is overexposed. Avoid strong backlighting."
+
+    # Contrast (std dev)
+    if float(np.std(gray)) < 15:
+        return False, "Image has too little contrast. Improve lighting."
+
+    return True, ""
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -224,15 +267,57 @@ class FaceAnalysisService:
     # ── Face analysis (OpenCV-only, no mediapipe) ──────────────────────────
 
     @staticmethod
-    def analyze_face(image: np.ndarray) -> Optional[Dict[str, Any]]:
+    def analyze_face(image: np.ndarray, strict: bool = True) -> Optional[Dict[str, Any]]:
         """
-        Detect a face and extract precise landmarks, pose, and liveness signals using MediaPipe Face Mesh.
+        Detect a face and extract precise landmarks, pose, and liveness signals.
+
+        Security enforcements (strict=True):
+          - EXACTLY one face must be in frame (multi-person = hard reject)
+          - Image must pass blur / brightness / contrast quality gate
+          - Face must be at least 8 % of image area (not too small / far away)
+          - Head pose must be within ±35° yaw, ±25° pitch, ±20° roll
+          - Symmetry score must be ≥ 0.55
         """
         if image is None:
             return None
 
         h, w = image.shape[:2]
-        
+
+        # ── Quality gate ─────────────────────────────────────────────────────
+        if strict:
+            ok, reason = _check_image_quality(image)
+            if not ok:
+                logger.warning("Image quality rejected: %s", reason)
+                return None
+
+        # ── Multi-face guard ─────────────────────────────────────────────────
+        all_faces = _detect_all_face_bboxes(image, strict=strict)
+        if strict:
+            if len(all_faces) == 0:
+                logger.warning("Security: No face detected in frame")
+                return None
+            if len(all_faces) > 1:
+                logger.warning(
+                    "Security: %d faces detected — MULTI-PERSON FRAME REJECTED",
+                    len(all_faces)
+                )
+                # Return a special sentinel so callers can surface the right error
+                return {"multi_face_detected": True, "face_count": len(all_faces)}
+        elif len(all_faces) == 0:
+            logger.warning("No face detected in frame")
+            return None
+
+        # ── Min face size: must cover ≥ 8 % of image area ───────────────────
+        if all_faces:
+            largest = max(all_faces, key=lambda f: f[2] * f[3])
+            face_area_ratio = (largest[2] * largest[3]) / (w * h + 1e-6)
+            if strict and face_area_ratio < 0.08:
+                logger.warning(
+                    "Security: face too small (%.1f%% of frame) — move closer",
+                    face_area_ratio * 100,
+                )
+                return None
+
         landmarker = FaceAnalysisService._get_landmarker()
         if not landmarker:
             logger.error("MediaPipe FaceLandmarker model is not loaded")
@@ -243,11 +328,19 @@ class FaceAnalysisService:
             image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
             results = landmarker.detect(mp_image)
-            
+
             if not results or not results.face_landmarks:
-                logger.warning("MediaPipe: No face detected in frame")
+                logger.warning("MediaPipe: No face landmarks detected")
                 return None
-                
+
+            # Extra guard: MediaPipe returned more than 1 face result
+            if strict and len(results.face_landmarks) > 1:
+                logger.warning(
+                    "Security: MediaPipe detected %d face sets — MULTI-PERSON FRAME REJECTED",
+                    len(results.face_landmarks)
+                )
+                return {"multi_face_detected": True, "face_count": len(results.face_landmarks)}
+
             face_landmarks = results.face_landmarks[0]
         except Exception as e:
             logger.error("MediaPipe FaceLandmarker processing failed: %s", e)
@@ -256,31 +349,42 @@ class FaceAnalysisService:
         # Convert landmarks to list of [x, y, z] in pixel coordinates
         landmarks_raw = []
         for lm in face_landmarks:
-            # Scale z by width to maintain proportions
             landmarks_raw.append([lm.x * w, lm.y * h, lm.z * w])
-            
+
         landmarks_np = np.array(landmarks_raw)
 
-        # ── Calculate Head Pose ───────────────────────────────────────────
+        # ── Head Pose ─────────────────────────────────────────────────────────
         left_eye  = landmarks_np[33]
         right_eye = landmarks_np[263]
-        nose      = landmarks_np[4] # tip of the nose
-        
+        nose      = landmarks_np[4]
+
         dl = np.linalg.norm(nose[:2] - left_eye[:2])
         dr = np.linalg.norm(right_eye[:2] - nose[:2])
         yaw = float((dl - dr) / (dl + dr + 1e-6) * 90.0)
-        
+
         forehead = landmarks_np[10]
         chin     = landmarks_np[152]
         dt = np.linalg.norm(forehead[:2] - nose[:2])
         db = np.linalg.norm(nose[:2] - chin[:2])
         pitch = float((db - dt) / (dt + db + 1e-6) * 60.0)
-        
+
         dy   = right_eye[1] - left_eye[1]
         dx   = right_eye[0] - left_eye[0]
         roll = float(np.degrees(np.arctan2(dy, dx)))
-        
+
         pose = {"yaw": yaw, "pitch": pitch, "roll": roll}
+
+        # ── Strict pose check ────────────────────────────────────────────────
+        if strict:
+            if abs(yaw) > 35:
+                logger.warning("Security: head yaw %.1f° exceeds ±35° limit", yaw)
+                return None
+            if abs(pitch) > 25:
+                logger.warning("Security: head pitch %.1f° exceeds ±25° limit", pitch)
+                return None
+            if abs(roll) > 20:
+                logger.warning("Security: head roll %.1f° exceeds ±20° limit", roll)
+                return None
 
         # ── Calculate EAR (Eye Aspect Ratio) for Blinking ──────────────────
         left_eye_pts = [landmarks_raw[idx] for idx in [362, 385, 387, 263, 373, 380]]
@@ -306,6 +410,11 @@ class FaceAnalysisService:
         left_dist = np.linalg.norm(landmarks_np[4][:2] - landmarks_np[234][:2])
         right_dist = np.linalg.norm(landmarks_np[4][:2] - landmarks_np[454][:2])
         symmetry = float(min(left_dist, right_dist) / (max(left_dist, right_dist) + 1e-6))
+
+        # Strict symmetry gate: too-low symmetry = side face / partial obstruction
+        if strict and symmetry < 0.55:
+            logger.warning("Security: face symmetry %.2f below 0.55 threshold", symmetry)
+            return None
 
         # ── Crop Box ──────────────────────────────────────────────────────
         xs = landmarks_np[:, 0]

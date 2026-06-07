@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { toast } from "sonner";
-import { KeyRound, Camera, ShieldCheck, Sparkles, CornerDownLeft, Fingerprint, Cpu } from "lucide-react";
+import { KeyRound, Camera, ShieldCheck, Sparkles, CornerDownLeft, Fingerprint, Cpu, Users, AlertTriangle } from "lucide-react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { FaceScanner } from "@/components/auth/FaceScanner";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,11 @@ export default function LoginFacePage() {
   const [scanStatus, setScanStatus] = useState("idle"); // idle, scanning, validating, challenge, success, error, loading
   const [statusMessage, setStatusMessage] = useState("Align your face to begin biometric authentication");
   const [scanError, setScanError] = useState("");
+
+  // Multi-face detection state
+  const [showMultiFaceAlert, setShowMultiFaceAlert] = useState(false);
+  const [multiFaceCount, setMultiFaceCount] = useState(2);
+  const multiFaceTimerRef = useRef(null);
   
   // Challenge states
   const [activeChallenge, setActiveChallenge] = useState(null);
@@ -159,6 +164,20 @@ export default function LoginFacePage() {
       } else {
         const errorData = result.payload;
         const detail = errorData?.detail || "";
+
+        // ── Multi-face security violation ──
+        if (errorData?.status === 403 && detail.toLowerCase().includes("people detected")) {
+          const countMatch = detail.match(/(\d+) people/);
+          setMultiFaceCount(countMatch ? parseInt(countMatch[1]) : 2);
+          setShowMultiFaceAlert(true);
+          setScanStatus("idle");
+          setStatusMessage("Align your face to begin biometric authentication");
+          // Auto-dismiss after 5 seconds
+          if (multiFaceTimerRef.current) clearTimeout(multiFaceTimerRef.current);
+          multiFaceTimerRef.current = setTimeout(() => setShowMultiFaceAlert(false), 5000);
+          return;
+        }
+
         if (errorData?.challenge_required) {
           toast.info("Liveness confirmation required to trust this device.");
           startLivenessChallenge(errorData.email);
@@ -172,6 +191,20 @@ export default function LoginFacePage() {
       }
     } catch (err) {
       const status = err?.response?.status || err?.status;
+      const detail = err?.response?.data?.detail || "";
+
+      // Handle multi-face 403 from axios-level throw
+      if (status === 403 && detail.toLowerCase().includes("people detected")) {
+        const countMatch = detail.match(/(\d+) people/);
+        setMultiFaceCount(countMatch ? parseInt(countMatch[1]) : 2);
+        setShowMultiFaceAlert(true);
+        setScanStatus("idle");
+        setStatusMessage("Align your face to begin biometric authentication");
+        if (multiFaceTimerRef.current) clearTimeout(multiFaceTimerRef.current);
+        multiFaceTimerRef.current = setTimeout(() => setShowMultiFaceAlert(false), 5000);
+        return;
+      }
+
       if (status === 403) {
         setScanStatus("error");
         setScanError("Face ID not set up yet. Go to Settings → Security to enroll your face first.");
@@ -243,7 +276,67 @@ export default function LoginFacePage() {
       subtitle="Symmetric structure biometric match"
     >
       <div className="space-y-6 flex flex-col items-center">
-        
+
+        {/* ── Multi-Face Security Alert Popup ───────────────────────────── */}
+        {showMultiFaceAlert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
+            <div className="relative w-[340px] rounded-2xl border border-orange-500/40 bg-zinc-950 shadow-[0_0_60px_rgba(251,146,60,0.25)] p-6 flex flex-col items-center text-center">
+              {/* Pulsing icon */}
+              <div className="relative mb-4">
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <span className="inline-flex h-20 w-20 rounded-full bg-orange-500/20 animate-ping" />
+                </span>
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-orange-950 border-2 border-orange-500/50">
+                  <Users className="h-9 w-9 text-orange-400" />
+                </div>
+              </div>
+
+              {/* Title */}
+              <span className="text-[10px] font-mono uppercase tracking-widest text-orange-400 mb-1">
+                Security Alert
+              </span>
+              <h3 className="text-base font-bold text-zinc-100 mb-2">
+                Multiple People Detected
+              </h3>
+
+              {/* Body */}
+              <p className="text-xs text-zinc-400 leading-relaxed mb-1">
+                <span className="text-orange-300 font-semibold">{multiFaceCount} people</span> were detected in the camera frame.
+              </p>
+              <p className="text-xs text-zinc-500 leading-relaxed mb-5">
+                For security, only the account holder may be present during Face ID authentication. Please ensure you are alone and retry.
+              </p>
+
+              {/* Actions */}
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowMultiFaceAlert(false)}
+                  className="flex-1 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-300 text-xs font-mono uppercase tracking-wider py-2.5 transition-all duration-200"
+                >
+                  Understood
+                </button>
+                <button
+                  onClick={() => {
+                    setShowMultiFaceAlert(false);
+                    setScanStatus("idle");
+                    setScanError("");
+                    if (!scanActive) setScanActive(true);
+                  }}
+                  className="flex-1 rounded-lg bg-orange-500 hover:bg-orange-400 text-black text-xs font-bold uppercase tracking-wider py-2.5 transition-all duration-200"
+                >
+                  Retry Alone
+                </button>
+              </div>
+
+              {/* Auto-dismiss bar */}
+              <div className="mt-4 h-0.5 w-full bg-zinc-800 rounded-full overflow-hidden">
+                <div className="h-full bg-orange-500/50 rounded-full animate-[shrink_5s_linear_forwards]" />
+              </div>
+              <span className="mt-1 text-[9px] text-zinc-600 font-mono">Auto-dismisses in 5 seconds</span>
+            </div>
+          </div>
+        )}
+
         {/* Email input field */}
         {!activeChallenge && (
           <div className="w-full space-y-3 p-3 bg-zinc-900/40 border border-zinc-800 rounded-xl">
@@ -315,6 +408,12 @@ export default function LoginFacePage() {
           <FaceScanner
             onFrameCaptured={activeChallenge ? null : handleFrameCaptured}
             onCaptureComplete={activeChallenge ? handleChallengeCaptureComplete : null}
+            onMultiFaceDetected={(count) => {
+              setMultiFaceCount(count);
+              setShowMultiFaceAlert(true);
+              if (multiFaceTimerRef.current) clearTimeout(multiFaceTimerRef.current);
+              multiFaceTimerRef.current = setTimeout(() => setShowMultiFaceAlert(false), 5000);
+            }}
             activeChallenge={activeChallenge}
             challengeProgress={challengeProgress}
             maxFrames={activeChallenge ? 5 : 1}

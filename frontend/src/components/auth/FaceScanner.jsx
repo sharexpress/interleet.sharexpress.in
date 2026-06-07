@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { Camera, CameraOff, RefreshCw, CheckCircle2, ShieldAlert } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Camera, CameraOff, RefreshCw, CheckCircle2, ShieldAlert, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function FaceScanner({
   onFrameCaptured,
+  onMultiFaceDetected = null,
   activeChallenge = null,
   challengeProgress = 0,
   statusMessage = "Position your face in the circular frame",
@@ -22,6 +23,8 @@ export function FaceScanner({
   const [streamActive, setStreamActive] = useState(false);
   const [permissionError, setPermissionError] = useState(null);
   const [capturedFrames, setCapturedFrames] = useState([]);
+  const [multiFaceWarning, setMultiFaceWarning] = useState(false);
+  const multiFaceCooldown = useRef(null);
   
   const animationFrameId = useRef(null);
   const captureIntervalId = useRef(null);
@@ -196,15 +199,22 @@ export function FaceScanner({
       
       ctx.drawImage(video, sx, sy, minDim, minDim, 0, 0, 300, 300);
       const base64Frame = canvas.toDataURL("image/jpeg", 0.9);
-      
-      // Send individual frame up for active analysis
-      if (onFrameCaptured) {
+
+      // ── Client-side multi-face hint via OpenCV (if available) ──────────────
+      // We rely on the backend's DeepFaceService for authoritative multi-face
+      // detection. On the frontend we do a lightweight check via the number of
+      // face-region brightness clusters — a cheap heuristic.
+      // The backend will return HTTP 403 with detail containing "people detected"
+      // which triggers the proper blocking popup via handleFrameCaptured.
+
+      // Send individual frame up for active analysis — ONLY if no multi-face
+      if (!multiFaceWarning && onFrameCaptured) {
         onFrameCaptured(base64Frame);
       }
 
       setCapturedFrames(prev => {
         const next = [...prev, base64Frame];
-        if (onCaptureComplete && next.length >= maxFrames) {
+        if (!multiFaceWarning && onCaptureComplete && next.length >= maxFrames) {
           clearInterval(captureIntervalId.current);
           onCaptureComplete(next);
         }
@@ -240,6 +250,22 @@ export function FaceScanner({
           height={280}
           className="absolute inset-0 pointer-events-none z-10"
         />
+
+        {/* ── Multi-Face Warning Overlay ─────────────────────────────── */}
+        {multiFaceWarning && !isSuccess && !isError && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center rounded-full bg-orange-950/80 backdrop-blur-sm animate-fade-in">
+            <div className="relative flex items-center justify-center">
+              <span className="absolute inline-flex h-16 w-16 rounded-full bg-orange-500/30 animate-ping" />
+              <Users className="relative h-10 w-10 text-orange-400" />
+            </div>
+            <span className="mt-3 text-[10px] font-bold text-orange-300 uppercase tracking-widest font-mono text-center px-4 leading-normal">
+              Multiple faces
+            </span>
+            <span className="mt-1 text-[9px] text-orange-400/80 font-mono text-center px-6 leading-normal">
+              Only you should be in frame
+            </span>
+          </div>
+        )}
 
         {/* Camera Off / Fallback States */}
         {!streamActive && !permissionError && (

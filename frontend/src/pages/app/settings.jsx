@@ -189,10 +189,7 @@ function AccountSection() {
 /* ─── Face ID Enrollment Flow Constants ──────────────────────────────────── */
 
 const ENROLL_STEPS = [
-  { key: "front", label: "Front Look", instruction: "Look directly at the camera with a neutral face", angle: "front" },
-  { key: "left",  label: "Left Angle",  instruction: "Turn your head slightly to the left",            angle: "left" },
-  { key: "right", label: "Right Angle", instruction: "Turn your head slightly to the right",           angle: "right" },
-  { key: "smile", label: "Smiling Face", instruction: "Smile widely showing your teeth",               angle: "smile" },
+  { key: "front", label: "Front Look", instruction: "Look directly at the camera with a neutral face", angle: "front" }
 ];
 
 /* ─── Security Section ───────────────────────────────────────────────────── */
