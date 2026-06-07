@@ -106,7 +106,7 @@ class ChallengeController:
         }
 
     @staticmethod
-    async def get_challenge(slug: str, requesting_user: dict | None = None):
+    async def get_challenge(slug: str, requesting_user: dict | None = None, contest_id: str | None = None):
         doc = await db.problems.find_one({"slug": slug, "is_archived": {"$ne": True}})
 
         if not doc:
@@ -119,13 +119,29 @@ class ChallengeController:
 
         # Access control: redact sensitive details for non-premium users on premium challenges
         if challenge_data.get("is_premium"):
-            is_premium_user = requesting_user.get("is_premium", False) if requesting_user else False
-            is_admin_user = requesting_user.get("role") == "admin" if requesting_user else False
-            if not is_premium_user and not is_admin_user:
-                challenge_data["locked"] = True
-                challenge_data["starter_code"] = {k: "/* PREMIUM CONTENT LOCKED */" for k in challenge_data.get("starter_code", {})}
-                challenge_data["test_cases"] = []
-                challenge_data["description"] = "This is a premium engineering challenge. Subscribe to unlock the interactive editor, test cases, and AI review."
+            bypassed = False
+            if contest_id and requesting_user:
+                contest = await db.contests.find_one({
+                    "$or": [
+                        {"room_code": contest_id.upper()},
+                        {"contest_id": contest_id}
+                    ],
+                    "status": {"$in": ["lobby", "active"]}
+                })
+                if contest:
+                    is_participant = any(str(p.get("user_id")) == str(requesting_user.get("user_id")) for p in contest.get("participants", []))
+                    slug_in_contest = slug in contest.get("challenges", [])
+                    if is_participant and slug_in_contest:
+                        bypassed = True
+
+            if not bypassed:
+                is_premium_user = requesting_user.get("is_premium", False) if requesting_user else False
+                is_admin_user = requesting_user.get("role") == "admin" if requesting_user else False
+                if not is_premium_user and not is_admin_user:
+                    challenge_data["locked"] = True
+                    challenge_data["starter_code"] = {k: "/* PREMIUM CONTENT LOCKED */" for k in challenge_data.get("starter_code", {})}
+                    challenge_data["test_cases"] = []
+                    challenge_data["description"] = "This is a premium engineering challenge. Subscribe to unlock the interactive editor, test cases, and AI review."
 
         return {"success": True, "data": challenge_data}
 

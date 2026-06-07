@@ -33,6 +33,9 @@ from app.routers.execution import router as execution_router
 from app.routers.platform import router as platform_router
 from app.routers.payment import router as payment_router
 from app.routers.admin import router as admin_router
+from app.routers.contest import router as contest_router
+from app.routers.notification import router as notification_router
+
 
 # ─── Judge Engine ──────────────────────────────────────────────────
 from app.api.v1.execute import engine_router
@@ -151,6 +154,9 @@ app.include_router(execution_router)  # Legacy: /api/execution/* (backward compa
 app.include_router(platform_router)
 app.include_router(payment_router)
 app.include_router(admin_router, prefix="/api")
+app.include_router(contest_router)
+app.include_router(notification_router)
+
 
 
 if __name__ == "__main__":

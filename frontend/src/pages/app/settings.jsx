@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/AppShell";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -512,25 +513,137 @@ function SecuritySection() {
 }
 
 function NotificationsSection() {
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await API.get("/api/notifications");
+      if (res.data && res.data.success) {
+        setNotifications(res.data.data);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load notifications history.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  const handleNotificationClick = async (notif) => {
+    try {
+      await API.post(`/api/notifications/${notif.id}/read`);
+      fetchNotifications();
+      if (notif.link) {
+        navigate(notif.link);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await API.post("/api/notifications/read-all");
+      fetchNotifications();
+      toast.success("All notifications marked as read");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
-    <div className="mx-auto max-w-3xl">
-      <h2 className="text-base font-semibold">Notifications</h2>
-      <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
-        {[
-          "Weekly digest of new challenges",
-          "Interview report ready",
-          "Rank changes (top 1000 only)",
-          "Recruiter messages",
-        ].map((n, i) => (
-          <div
-            key={n}
-            className="flex items-center justify-between border-b border-border px-5 py-4 last:border-b-0"
-          >
-            <span className="text-sm">{n}</span>
-            <Switch defaultChecked={i % 2 === 0} />
-          </div>
-        ))}
+    <div className="mx-auto max-w-3xl space-y-8">
+      
+      {/* Push Settings */}
+      <div>
+        <h2 className="text-base font-semibold text-white">Notification Preferences</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Configure when and how you receive alerts across the Interleet platform.
+        </p>
+
+        <div className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            { title: "Contest Invitations", desc: "Get notified when a peer invites you to a coding battle." },
+            { title: "Contest Start Alerts", desc: "Receive updates when matches you joined are ready to start." },
+            { title: "Interview Report Ready", desc: "Get notified when AI completes reviewing your submission." },
+            { title: "Weekly digest of new challenges", desc: "A periodic summary of new problems and algorithms." },
+          ].map((n, i) => (
+            <div
+              key={n.title}
+              className="flex items-center justify-between border-b border-border px-5 py-4 last:border-b-0"
+            >
+              <div className="space-y-0.5">
+                <span className="text-sm font-medium text-zinc-200">{n.title}</span>
+                <p className="text-[11px] text-zinc-500">{n.desc}</p>
+              </div>
+              <Switch defaultChecked={i < 3} />
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* Notifications Inbox / Log */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-2">
+          <h3 className="text-sm font-bold text-white">Notifications Inbox</h3>
+          {notifications.some(n => !n.read) && (
+            <button
+              onClick={handleMarkAllRead}
+              className="text-xs text-primary hover:underline"
+            >
+              Mark all as read
+            </button>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="h-5 w-5 animate-spin rounded-full border border-zinc-700 border-t-primary" />
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="text-center py-10 border border-zinc-850 rounded-xl bg-zinc-900/10">
+            <p className="text-xs text-zinc-500">Your notifications inbox is clean.</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+            {notifications.map((n) => (
+              <div
+                key={n.id}
+                onClick={() => handleNotificationClick(n)}
+                className={`p-3.5 rounded-xl border flex items-start justify-between gap-4 cursor-pointer transition-all ${
+                  n.read
+                    ? "bg-zinc-900/10 border-zinc-850 hover:bg-zinc-900/20"
+                    : "bg-primary/5 border-primary/20 hover:bg-primary/10 shadow-[0_2px_12px_rgba(255,101,0,0.02)]"
+                }`}
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold ${n.read ? "text-zinc-300" : "text-white"}`}>
+                      {n.title}
+                    </span>
+                    {!n.read && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    )}
+                  </div>
+                  <p className="text-[11px] text-zinc-400 leading-relaxed">
+                    {n.message}
+                  </p>
+                  <span className="text-[9px] text-zinc-500 font-mono block">
+                    {new Date(n.created_at).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

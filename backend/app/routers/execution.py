@@ -58,7 +58,23 @@ async def submit_code(
             if c_seed:
                 is_premium = c_seed.get("is_premium", False) or c_seed.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
 
-        if is_premium and not user_doc.get("is_premium", False):
+        # Verify if bypassed by contest
+        bypassed = False
+        if payload.contest_id:
+            contest = await db.contests.find_one({
+                "$or": [
+                    {"room_code": payload.contest_id.upper()},
+                    {"contest_id": payload.contest_id}
+                ],
+                "status": "active"
+            })
+            if contest:
+                is_participant = any(str(p.get("user_id")) == str(user_doc.get("user_id")) for p in contest.get("participants", []))
+                slug_in_contest = payload.problem_slug in contest.get("challenges", [])
+                if is_participant and slug_in_contest:
+                    bypassed = True
+
+        if is_premium and not user_doc.get("is_premium", False) and not bypassed:
             raise HTTPException(
                 status_code=403,
                 detail="This challenge requires an active Premium subscription. Please upgrade to unlock."

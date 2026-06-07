@@ -42,7 +42,7 @@ export const runCode = createAsyncThunk(
 // ─── Thunk: Submit (against all test cases including hidden) ─────────────────
 export const submitCode = createAsyncThunk(
   'challengeExecution/submit',
-  async ({ code, language, slug, userId }, { rejectWithValue }) => {
+  async ({ code, language, slug, userId, contestId }, { rejectWithValue }) => {
     const backendLang = LANG_MAP[language] || language;
     try {
       // Step 1: Enqueue submission
@@ -51,6 +51,7 @@ export const submitCode = createAsyncThunk(
         code,
         problem_slug: slug,
         user_id: userId || null,
+        contest_id: contestId || null,
         mode: 'submit',
         time_limit: 10,
         memory_limit: 256,

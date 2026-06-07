@@ -61,7 +61,9 @@ class SubmissionRequest(ExecuteRequest):
     user_id: Optional[str] = None
     problem_slug: Optional[str] = None
     challenge_id: Optional[str] = None
+    contest_id: Optional[str] = None
     mode: str = "submit"  # "run" | "submit"
+
 
 
 # ─────────────────────────────────────────────
@@ -174,9 +176,11 @@ class ExecutionJob(BaseModel):
     problem_slug: Optional[str] = None
     challenge_id: Optional[str] = None
     user_id: Optional[str] = None
+    contest_id: Optional[str] = None
     mode: str = "run"
     testcases: list[TestCaseSchema] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
     def to_redis(self) -> str:
         return self.model_dump_json()

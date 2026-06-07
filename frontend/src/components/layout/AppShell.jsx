@@ -13,10 +13,13 @@ import {
   LogOut,
   Briefcase,
   ShieldCheck,
+  Swords,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { API } from "@/api/api";
 
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
@@ -42,6 +45,7 @@ const nav = [
   { to: "/app/interviews", label: "AI Interviews", icon: Bot },
   { to: "/app/system-design", label: "System Design", icon: Network },
   { to: "/app/leaderboard", label: "Leaderboard", icon: Trophy },
+  { to: "/app/contest", label: "Contest", icon: Swords },
 ];
 
 function NavLinks({ user, orientation = "horizontal", onNavigate }) {
@@ -99,6 +103,50 @@ export function AppShell({ children }) {
 
   const { user } = useSelector((state) => state.user);
 
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await API.get("/api/notifications");
+      if (res.data && res.data.success) {
+        setNotifications(res.data.data);
+        setUnreadCount(res.data.data.filter((n) => !n.read).length);
+      }
+    } catch (err) {
+      console.error("Failed to fetch notifications", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 8000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleNotificationClick = async (notif) => {
+    try {
+      await API.post(`/api/notifications/${notif.id}/read`);
+      fetchNotifications();
+      if (notif.link) {
+        navigate(notif.link);
+      }
+    } catch (err) {
+      console.error("Error marking notification as read", err);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await API.post("/api/notifications/read-all");
+      fetchNotifications();
+      toast.success("All notifications marked as read");
+    } catch (err) {
+      console.error("Error marking all read", err);
+    }
+  };
+
   // Initials from full_name e.g. "Santusht Kotai" → "SK"
   const initials = user?.full_name
     ? user.full_name
@@ -155,10 +203,72 @@ export function AppShell({ children }) {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-4 w-4" />
-            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
+                    {unreadCount}
+                  </span>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel className="flex items-center justify-between">
+                <span>Notifications</span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="text-[10px] text-primary hover:underline"
+                  >
+                    Mark all as read
+                  </button>
+                )}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <div className="max-h-72 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="p-4 text-center text-xs text-muted-foreground">
+                    No notifications yet.
+                  </p>
+                ) : (
+                  notifications.map((n) => (
+                    <DropdownMenuItem
+                      key={n.id}
+                      onClick={() => handleNotificationClick(n)}
+                      className={cn(
+                        "flex flex-col items-start gap-1 p-3 cursor-pointer",
+                        !n.read && "bg-accent/40"
+                      )}
+                    >
+                      <div className="flex w-full items-start justify-between gap-2">
+                        <span className="font-semibold text-xs text-foreground">
+                          {n.title}
+                        </span>
+                        {!n.read && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0 mt-1" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        {n.message}
+                      </p>
+                      <span className="text-[9px] text-muted-foreground/60 mt-0.5">
+                        {new Date(n.created_at).toLocaleDateString()}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => navigate("/app/settings")}
+                className="justify-center text-xs font-semibold text-primary hover:underline cursor-pointer"
+              >
+                View all settings & history
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

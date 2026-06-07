@@ -320,6 +320,25 @@ class ExecutionWorker:
                 # Update user profile dynamically
                 if job.user_id:
                     await _update_user_ratings_and_badges(job.user_id)
+
+                # Record contest submission if contest_id is attached
+                contest_id = getattr(job, "contest_id", None)
+                if contest_id:
+                    try:
+                        from app.routers.contest import record_contest_submission
+                        await record_contest_submission(
+                            db=db,
+                            contest_id=contest_id,
+                            user_id=job.user_id,
+                            problem_slug=job.problem_slug,
+                            verdict=_map_verdict_to_status(result.verdict),
+                            score=result.score,
+                            passed=result.passed_testcases,
+                            total=result.total_testcases,
+                            submission_id=job.submission_id
+                        )
+                    except Exception as e:
+                        logger.error("Failed to record contest submission: %s", e)
         except Exception as exc:
             logger.error("Failed to save result to MongoDB: %s", exc)
 

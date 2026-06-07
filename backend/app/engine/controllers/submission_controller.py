@@ -229,6 +229,7 @@ class EngineSubmissionController:
             problem_slug=request.problem_slug,
             challenge_id=request.challenge_id,
             user_id=request.user_id,
+            contest_id=getattr(request, "contest_id", None),
             mode=request.mode,
             testcases=testcases,
         )
@@ -245,6 +246,7 @@ class EngineSubmissionController:
                 "code": request.code,
                 "mode": request.mode,
                 "total_testcases": len(testcases),
+                "contest_id": getattr(request, "contest_id", None),
             },
         )
 

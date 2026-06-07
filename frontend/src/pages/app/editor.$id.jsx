@@ -753,7 +753,7 @@ function EditorPage() {
             </DrawerTrigger>
             <DrawerContent className="p-0">
               <div className="flex h-[85vh] flex-col overflow-hidden">
-                <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} />
+                <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} />
               </div>
             </DrawerContent>
           </Drawer>
@@ -1046,7 +1046,7 @@ function EditorPage() {
             className="hidden flex-col overflow-hidden bg-card xl:flex"
             style={{ width: rightW, minWidth: MIN_COL, flexShrink: 0 }}
           >
-            <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} />
+            <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} />
           </aside>
         </div>
       )}
@@ -1054,9 +1054,9 @@ function EditorPage() {
   );
 }
 
-// ─── BrowserPreview (unchanged from original) ─────────────────────────────────
+// ─── BrowserPreview ───────────────────────────────────────────────────────────
 
-function BrowserPreview({ domain, slug, title }) {
+function BrowserPreview({ domain, slug, title, code, execState }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
       <div className="border-b border-border bg-background/60 px-3 py-2">
@@ -1078,20 +1078,20 @@ function BrowserPreview({ domain, slug, title }) {
           </button>
         </div>
       </div>
-      <PreviewArea domain={domain} slug={slug} title={title} />
+      <PreviewArea domain={domain} slug={slug} title={title} code={code} execState={execState} />
     </div>
   );
 }
 
 const FRONTEND_DOMAINS = new Set(["Frontend"]);
 
-function PreviewArea({ domain, slug, title }) {
+function PreviewArea({ domain, slug, title, code, execState }) {
   if (FRONTEND_DOMAINS.has(domain)) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden bg-white">
         <iframe
           title={`${title} preview`}
-          srcDoc={getFrontendSrcDoc(slug, title)}
+          srcDoc={code || getFrontendSrcDoc(slug, title)}
           sandbox="allow-scripts"
           className="h-full w-full flex-1 border-0 bg-white"
         />
@@ -1099,31 +1099,136 @@ function PreviewArea({ domain, slug, title }) {
     );
   }
 
-  const out = getProgramOutput(slug);
-  return (
-    <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4">
-      <div className="rounded-lg border border-border bg-card/60 p-4">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">Program Output</p>
-        <pre className="mt-3 whitespace-pre-wrap font-mono text-[12px] leading-relaxed text-success">
-          {out.log}
-        </pre>
+  // Determine if we have real execution results
+  const runResult = execState?.runResult;
+  const submitResult = execState?.submitResult;
+  const isRunning = execState?.runStatus === "loading";
+  const isSubmitting = execState?.submitStatus === "loading";
+
+  if (isRunning || isSubmitting) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center bg-[#0A0A0A] p-6 text-zinc-500 italic text-xs">
+        <Loader2 className="h-5 w-5 animate-spin text-primary mb-2" />
+        {isRunning ? "Running test cases on backend sandbox..." : "Submitting solution to judge..."}
       </div>
-      <div className="mt-3 rounded-lg border border-border bg-card/60 p-4">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">Stats</p>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-          {out.stats.map((s) => (
-            <div
-              key={s.label}
-              className="rounded border border-border bg-background/40 px-2 py-1.5"
-            >
-              <p className="text-muted-foreground">{s.label}</p>
-              <p className={`font-mono ${s.tone ?? "text-foreground"}`}>{s.value}</p>
-            </div>
-          ))}
+    );
+  }
+
+  if (!runResult && !submitResult) {
+    // Show empty state or static seed as fallback
+    const out = getProgramOutput(slug);
+    return (
+      <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 text-xs font-sans">
+        <div className="rounded-lg border border-border bg-card/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Backend Preview Console</p>
+          <p className="mt-2 text-zinc-400 leading-relaxed">
+            No active execution session. Write code and click <strong>Run</strong> or <strong>Submit</strong> to verify results here.
+          </p>
+        </div>
+        
+        {/* Render a fallback expected output */}
+        <div className="mt-3 rounded-lg border border-border bg-card/60 p-4">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Expected Output Format</p>
+          <pre className="mt-3 whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-zinc-500">
+            {out.log}
+          </pre>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Actual results!
+  if (runResult) {
+    const sumRuntime = (results) => results.reduce((acc, curr) => acc + (curr.runtime_ms || 0), 0);
+    const hasCompileError = !!runResult.compile_output;
+    return (
+      <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 font-mono text-[11px] leading-relaxed text-zinc-300 space-y-4">
+        <div className="rounded-lg border border-border bg-card/65 p-4 space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">Sandbox Statistics</p>
+          <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-xs">
+            <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
+              <p className="text-muted-foreground text-[10px] uppercase">Passed</p>
+              <p className="font-mono font-bold text-white text-sm">
+                {runResult.passed_testcases} / {runResult.total_testcases}
+              </p>
+            </div>
+            <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
+              <p className="text-muted-foreground text-[10px] uppercase">Runtime</p>
+              <p className="font-mono font-bold text-emerald-400 text-sm">
+                {runResult.testcase_results?.[0]?.runtime_ms ? `${sumRuntime(runResult.testcase_results).toFixed(0)} ms` : "N/A"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {hasCompileError && (
+          <div className="rounded-lg border border-red-500/20 bg-red-950/15 p-4 space-y-2">
+            <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold">Compilation Errors</p>
+            <pre className="whitespace-pre-wrap text-red-300 bg-black/40 p-2.5 rounded border border-red-500/10 text-[10px]">{runResult.compile_output}</pre>
+          </div>
+        )}
+
+        {runResult.testcase_results?.map((tc, idx) => (
+          <div key={idx} className="rounded-lg border border-border bg-card/45 p-4 space-y-2">
+            <div className="flex justify-between items-center border-b border-border pb-1.5">
+              <span className="font-bold text-white">Test Case #{idx + 1}: {tc.name}</span>
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${tc.passed ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                {tc.passed ? "PASSED" : "FAILED"}
+              </span>
+            </div>
+            {tc.stdout && (
+              <div className="space-y-1">
+                <span className="text-zinc-500 text-[10px] block font-sans">Standard Output:</span>
+                <pre className="bg-black/50 p-2 rounded text-zinc-350 text-[10px] overflow-x-auto whitespace-pre-wrap">{tc.stdout}</pre>
+              </div>
+            )}
+            {tc.stderr && (
+              <div className="space-y-1">
+                <span className="text-red-400 text-[10px] block font-sans">Error Output (stderr):</span>
+                <pre className="bg-red-950/10 p-2 rounded text-red-350 text-[10px] overflow-x-auto whitespace-pre-wrap">{tc.stderr}</pre>
+              </div>
+            )}
+            {!tc.passed && (
+              <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-xs">
+                <div>
+                  <span className="text-zinc-500 text-[10px]">Actual</span>
+                  <pre className="bg-zinc-950 p-2 rounded text-zinc-400 font-mono text-[10px] overflow-x-auto">{tc.actual_output || tc.stdout || "Empty"}</pre>
+                </div>
+                <div>
+                  <span className="text-zinc-500 text-[10px]">Expected</span>
+                  <pre className="bg-zinc-950 p-2 rounded text-zinc-400 font-mono text-[10px] overflow-x-auto">{tc.expected_output || "Empty"}</pre>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (submitResult) {
+    return (
+      <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 font-mono text-[11px] leading-relaxed text-zinc-300 space-y-4">
+        <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
+          submitResult.success ? "bg-emerald-950/20 border-emerald-500/20 text-emerald-400" : "bg-red-950/20 border-red-500/20 text-red-400"
+        }`}>
+          <div className="space-y-1 font-sans">
+            <h4 className="font-bold text-sm tracking-tight text-white uppercase">{submitResult.verdict}</h4>
+            <p className="text-[11px] text-zinc-400">
+              Passed {submitResult.passed_testcases} / {submitResult.total_testcases} testcases.
+            </p>
+          </div>
+        </div>
+
+        {submitResult.compile_output && (
+          <div className="rounded-lg border border-red-500/20 bg-red-950/15 p-4 space-y-2">
+            <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold font-sans">Compilation Failure Details</p>
+            <pre className="whitespace-pre-wrap text-red-300 bg-black/40 p-2.5 rounded border border-red-500/10 text-[10px]">{submitResult.compile_output}</pre>
+          </div>
+        )}
+      </div>
+    );
+  }
 }
 
 function getProgramOutput(slug) {

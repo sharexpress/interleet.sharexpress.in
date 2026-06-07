@@ -25,6 +25,10 @@ import ProfilePage from "@/pages/app/profile/$username";
 import SettingsPage from "@/pages/app/settings";
 import SystemDesignPage from "@/pages/app/system-design";
 import EditorPage from "@/pages/app/editor.$id";
+import ContestList from "@/pages/app/contest/ContestList";
+import ContestLobby from "@/pages/app/contest/ContestLobby";
+import ContestWorkspace from "@/pages/app/contest/ContestWorkspace";
+import ContestResults from "@/pages/app/contest/ContestResults";
 
 // Admin + misc
 import AdminPage from "@/pages/admin";
@@ -84,6 +88,10 @@ export const router = createBrowserRouter([
       { path: "/app/settings", element: <SettingsPage /> },
       { path: "/app/system-design", element: <SystemDesignPage /> },
       { path: "/app/editor/:id", element: <EditorPage /> },
+      { path: "/app/contest", element: <ContestList /> },
+      { path: "/app/contest/room/:code", element: <ContestLobby /> },
+      { path: "/app/contest/editor/:code", element: <ContestWorkspace /> },
+      { path: "/app/contest/results/:code", element: <ContestResults /> },
       { path: "/register-face", element: <RegisterFacePage /> },
       { path: "/face-enrollment", element: <FaceEnrollmentPage /> },
       { path: "/face-verification", element: <FaceVerificationPage /> },
