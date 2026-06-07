@@ -44,10 +44,13 @@ class AnswerEvaluation(BaseModel):
     role_fit: float = Field(default=5, ge=0, le=10)
     reasoning: float = Field(default=5, ge=0, le=10)
     emotional_intelligence: float = Field(default=5, ge=0, le=10)
+    professionalism_score: float = Field(default=10, ge=0, le=10)
+    behavior_flags: list[str] = Field(default_factory=list)
     concerns: list[str] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
     follow_up_needed: bool = False
     follow_up_reason: str = ""
+    summary: str = Field(default="", description="1-sentence critique of the answer")
 
 
 class GeneratedQuestion(BaseModel):

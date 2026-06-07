@@ -15,6 +15,11 @@ class Middleware:
         try:
             token = request.cookies.get("user")
             if not token:
+                auth_header = request.headers.get("Authorization")
+                if auth_header and auth_header.lower().startswith("bearer "):
+                    token = auth_header[7:].strip()
+            
+            if not token:
                 raise HTTPException(status_code=401, detail="Unauthorized")
             payload = verify_token(token)
             if not payload:

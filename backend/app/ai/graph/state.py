@@ -13,10 +13,13 @@ class AnswerEvaluationState(TypedDict, total=False):
     role_fit: float
     reasoning: float
     emotional_intelligence: float
+    professionalism_score: float
+    behavior_flags: list[str]
     concerns: list[str]
     strengths: list[str]
     follow_up_needed: bool
     follow_up_reason: str
+    summary: str
 
 
 class InterviewTurnState(TypedDict, total=False):
@@ -49,6 +52,7 @@ class InterviewState(TypedDict, total=False):
     current_answer_guidance: str
     current_topic: str
     current_intent: str
+    current_expected_signal: str
     questions_asked: list[str]
     interviewer_messages: list[str]
     turns: list[InterviewTurnState]
@@ -65,4 +69,5 @@ class InterviewState(TypedDict, total=False):
     completed: bool
     completion_reason: str
     closing_message: str
+    user_id: str
     metadata: dict[str, Any]
