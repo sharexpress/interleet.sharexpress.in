@@ -35,7 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetHeader } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 import { LogoutUser } from "@/redux/slices/userSlice";
@@ -104,69 +104,6 @@ export function AppShell({ children }) {
   const navigate = useNavigate();
 
   const { user } = useSelector((state) => state.user);
-
-  // Command Palette Search State
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState({ challenges: [], users: [], topics: [] });
-  const [isSearching, setIsSearching] = useState(false);
-
-  // Keyboard shortcut listener (⌘K or Ctrl+K)
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setCommandPaletteOpen(prev => !prev);
-      }
-      if (e.key === "Escape") {
-        setCommandPaletteOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // Debounced Search API fetcher
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults({ challenges: [], users: [], topics: [] });
-      return;
-    }
-
-    const delayDebounce = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const res = await API.get(`/api/search?q=${encodeURIComponent(searchQuery)}`);
-        if (res.data && res.data.success) {
-          setSearchResults(res.data.results);
-        }
-      } catch (err) {
-        console.error("Failed to query global search", err);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(delayDebounce);
-  }, [searchQuery]);
-
-  const quickNavs = [
-    { label: "Dashboard", path: "/app/dashboard", icon: LayoutDashboard },
-    { label: "Challenges", path: "/app/challenges", icon: Code2 },
-    { label: "AI Interviews", path: "/app/interviews", icon: Bot },
-    { label: "System Design", path: "/app/system-design", icon: Network },
-    { label: "Leaderboard", path: "/app/leaderboard", icon: Trophy },
-    { label: "Contests", path: "/app/contest", icon: Swords },
-    { label: "Store", path: "/app/store", icon: ShoppingBag },
-    { label: "Settings", path: "/app/settings", icon: Settings },
-  ];
-
-  const commands = [
-    { name: "Start New Mock Interview", icon: Bot, hint: "Action", action: () => navigate("/app/interviews/setup") },
-    { name: "Register Face ID", icon: ShieldCheck, hint: "Action", action: () => navigate("/face-enrollment") },
-    { name: "Verify Face ID Status", icon: ShieldCheck, hint: "Action", action: () => navigate("/face-verification") },
-    { name: "Sign Out", icon: LogOut, hint: "Action", action: () => handleLogout() },
-  ];
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -256,16 +193,13 @@ export function AppShell({ children }) {
           <NavLinks user={user} />
         </div>
 
-        {/* Global Search Option (Command Palette Trigger) */}
-        <div 
-          onClick={() => setCommandPaletteOpen(true)}
-          className="relative ml-4 hidden flex-1 max-w-sm md:block cursor-pointer group"
-        >
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground group-hover:text-foreground transition-colors" />
-          <div className="h-9 bg-card border border-border rounded-md pl-9 pr-14 flex items-center text-xs text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-all">
-            Search challenges, topics, people…
-          </div>
-          <kbd className="pointer-events-none absolute right-2 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[9px] text-muted-foreground md:inline-flex">
+        <div className="relative ml-4 hidden flex-1 max-w-sm md:block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search challenges, topics, people…"
+            className="h-9 bg-card pl-9 pr-14"
+          />
+          <kbd className="pointer-events-none absolute right-2 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground md:inline-flex">
             ⌘K
           </kbd>
         </div>
@@ -410,177 +344,6 @@ export function AppShell({ children }) {
       </header>
 
       <main className="min-w-0 flex-1">{children}</main>
-
-      {/* Global Search Command Palette Modal */}
-      {commandPaletteOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] px-4 bg-black/80 backdrop-blur-sm animate-fade-in"
-          onClick={() => setCommandPaletteOpen(false)}
-        >
-          <Card 
-            className="w-full max-w-2xl border-zinc-800 bg-zinc-950 p-0 overflow-hidden shadow-2xl relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Search Header */}
-            <div className="flex items-center border-b border-zinc-900 px-4 py-3">
-              <Search className="h-5 w-5 text-muted-foreground mr-3 shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                placeholder="Type to search challenges, topics, developers, or commands..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent border-none text-white placeholder-zinc-500 text-sm focus:outline-none focus:ring-0 min-w-0"
-              />
-              <Badge variant="outline" className="font-mono text-[9px] text-zinc-500 bg-zinc-900 border-zinc-850 px-2 py-0.5 shrink-0 ml-2">ESC</Badge>
-            </div>
-            
-            {/* Results / Suggestions panel */}
-            <div className="max-h-[50vh] overflow-y-auto p-2 space-y-4 animate-fade-in">
-              {!searchQuery.trim() ? (
-                <div className="space-y-4">
-                  {/* Suggestions Panel */}
-                  <div className="p-2">
-                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-500 px-2 py-1">Quick Navigation</h4>
-                    <div className="grid grid-cols-2 gap-1 mt-2">
-                      {quickNavs.map((n) => (
-                        <button
-                          key={n.path}
-                          onClick={() => {
-                            navigate(n.path);
-                            setCommandPaletteOpen(false);
-                          }}
-                          className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-900/80 text-zinc-300 hover:text-white text-xs font-semibold group transition-all"
-                        >
-                          <n.icon className="h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors shrink-0" />
-                          <span className="truncate">{n.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="p-2 border-t border-zinc-900/60">
-                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-500 px-2 py-1">System Actions</h4>
-                    <div className="space-y-0.5 mt-2">
-                      {commands.map((c) => (
-                        <button
-                          key={c.name}
-                          onClick={() => {
-                            c.action();
-                            setCommandPaletteOpen(false);
-                          }}
-                          className="flex items-center justify-between w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-900/80 text-zinc-300 hover:text-white text-xs font-semibold group transition-all"
-                        >
-                          <span className="flex items-center gap-3">
-                            <c.icon className="h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors shrink-0" />
-                            {c.name}
-                          </span>
-                          <span className="text-[9px] text-zinc-650 font-mono group-hover:text-zinc-500">{c.hint}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : isSearching ? (
-                <div className="py-12 text-center text-muted-foreground">
-                  <Sparkles className="h-5 w-5 animate-spin mx-auto text-[#FF6500] mb-2" />
-                  <p className="font-mono text-[11px]">Scanning the arena databases...</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Challenges search result list */}
-                  {searchResults.challenges?.length > 0 && (
-                    <div className="p-2">
-                      <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-500 px-2 py-1">Challenges</h4>
-                      <div className="space-y-0.5 mt-2">
-                        {searchResults.challenges.map((c) => (
-                          <button
-                            key={c.slug}
-                            onClick={() => {
-                              navigate(`/app/challenges/${c.slug}`);
-                              setCommandPaletteOpen(false);
-                            }}
-                            className="flex items-center justify-between w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-900/80 text-zinc-200 hover:text-white text-xs font-semibold group transition-all"
-                          >
-                            <span className="flex items-center gap-3 min-w-0">
-                              <Code2 className="h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors shrink-0" />
-                              <span className="truncate">{c.title}</span>
-                            </span>
-                            <Badge variant="outline" className="text-[9px] uppercase font-mono px-1.5 shrink-0 border-zinc-800 text-zinc-400 bg-zinc-900">{c.difficulty}</Badge>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* System Design results */}
-                  {searchResults.topics?.length > 0 && (
-                    <div className="p-2 border-t border-zinc-900/60">
-                      <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-500 px-2 py-1">System Design Topics</h4>
-                      <div className="space-y-0.5 mt-2">
-                        {searchResults.topics.map((t) => (
-                          <button
-                            key={t.title}
-                            onClick={() => {
-                              navigate("/app/system-design");
-                              setCommandPaletteOpen(false);
-                            }}
-                            className="flex items-center justify-between w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-900/80 text-zinc-200 hover:text-white text-xs font-semibold group transition-all"
-                          >
-                            <span className="flex items-center gap-3 min-w-0">
-                              <Network className="h-4 w-4 text-zinc-500 group-hover:text-primary transition-colors shrink-0" />
-                              <span className="truncate">{t.title}</span>
-                            </span>
-                            <span className="text-[10px] text-zinc-500 group-hover:text-zinc-400 font-mono shrink-0">System Design</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Users search result list */}
-                  {searchResults.users?.length > 0 && (
-                    <div className="p-2 border-t border-zinc-900/60">
-                      <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-500 px-2 py-1">Developers</h4>
-                      <div className="space-y-0.5 mt-2">
-                        {searchResults.users.map((u) => (
-                          <button
-                            key={u.username}
-                            onClick={() => {
-                              navigate(`/app/profile/${u.username}`);
-                              setCommandPaletteOpen(false);
-                            }}
-                            className="flex items-center justify-between w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-900/80 text-zinc-200 hover:text-white text-xs font-semibold group transition-all"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <Avatar className="h-6 w-6 border border-zinc-800 shrink-0">
-                                <AvatarImage src={u.avatar} />
-                                <AvatarFallback className="text-[9px] bg-zinc-800 text-zinc-300 font-bold">{u.username.slice(0, 2).toUpperCase()}</AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0">
-                                <p className="truncate font-semibold text-xs text-white text-left">@{u.username}</p>
-                                <p className="text-[9px] text-muted-foreground truncate text-left">{u.full_name || u.email}</p>
-                              </div>
-                            </div>
-                            <span className="text-[10px] text-zinc-500 group-hover:text-zinc-400 font-mono shrink-0">Profile</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Empty Result */}
-                  {(!searchResults.challenges?.length && !searchResults.topics?.length && !searchResults.users?.length) && (
-                    <div className="py-12 text-center text-muted-foreground">
-                      <p className="font-mono text-xs">No records found matching "{searchQuery}".</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
     </div>
   );
 }

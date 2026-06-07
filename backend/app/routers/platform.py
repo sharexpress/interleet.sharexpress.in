@@ -73,8 +73,3 @@ async def system_design():
 @router.get("/candidates")
 async def candidates():
     return await PlatformController.candidates()
-
-
-@router.get("/search")
-async def search(q: str = Query(...), user=Depends(UserMiddleware.me)):
-    return await PlatformController.search(q=q, user=user["user"])
