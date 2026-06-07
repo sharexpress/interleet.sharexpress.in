@@ -238,17 +238,17 @@ export function AppShell({ children }) {
 
 export function PageHeader({ title, description, actions, badge }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border px-4 py-5 md:flex-row md:items-center md:justify-between md:px-8 md:py-6">
+    <div className="flex flex-col gap-2 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between md:px-8 md:py-4">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <h1 className="truncate text-xl font-semibold tracking-tight md:text-2xl">{title}</h1>
+          <h1 className="truncate text-lg font-semibold tracking-tight md:text-xl">{title}</h1>
           {badge && (
             <Badge variant="outline" className="font-mono text-[10px] uppercase tracking-wider">
               {badge}
             </Badge>
           )}
         </div>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
