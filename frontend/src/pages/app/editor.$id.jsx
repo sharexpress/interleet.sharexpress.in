@@ -612,7 +612,7 @@ function EditorPage() {
   const [activeTab, setActiveTab] = useState("testcase");
 
   // Derived busy flags
-  const isRunning    = execState.runStatus === 'loading';
+  const isRunning = execState.runStatus === 'loading';
   const isSubmitting = execState.submitStatus === 'loading';
 
   const containerRef = useRef(null);
@@ -941,11 +941,10 @@ function EditorPage() {
                       <TerminalIcon className="mr-1 h-3 w-3" /> Console
                       {consoleResult && (
                         <span
-                          className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold ${
-                            consoleResult.errors.length > 0
+                          className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold ${consoleResult.errors.length > 0
                               ? "bg-destructive/20 text-destructive"
                               : "bg-success/20 text-success"
-                          }`}
+                            }`}
                         >
                           {consoleResult.errors.length > 0
                             ? consoleResult.errors.length
@@ -1125,7 +1124,7 @@ function PreviewArea({ domain, slug, title, code, execState }) {
             No active execution session. Write code and click <strong>Run</strong> or <strong>Submit</strong> to verify results here.
           </p>
         </div>
-        
+
         {/* Render a fallback expected output */}
         <div className="mt-3 rounded-lg border border-border bg-card/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Expected Output Format</p>
@@ -1209,9 +1208,8 @@ function PreviewArea({ domain, slug, title, code, execState }) {
   if (submitResult) {
     return (
       <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 font-mono text-[11px] leading-relaxed text-zinc-300 space-y-4">
-        <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
-          submitResult.success ? "bg-emerald-950/20 border-emerald-500/20 text-emerald-400" : "bg-red-950/20 border-red-500/20 text-red-400"
-        }`}>
+        <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${submitResult.success ? "bg-emerald-950/20 border-emerald-500/20 text-emerald-400" : "bg-red-950/20 border-red-500/20 text-red-400"
+          }`}>
           <div className="space-y-1 font-sans">
             <h4 className="font-bold text-sm tracking-tight text-white uppercase">{submitResult.verdict}</h4>
             <p className="text-[11px] text-zinc-400">

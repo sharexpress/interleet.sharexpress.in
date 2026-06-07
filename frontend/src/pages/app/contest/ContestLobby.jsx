@@ -82,7 +82,7 @@ function ContestLobby() {
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!typedMessage.trim() || !wsRef.current) return;
-    
+
     wsRef.current.send(
       JSON.stringify({
         type: "chat",
@@ -165,7 +165,7 @@ function ContestLobby() {
   return (
     <AppShell>
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8">
-        
+
         {/* Back Link */}
         <div className="mb-6 flex items-center justify-between">
           <button
@@ -174,7 +174,7 @@ function ContestLobby() {
           >
             <ArrowLeft className="h-4 w-4" /> Back to Arena
           </button>
-          
+
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
             <span className="text-[11px] font-mono text-zinc-400">Match Code: {contest.room_code}</span>
@@ -182,10 +182,10 @@ function ContestLobby() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px_320px]">
-          
+
           {/* Column 1: Match Info + Lobby Chat */}
           <div className="flex flex-col gap-6 h-[calc(100vh-200px)]">
-            
+
             {/* Header detail */}
             <div className="p-6 rounded-2xl border border-zinc-850 bg-zinc-900/30">
               <div className="space-y-1">
@@ -240,11 +240,10 @@ function ContestLobby() {
                         <span className="text-[10px] text-zinc-500 mb-0.5 px-1 font-mono">
                           @{msg.username}
                         </span>
-                        <div className={`text-xs rounded-xl px-3.5 py-2 max-w-[80%] ${
-                          isSelf
+                        <div className={`text-xs rounded-xl px-3.5 py-2 max-w-[80%] ${isSelf
                             ? "bg-primary text-primary-foreground font-medium rounded-tr-none"
                             : "bg-zinc-850 text-zinc-200 rounded-tl-none border border-zinc-800"
-                        }`}>
+                          }`}>
                           {msg.message}
                         </div>
                       </div>
@@ -277,7 +276,7 @@ function ContestLobby() {
               <Users className="h-4 w-4 text-primary" />
               Participants ({participants.length})
             </h3>
-            
+
             <div className="space-y-2.5 max-h-[400px] overflow-y-auto">
               {participants.map((p) => {
                 const isUserHost = String(contest.creator_id) === String(p.user_id);
@@ -336,7 +335,7 @@ function ContestLobby() {
 
           {/* Column 3: Invite Panel & Rules summary */}
           <div className="space-y-6 h-fit">
-            
+
             {/* Invite Peer */}
             <div className="p-6 rounded-2xl border border-zinc-850 bg-zinc-900/20 space-y-4">
               <h3 className="text-xs font-bold text-white flex items-center gap-2">

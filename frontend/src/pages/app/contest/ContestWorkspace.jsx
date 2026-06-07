@@ -74,7 +74,7 @@ function MonacoEditor({ value, language, onChange }) {
         const isCopy = (e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyC;
         const isPaste = (e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyV;
         const isCut = (e.ctrlKey || e.metaKey) && e.keyCode === monaco.KeyCode.KeyX;
-        
+
         if (isCopy || isPaste || isCut) {
           e.preventDefault();
           e.stopPropagation();
@@ -164,15 +164,15 @@ function ContestWorkspace() {
   const [contest, setContest] = useState(null);
   const [challenges, setChallenges] = useState([]);
   const [currentChallengeIdx, setCurrentChallengeIdx] = useState(0);
-  
+
   const [editorCode, setEditorCode] = useState("");
   const [language, setLanguage] = useState("py");
   const [leaderboard, setLeaderboard] = useState([]);
-  
+
   const [warnings, setWarnings] = useState(0);
   const [disqualified, setDisqualified] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
-  
+
   const [outputTab, setOutputTab] = useState("testcase"); // "testcase" | "result"
   const [wsUpdateTrigger, setWsUpdateTrigger] = useState(0);
 
@@ -203,7 +203,7 @@ function ContestWorkspace() {
       if (res.data && res.data.success) {
         const data = res.data.data;
         setContest(data);
-        
+
         // Calculate remaining seconds
         let endTimeStr = data.end_time;
         if (endTimeStr && !endTimeStr.endsWith("Z")) {
@@ -212,7 +212,7 @@ function ContestWorkspace() {
         const end = new Date(endTimeStr);
         const diff = Math.max(0, Math.floor((end - new Date()) / 1000));
         setTimeLeft(diff);
-        
+
         // Match user's disqualification state
         const selfParticipant = data.participants.find(p => String(p.user_id) === String(user?.user_id));
         if (selfParticipant) {
@@ -459,7 +459,7 @@ function ContestWorkspace() {
 
         {/* Timer, Warnings, Submissions */}
         <div className="flex items-center gap-6">
-          
+
           {/* Warning count badge */}
           <div className="flex items-center gap-1.5 px-3 py-1 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full text-xs font-semibold">
             <ShieldAlert className="h-3.5 w-3.5" />
@@ -510,9 +510,9 @@ function ContestWorkspace() {
 
       {/* Main split view */}
       <div ref={containerRef} className="flex h-[calc(100vh-109px)] overflow-hidden bg-zinc-950">
-        
+
         {/* Left: Challenge Details */}
-        <div 
+        <div
           className="flex flex-col border-r border-border bg-zinc-900/10 shrink-0 min-h-0"
           style={{ width: leftW, minWidth: MIN_COL }}
         >
@@ -522,11 +522,10 @@ function ContestWorkspace() {
               <button
                 key={ch.slug}
                 onClick={() => handleChallengeChange(idx)}
-                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold border-r border-border transition-colors shrink-0 ${
-                  idx === currentChallengeIdx
+                className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold border-r border-border transition-colors shrink-0 ${idx === currentChallengeIdx
                     ? "bg-zinc-900 text-primary border-b-2 border-b-primary"
                     : "text-zinc-400 hover:text-white"
-                }`}
+                  }`}
               >
                 <FileCode2 className="h-3.5 w-3.5" />
                 {ch.title}
@@ -562,7 +561,7 @@ function ContestWorkspace() {
                 <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
                   {currentChallenge.description || currentChallenge.summary}
                 </p>
-                
+
                 {currentChallenge.test_cases?.filter(t => !t.hidden).length > 0 && (
                   <div className="space-y-2.5 pt-2">
                     <h4 className="font-semibold text-zinc-350 text-[10px] uppercase font-mono tracking-wider">
@@ -619,11 +618,11 @@ function ContestWorkspace() {
 
         {/* Center: Editor + Console */}
         <div className="flex flex-col flex-1 min-w-0 min-h-0 border-r border-border">
-          
+
           {/* File tab bar */}
           <div className="flex items-center gap-1 border-b border-border bg-background/60 px-2 py-1.5 shrink-0">
             <div className="flex items-center gap-2 rounded-t border-b-2 border-primary bg-card px-3 py-1 font-mono text-xs text-foreground">
-              <FileCode2 className="h-3 w-3 text-primary" /> 
+              <FileCode2 className="h-3 w-3 text-primary" />
               <span>
                 {language === "py" ? "solution.py" : language === "ts" ? "solution.ts" : "solution.js"}
               </span>
@@ -675,7 +674,7 @@ function ContestWorkspace() {
                       <TerminalIcon className="h-4 w-4 text-zinc-400" />
                       <span>Run Results ({execState.runResult.passed_testcases}/{execState.runResult.total_testcases} passed)</span>
                     </div>
-                    
+
                     {execState.runResult.compile_output && (
                       <div className="p-3 bg-red-950/20 border border-red-500/20 rounded-lg text-red-400 overflow-x-auto">
                         <div className="font-bold text-[9px] uppercase tracking-wider mb-1">Compilation Errors:</div>
@@ -687,9 +686,8 @@ function ContestWorkspace() {
                       <div key={idx} className="p-3 bg-zinc-900 border border-zinc-850 rounded-xl space-y-1.5">
                         <div className="flex justify-between items-center">
                           <span className="font-semibold text-zinc-300">Test Case #{idx + 1}: {tc.name}</span>
-                          <span className={`font-mono text-[9px] px-2 py-0.5 rounded ${
-                            tc.passed ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
-                          }`}>
+                          <span className={`font-mono text-[9px] px-2 py-0.5 rounded ${tc.passed ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                            }`}>
                             {tc.passed ? "PASSED" : "FAILED"}
                           </span>
                         </div>
@@ -716,11 +714,10 @@ function ContestWorkspace() {
                 {/* Submission Result Output */}
                 {execState.submitResult && (
                   <div className="space-y-3">
-                    <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
-                      execState.submitResult.success
+                    <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${execState.submitResult.success
                         ? "bg-emerald-950/20 border-emerald-500/20 text-emerald-400"
                         : "bg-red-950/20 border-red-500/20 text-red-400"
-                    }`}>
+                      }`}>
                       <div className="shrink-0 mt-0.5">
                         {execState.submitResult.success ? (
                           <Check className="h-6 w-6 text-emerald-400 border border-emerald-500/30 rounded-full p-0.5" />
@@ -753,7 +750,7 @@ function ContestWorkspace() {
 
         {/* Right Sidebar: Live Standings Leaderboard */}
         <div className="flex flex-col bg-zinc-900/10 min-h-0 border-l border-zinc-850">
-          
+
           <div className="p-4 border-b border-border flex items-center justify-between bg-zinc-900/40">
             <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
               <Award className="h-4 w-4 text-primary" /> Live Standings
@@ -769,13 +766,12 @@ function ContestWorkspace() {
               return (
                 <div
                   key={item.user_id}
-                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
-                    isSelf
+                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${isSelf
                       ? "bg-primary/10 border-primary/40 ring-1 ring-primary/20"
                       : item.disqualified
-                      ? "bg-red-950/10 border-red-950/40 opacity-60"
-                      : "bg-zinc-900/40 border-zinc-850"
-                  }`}
+                        ? "bg-red-950/10 border-red-950/40 opacity-60"
+                        : "bg-zinc-900/40 border-zinc-850"
+                    }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="font-mono text-xs font-semibold text-zinc-500 w-4">
