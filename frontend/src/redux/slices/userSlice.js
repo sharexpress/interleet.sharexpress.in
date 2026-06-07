@@ -65,15 +65,13 @@ export const GetCurrentUser = createAsyncThunk(
 );
 
 export const googleLogin = createAsyncThunk("AUTH/GOOGLE_LOGIN", async () => {
-  window.location.href = `${
-    import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
-  }/auth/google/login`;
+  window.location.href = `${import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
+    }/auth/google/login`;
 });
 
 export const githubLogin = createAsyncThunk("AUTH/GITHUB_LOGIN", async () => {
-  window.location.href = `${
-    import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
-  }/auth/github/login`;
+  window.location.href = `${import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
+    }/auth/github/login`;
 });
 
 export const LogoutUser = createAsyncThunk("AUTH/LOGOUT", async (_, { rejectWithValue }) => {

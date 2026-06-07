@@ -32,12 +32,12 @@ let _activeUtterance = null;
 //    └──────────┴──────────────┴──────────────┴────────────┘ (loop until completed)
 //
 const PHASE = {
-  IDLE:       "idle",       // No audio activity
-  SPEAKING:   "speaking",   // Sara TTS is playing
-  LISTENING:  "listening",  // STT active, waiting for user to speak
-  REVIEWING:  "reviewing",  // Speech detected, silence countdown running
+  IDLE: "idle",       // No audio activity
+  SPEAKING: "speaking",   // Sara TTS is playing
+  LISTENING: "listening",  // STT active, waiting for user to speak
+  REVIEWING: "reviewing",  // Speech detected, silence countdown running
   SUBMITTING: "submitting", // Answer sent, waiting for AI response
-  COMPLETED:  "completed",  // Interview finished
+  COMPLETED: "completed",  // Interview finished
 };
 
 // ─── TTS helpers ──────────────────────────────────────────────────────────────
@@ -54,9 +54,9 @@ function speakText(text, { baseUrl, onStart, onEnd } = {}) {
     if (_activeAudio === audio) _activeAudio = null;
   };
 
-  audio.onplay    = () => onStart?.();
-  audio.onended   = () => { cleanup(); onEnd?.(); };
-  audio.onerror   = () => { cleanup(); _browserSpeak(text, { onStart, onEnd }); };
+  audio.onplay = () => onStart?.();
+  audio.onended = () => { cleanup(); onEnd?.(); };
+  audio.onerror = () => { cleanup(); _browserSpeak(text, { onStart, onEnd }); };
   audio.play().catch(() => { cleanup(); _browserSpeak(text, { onStart, onEnd }); });
 }
 
@@ -67,8 +67,8 @@ function _browserSpeak(text, { onStart, onEnd } = {}) {
   const utter = new SpeechSynthesisUtterance(text);
   _activeUtterance = utter; // Pin to module scope to prevent GC mid-speech
 
-  utter.rate   = 0.95;
-  utter.pitch  = 1.05;
+  utter.rate = 0.95;
+  utter.pitch = 1.05;
   utter.volume = 1;
 
   // Best available English voice
@@ -81,7 +81,7 @@ function _browserSpeak(text, { onStart, onEnd } = {}) {
   if (preferred) utter.voice = preferred;
 
   utter.onstart = () => onStart?.();
-  utter.onend   = () => { _activeUtterance = null; onEnd?.(); };
+  utter.onend = () => { _activeUtterance = null; onEnd?.(); };
   utter.onerror = () => { _activeUtterance = null; onEnd?.(); };
 
   window.speechSynthesis.speak(utter);
@@ -89,7 +89,7 @@ function _browserSpeak(text, { onStart, onEnd } = {}) {
 
 function _stopAllAudio() {
   if (_activeAudio) {
-    try { _activeAudio.pause(); } catch (_) {}
+    try { _activeAudio.pause(); } catch (_) { }
     _activeAudio = null;
   }
   if (_activeUtterance) {
@@ -100,9 +100,9 @@ function _stopAllAudio() {
 
 // ─── AI Avatar ────────────────────────────────────────────────────────────────
 function AIAvatar({ phase }) {
-  const isSpeaking  = phase === PHASE.SPEAKING;
-  const isActive    = phase === PHASE.LISTENING || phase === PHASE.REVIEWING;
-  const isThinking  = phase === PHASE.IDLE || phase === PHASE.SUBMITTING;
+  const isSpeaking = phase === PHASE.SPEAKING;
+  const isActive = phase === PHASE.LISTENING || phase === PHASE.REVIEWING;
+  const isThinking = phase === PHASE.IDLE || phase === PHASE.SUBMITTING;
 
   return (
     <div className="relative flex items-center justify-center select-none">
@@ -151,11 +151,10 @@ function TranscriptMessage({ msg }) {
           </Badge>
         )}
       </div>
-      <div className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-        isAI
+      <div className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${isAI
           ? "rounded-tl-sm bg-zinc-900/80 border border-zinc-800 text-zinc-100"
           : "rounded-tr-sm bg-primary/90 text-white"
-      }`}>
+        }`}>
         {msg.text}
       </div>
       {msg.evaluation && (
@@ -192,13 +191,13 @@ function AudioVisualizer({ levels, active }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 function LiveInterview() {
-  const dispatch    = useAppDispatch();
-  const navigate    = useNavigate();
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const role       = searchParams.get("role") || "Senior Backend Engineer";
+  const role = searchParams.get("role") || "Senior Backend Engineer";
   const difficulty = searchParams.get("difficulty") || "Intermediate";
-  const baseUrl    = import.meta.env?.VITE_BACKEND_URL || "http://localhost:8000";
+  const baseUrl = import.meta.env?.VITE_BACKEND_URL || "http://localhost:8000";
 
   // ── Redux state ──────────────────────────────────────────────────────────────
   const {
@@ -220,47 +219,47 @@ function LiveInterview() {
   }, []);
 
   // ── UI state ─────────────────────────────────────────────────────────────────
-  const [isMuted,          setIsMuted]          = useState(false);
-  const [ttsEnabled,       setTtsEnabled]       = useState(true);
-  const [interimText,      setInterimText]      = useState("");
-  const [textInput,        setTextInput]        = useState("");
-  const [elapsedSeconds,   setElapsedSeconds]   = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [interimText, setInterimText] = useState("");
+  const [textInput, setTextInput] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [countdownPercent, setCountdownPercent] = useState(100);
-  const [audioLevels,      setAudioLevels]      = useState([0, 0, 0, 0, 0]);
-  const [interactionMode,  setInteractionMode]  = useState("auto"); // "auto" | "ptt" | "keyboard"
-  const [hasSttSupport]   = useState(() => !!SpeechRecognition);
+  const [audioLevels, setAudioLevels] = useState([0, 0, 0, 0, 0]);
+  const [interactionMode, setInteractionMode] = useState("auto"); // "auto" | "ptt" | "keyboard"
+  const [hasSttSupport] = useState(() => !!SpeechRecognition);
 
   // ── Stable refs mirroring state (safe inside event handler closures) ─────────
-  const isMutedRef         = useRef(false);
-  const ttsEnabledRef      = useRef(true);
+  const isMutedRef = useRef(false);
+  const ttsEnabledRef = useRef(true);
   const interactionModeRef = useRef("auto");
-  const sessionIdRef       = useRef(sessionId);
-  const currentTopicRef    = useRef(currentTopic);
-  const textInputRef       = useRef("");
+  const sessionIdRef = useRef(sessionId);
+  const currentTopicRef = useRef(currentTopic);
+  const textInputRef = useRef("");
 
-  useEffect(() => { isMutedRef.current         = isMuted;          }, [isMuted]);
-  useEffect(() => { ttsEnabledRef.current      = ttsEnabled;       }, [ttsEnabled]);
-  useEffect(() => { interactionModeRef.current = interactionMode;  }, [interactionMode]);
-  useEffect(() => { sessionIdRef.current       = sessionId;        }, [sessionId]);
-  useEffect(() => { currentTopicRef.current    = currentTopic;     }, [currentTopic]);
-  useEffect(() => { textInputRef.current       = textInput;        }, [textInput]);
+  useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+  useEffect(() => { ttsEnabledRef.current = ttsEnabled; }, [ttsEnabled]);
+  useEffect(() => { interactionModeRef.current = interactionMode; }, [interactionMode]);
+  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+  useEffect(() => { currentTopicRef.current = currentTopic; }, [currentTopic]);
+  useEffect(() => { textInputRef.current = textInput; }, [textInput]);
 
   // ── Component refs ───────────────────────────────────────────────────────────
-  const transcriptRef   = useRef(null);
-  const recognitionRef  = useRef(null);
-  const timerRef        = useRef(null);
-  const lastMsgRef      = useRef("");   // Deduplicate TTS triggers
-  const sessionInitRef  = useRef(false);
+  const transcriptRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const timerRef = useRef(null);
+  const lastMsgRef = useRef("");   // Deduplicate TTS triggers
+  const sessionInitRef = useRef(false);
 
   // Silence timer
-  const silenceTimerRef    = useRef(null);
+  const silenceTimerRef = useRef(null);
   const countdownIntervalRef = useRef(null);
 
   // Audio analyser
-  const audioCtxRef     = useRef(null);
-  const audioStreamRef  = useRef(null);
+  const audioCtxRef = useRef(null);
+  const audioStreamRef = useRef(null);
   const audioAnalyserRef = useRef(null);
-  const audioAnimRef    = useRef(null);
+  const audioAnimRef = useRef(null);
 
   // Stable submit ref so silence timer always calls the latest version
   const submitRef = useRef(null);
@@ -320,7 +319,7 @@ function LiveInterview() {
     if (audioAnimRef.current) { cancelAnimationFrame(audioAnimRef.current); audioAnimRef.current = null; }
     audioStreamRef.current?.getTracks().forEach(t => t.stop());
     audioStreamRef.current = null;
-    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current?.close().catch(() => { });
     audioCtxRef.current = null;
     audioAnalyserRef.current = null;
     setAudioLevels([0, 0, 0, 0, 0]);
@@ -328,7 +327,7 @@ function LiveInterview() {
 
   // ── Silence timer ─────────────────────────────────────────────────────────────
   const clearSilence = useCallback(() => {
-    if (silenceTimerRef.current)    { clearTimeout(silenceTimerRef.current);   silenceTimerRef.current = null; }
+    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null; }
     if (countdownIntervalRef.current) { clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; }
     setCountdownPercent(100);
   }, []);
@@ -354,7 +353,7 @@ function LiveInterview() {
 
   // ── STT lifecycle ─────────────────────────────────────────────────────────────
   const stopSTT = useCallback(() => {
-    try { recognitionRef.current?.abort(); } catch (_) {}
+    try { recognitionRef.current?.abort(); } catch (_) { }
     recognitionRef.current = null;
     setInterimText("");
     stopAnalyser();
@@ -364,19 +363,19 @@ function LiveInterview() {
   // it never starts unless the machine says LISTENING or REVIEWING.
   const startSTT = useCallback(() => {
     const phase = voicePhaseRef.current;
-    if (!hasSttSupport)                              return;
-    if (isMutedRef.current)                          return;
-    if (interactionModeRef.current === "keyboard")   return;
+    if (!hasSttSupport) return;
+    if (isMutedRef.current) return;
+    if (interactionModeRef.current === "keyboard") return;
     if (phase !== PHASE.LISTENING && phase !== PHASE.REVIEWING) return;
 
     // Cleanly kill any previous instance — its onend won't restart because
     // we're about to create a fresh one immediately after.
-    try { recognitionRef.current?.abort(); } catch (_) {}
+    try { recognitionRef.current?.abort(); } catch (_) { }
 
     const rec = new SpeechRecognition();
-    rec.continuous     = true;
+    rec.continuous = true;
     rec.interimResults = true;
-    rec.lang           = "en-US";
+    rec.lang = "en-US";
     rec.maxAlternatives = 1;
     recognitionRef.current = rec;
 
@@ -406,10 +405,10 @@ function LiveInterview() {
 
     rec.onresult = (e) => {
       let interim = "";
-      let final   = "";
+      let final = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final   += e.results[i][0].transcript;
-        else                       interim += e.results[i][0].transcript;
+        if (e.results[i].isFinal) final += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
       }
 
       if (final.trim()) {
@@ -444,7 +443,7 @@ function LiveInterview() {
         stopSTT();
         clearSilence();
         if (voicePhaseRef.current === PHASE.LISTENING ||
-            voicePhaseRef.current === PHASE.REVIEWING) {
+          voicePhaseRef.current === PHASE.REVIEWING) {
           setPhase(PHASE.IDLE);
         }
       } else if (voicePhaseRef.current === PHASE.LISTENING) {
@@ -471,14 +470,14 @@ function LiveInterview() {
     setInterimText("");
 
     dispatch(appendTranscript({
-      from:  "you",
-      text:  text.trim(),
+      from: "you",
+      text: text.trim(),
       topic: currentTopicRef.current,
     }));
     dispatch(submitAnswer({
       sessionId: sid,
-      answer:    text.trim(),
-      topic:     currentTopicRef.current,
+      answer: text.trim(),
+      topic: currentTopicRef.current,
     }));
   }, [dispatch, stopSTT, clearSilence, setPhase]);
 
@@ -537,7 +536,7 @@ function LiveInterview() {
     speakText(msg, {
       baseUrl,
       onStart: () => setPhase(PHASE.SPEAKING),
-      onEnd:   () => {
+      onEnd: () => {
         setPhase(PHASE.LISTENING);
         if (!isMutedRef.current && interactionModeRef.current !== "keyboard") {
           setTimeout(() => startSTTRef.current?.(), 300);
@@ -608,13 +607,13 @@ function LiveInterview() {
 
   // ── Derived booleans for render ──────────────────────────────────────────────
   const isListening = voicePhase === PHASE.LISTENING || voicePhase === PHASE.REVIEWING;
-  const isThinking  = isStarting || isSubmitting;
+  const isThinking = isStarting || isSubmitting;
   const displayPhase = isThinking ? PHASE.IDLE : voicePhase;
 
   const phaseLabel = {
-    intro:              "Introduction",
+    intro: "Introduction",
     adaptive_questions: "Technical Q&A",
-    closing:            "Closing",
+    closing: "Closing",
   }[interviewPhase] || interviewPhase;
 
   // ─── Render ──────────────────────────────────────────────────────────────────
@@ -725,10 +724,10 @@ function LiveInterview() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-zinc-200">You</p>
                 <p className="text-[10px] text-muted-foreground truncate">
-                  {voicePhase === PHASE.LISTENING  ? "Listening… speak your answer"
-                  : voicePhase === PHASE.REVIEWING ? "Got it — counting down"
-                  : isMuted                        ? "Microphone muted"
-                  :                                  "Microphone ready"}
+                  {voicePhase === PHASE.LISTENING ? "Listening… speak your answer"
+                    : voicePhase === PHASE.REVIEWING ? "Got it — counting down"
+                      : isMuted ? "Microphone muted"
+                        : "Microphone ready"}
                 </p>
               </div>
               <AudioVisualizer levels={audioLevels} active={isListening} />
@@ -736,8 +735,8 @@ function LiveInterview() {
                 {isMuted
                   ? <MicOff className="h-4 w-4 text-destructive" />
                   : isListening
-                  ? <Mic className="h-4 w-4 text-emerald-400 animate-pulse" />
-                  : <Mic className="h-4 w-4 text-zinc-500" />}
+                    ? <Mic className="h-4 w-4 text-emerald-400 animate-pulse" />
+                    : <Mic className="h-4 w-4 text-zinc-500" />}
               </div>
             </div>
           </div>
@@ -749,16 +748,15 @@ function LiveInterview() {
               <div className="flex flex-wrap items-center justify-center gap-2 max-w-2xl mx-auto border-b border-zinc-900/60 pb-3">
                 <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold mr-2">Mode:</span>
                 {[
-                  { id: "auto",     label: "🎙️ Voice Auto-Submit" },
-                  { id: "ptt",      label: "🎯 Push to Talk"       },
-                  { id: "keyboard", label: "⌨️ Keyboard Only"      },
+                  { id: "auto", label: "🎙️ Voice Auto-Submit" },
+                  { id: "ptt", label: "🎯 Push to Talk" },
+                  { id: "keyboard", label: "⌨️ Keyboard Only" },
                 ].map(({ id, label }) => (
                   <button key={id} type="button" onClick={() => setInteractionMode(id)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                      interactionMode === id
+                    className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${interactionMode === id
                         ? "bg-primary/10 border-primary text-primary"
                         : "bg-zinc-900/40 border-zinc-800 text-zinc-400 hover:text-zinc-300"
-                    }`}>
+                      }`}>
                     {label}
                   </button>
                 ))}
@@ -773,8 +771,8 @@ function LiveInterview() {
                   onChange={e => setTextInput(e.target.value)}
                   placeholder={
                     interactionMode === "keyboard" ? "Type your answer here…"
-                    : isListening                  ? "Listening via mic… or type / edit here"
-                    :                                "Mic paused — type here or unmute"
+                      : isListening ? "Listening via mic… or type / edit here"
+                        : "Mic paused — type here or unmute"
                   }
                   disabled={isSubmitting}
                   className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/60 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-primary/50 disabled:opacity-50"
@@ -810,13 +808,12 @@ function LiveInterview() {
             <button
               onClick={toggleMic}
               title={isMuted ? "Unmute mic" : "Mute mic"}
-              className={`flex h-14 w-14 items-center justify-center rounded-full border transition-colors ${
-                isMuted
+              className={`flex h-14 w-14 items-center justify-center rounded-full border transition-colors ${isMuted
                   ? "border-destructive/60 bg-destructive/15 text-destructive"
                   : isListening
-                  ? "border-emerald-600/60 bg-emerald-950/40 text-emerald-400"
-                  : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-              }`}>
+                    ? "border-emerald-600/60 bg-emerald-950/40 text-emerald-400"
+                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                }`}>
               {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
             </button>
 

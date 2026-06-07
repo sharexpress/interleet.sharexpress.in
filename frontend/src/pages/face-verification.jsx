@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 export default function FaceVerificationPage() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useSelector((state) => state.user);
-  
+
   const [loading, setLoading] = useState(true);
   const [diagnostics, setDiagnostics] = useState(null);
   const [selectedAngle, setSelectedAngle] = useState("front");
@@ -46,7 +46,7 @@ export default function FaceVerificationPage() {
   // Render SVG Landmark Mesh
   const renderMesh = (landmarks) => {
     if (!landmarks || landmarks.length === 0) return null;
-    
+
     // We only take a subset of landmarks to draw a clean mesh (e.g. 100 points)
     // Scale and center landmarks into a 240x240 SVG viewbox
     const xs = landmarks.map(pt => pt[0]);
@@ -55,10 +55,10 @@ export default function FaceVerificationPage() {
     const maxX = Math.max(...xs);
     const minY = Math.min(...ys);
     const maxY = Math.max(...ys);
-    
+
     const w = maxX - minX;
     const h = maxY - minY;
-    
+
     const scaledPoints = landmarks.map(pt => {
       // Scale coordinates to fit 30 to 210 padding
       const px = 30 + ((pt[0] - minX) / w) * 180;
@@ -72,7 +72,7 @@ export default function FaceVerificationPage() {
     const leftEye = [33, 160, 158, 133, 153, 144];
     const rightEye = [362, 385, 387, 263, 373, 380];
     const mouth = [61, 291, 13, 14];
-    
+
     const drawLoop = (indices) => {
       for (let i = 0; i < indices.length; i++) {
         const p1 = scaledPoints[indices[i]];
@@ -82,18 +82,18 @@ export default function FaceVerificationPage() {
         }
       }
     };
-    
+
     drawLoop(leftEye);
     drawLoop(rightEye);
     drawLoop(mouth);
 
     // Draw subset dots
     const dots = scaledPoints.filter((_, idx) => idx % 6 === 0).map((pt, idx) => (
-      <circle 
-        key={`pt-${idx}`} 
-        cx={pt[0]} 
-        cy={pt[1]} 
-        r={1.5} 
+      <circle
+        key={`pt-${idx}`}
+        cx={pt[0]}
+        cy={pt[1]}
+        r={1.5}
         fill="#a5b4fc"
         className="animate-pulse"
         style={{ animationDelay: `${idx * 0.05}s` }}
@@ -128,18 +128,17 @@ export default function FaceVerificationPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          
+
           {/* Angle Picker Tabs */}
           <div className="flex gap-1.5 p-1 bg-zinc-900/60 border border-zinc-800 rounded-xl overflow-x-auto">
             {diagnostics.records.map((r) => (
               <button
                 key={r.angle}
                 onClick={() => setSelectedAngle(r.angle)}
-                className={`text-[10px] font-mono px-3 py-1.5 rounded-lg font-semibold uppercase tracking-wider transition-all duration-200 shrink-0 ${
-                  selectedAngle === r.angle 
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10" 
+                className={`text-[10px] font-mono px-3 py-1.5 rounded-lg font-semibold uppercase tracking-wider transition-all duration-200 shrink-0 ${selectedAngle === r.angle
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
                     : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                  }`}
               >
                 {r.angle}
               </button>
@@ -153,9 +152,9 @@ export default function FaceVerificationPage() {
               <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-500 block">Cropped Face</span>
               <div className="relative aspect-square w-full bg-zinc-950 border border-zinc-900 rounded-2xl overflow-hidden flex items-center justify-center">
                 {activeRecord?.cropUrl ? (
-                  <img 
-                    src={getFullImageUrl(activeRecord.cropUrl)} 
-                    alt={activeRecord.angle} 
+                  <img
+                    src={getFullImageUrl(activeRecord.cropUrl)}
+                    alt={activeRecord.angle}
                     className="w-full h-full object-cover scale-x-[-1]"
                   />
                 ) : (
@@ -180,7 +179,7 @@ export default function FaceVerificationPage() {
                 <Cpu className="h-4 w-4 text-indigo-400" />
                 <span className="font-semibold text-zinc-200 uppercase text-xs tracking-wider">Spatial Telemetry</span>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-zinc-400">
                 <div className="flex justify-between">
                   <span>head yaw:</span>
