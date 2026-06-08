@@ -197,7 +197,7 @@ function LiveInterview() {
 
   const role = searchParams.get("role") || "Senior Backend Engineer";
   const difficulty = searchParams.get("difficulty") || "Intermediate";
-  const baseUrl = import.meta.env?.VITE_BACKEND_URL || "http://localhost:8000";
+  const baseUrl = import.meta.env?.VITE_BACKEND_URL || "https://interleet-backend.sharexpress.in";
 
   // ── Redux state ──────────────────────────────────────────────────────────────
   const {

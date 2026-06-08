@@ -8,6 +8,9 @@ load_dotenv(override=True)
 
 PROJECT_ENVIRONMENT = "DEVELOPMENT"
 
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+
 # DATABASE CONFIGURATION
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")

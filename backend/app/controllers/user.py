@@ -5,7 +5,7 @@ import logging
 from app.models.users import UserModel as User
 from app.models.users import OTPverify as OTP
 from app.core.db import get_db
-from app.core.config import PROJECT_ENVIRONMENT
+from app.core.config import PROJECT_ENVIRONMENT, FRONTEND_URL, BACKEND_URL
 from app.utils.OTP import (
     sendOTP,
     VerifyOTPbyUtils,
@@ -157,7 +157,7 @@ class UserController:
     @staticmethod
     async def google_login(request: Request):
         try:
-            redirect_uri = "http://localhost:8000/auth/google/callback"
+            redirect_uri = f"{BACKEND_URL}/auth/google/callback"
             return await oauth.google.authorize_redirect(
                 request,
                 redirect_uri,
@@ -231,7 +231,7 @@ class UserController:
                     "last_login": datetime.utcnow(),
                 }
                 await db.users.insert_one(new_user)
-                response = RedirectResponse(url="http://localhost:5173/onboarding")
+                response = RedirectResponse(url=f"{FRONTEND_URL}/onboarding")
                 generate_token(user_id, response)
                 return response
 
@@ -251,10 +251,10 @@ class UserController:
                 },
             )
 
-            redirect_url = "http://localhost:5173/app/dashboard"
+            redirect_url = f"{FRONTEND_URL}/app/dashboard"
 
             if not existing_user.get("onboarding_completed"):
-                redirect_url = "http://localhost:5173/onboarding"
+                redirect_url = f"{FRONTEND_URL}/onboarding"
             response = RedirectResponse(url=redirect_url)
             generate_token(existing_user["user_id"], response)
             return response
@@ -267,7 +267,7 @@ class UserController:
     @staticmethod
     async def github_login(request: Request):
         try:
-            redirect_uri = "http://localhost:8000/auth/github/callback"
+            redirect_uri = f"{BACKEND_URL}/auth/github/callback"
             return await oauth.github.authorize_redirect(request, redirect_uri)
         except Exception:
             logger.exception("GitHub login failed")
@@ -331,7 +331,7 @@ class UserController:
                 }
                 await db.users.insert_one(new_user)
                 redirect_response = RedirectResponse(
-                    url="http://localhost:5173/onboarding"
+                    url=f"{FRONTEND_URL}/onboarding"
                 )
                 generate_token(user_id, redirect_response)
                 return redirect_response
@@ -353,10 +353,10 @@ class UserController:
                     }
                 },
             )
-            redirect_url = "http://localhost:5173/app/dashboard"
+            redirect_url = f"{FRONTEND_URL}/app/dashboard"
 
             if not existing_user.get("onboarding_completed"):
-                redirect_url = "http://localhost:5173/onboarding"
+                redirect_url = f"{FRONTEND_URL}/onboarding"
 
             response = RedirectResponse(url=redirect_url)
 

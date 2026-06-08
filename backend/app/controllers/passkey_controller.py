@@ -22,6 +22,7 @@ from webauthn.helpers.structs import (
 )
 
 from app.core.db import get_db
+from app.core.config import FRONTEND_URL
 from app.utils.JWT import generate_token
 from app.models.passkey_models import (
     PasskeyRegisterOptionsRequest,
@@ -37,7 +38,7 @@ class PasskeyController:
     @classmethod
     def _get_rp_details(cls, request: Request) -> tuple[str, str]:
         """Dynamically gets relying party ID (domain) and origin from request headers."""
-        origin = request.headers.get("origin", "http://localhost:5173")
+        origin = request.headers.get("origin", FRONTEND_URL)
         parsed_origin = urllib.parse.urlparse(origin)
         rp_id = parsed_origin.hostname or "localhost"
         return rp_id, origin

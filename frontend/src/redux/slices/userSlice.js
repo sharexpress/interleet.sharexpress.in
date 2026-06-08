@@ -65,12 +65,12 @@ export const GetCurrentUser = createAsyncThunk(
 );
 
 export const googleLogin = createAsyncThunk("AUTH/GOOGLE_LOGIN", async () => {
-  window.location.href = `${import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
+  window.location.href = `${import.meta.env.VITE_BACKEND_URL || "https://interleet-backend.sharexpress.in"
     }/auth/google/login`;
 });
 
 export const githubLogin = createAsyncThunk("AUTH/GITHUB_LOGIN", async () => {
-  window.location.href = `${import.meta.env.VITE_BACKEND_URL || "http://localhost:8000"
+  window.location.href = `${import.meta.env.VITE_BACKEND_URL || "https://interleet-backend.sharexpress.in"
     }/auth/github/login`;
 });
 

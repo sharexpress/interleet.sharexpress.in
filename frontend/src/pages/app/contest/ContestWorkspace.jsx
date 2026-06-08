@@ -289,7 +289,9 @@ function ContestWorkspace() {
   useEffect(() => {
     if (!contest || !user) return;
     const token = getCookie("user");
-    const wsUrl = `ws://localhost:8000/api/contest/ws/${roomCode}${token ? `?token=${token}` : ""}`;
+    const backendUrl = import.meta.env?.VITE_BACKEND_URL || import.meta.env?.BACKEND_URL || "https://interleet-backend.sharexpress.in";
+    const wsBase = backendUrl.replace(/^http/, "ws");
+    const wsUrl = `${wsBase}/api/contest/ws/${roomCode}${token ? `?token=${token}` : ""}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onmessage = (event) => {

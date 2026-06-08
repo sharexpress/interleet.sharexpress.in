@@ -39,7 +39,7 @@ export default function FaceVerificationPage() {
   const getFullImageUrl = (url) => {
     if (!url) return "";
     if (url.startsWith("http")) return url;
-    const backendBase = import.meta.env?.VITE_BACKEND_URL || "http://localhost:8000";
+    const backendBase = import.meta.env?.VITE_BACKEND_URL || "https://interleet-backend.sharexpress.in";
     return `${backendBase}${url}`;
   };
 
