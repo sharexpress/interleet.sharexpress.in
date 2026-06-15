@@ -23,12 +23,15 @@ import {
   selectDetailLoading,
   selectDetailError,
 } from "@/redux/slices/challengesSlice";
+import { API } from "@/api/api";
 import {
   Play,
   Send,
   FileCode2,
   Terminal as TerminalIcon,
   Check,
+  CheckCircle2,
+  AlertCircle,
   X,
   ArrowLeft,
   Clock,
@@ -37,6 +40,7 @@ import {
   BookOpen,
   Globe,
   RotateCw,
+  RotateCcw,
   Lock,
   Loader2,
   Trash2,
@@ -72,6 +76,17 @@ const LANG_TO_MONACO = { ts: "typescript", js: "javascript", py: "python", go: "
 const LANG_LABEL = { ts: "TypeScript", js: "JavaScript", py: "Python", go: "Go" };
 const LANG_BADGE = { ts: "node v20.10", js: "node v20.10", py: "python 3.12", go: "go 1.22" };
 const LANG_FILE = { ts: "solution.ts", js: "solution.js", py: "solution.py", go: "main.go" };
+
+// Reverse-map backend language strings to editor short codes
+const BACKEND_LANG_TO_SHORT = {
+  typescript: "ts",
+  javascript: "js",
+  python: "py",
+  go: "go",
+  cpp: "ts", // fallback to ts if unsupported in editor
+  rust: "ts",
+  java: "ts",
+};
 
 // ─── Starter code ─────────────────────────────────────────────────────────────
 
@@ -611,6 +626,11 @@ function EditorPage() {
   const [consoleResult, setResult] = useState(null);
   const [activeTab, setActiveTab] = useState("testcase");
 
+  // Previous submission state
+  const [prevSubmission, setPrevSubmission] = useState(null); // { found, is_accepted, code, language, score, verdict, created_at, total_attempts }
+  const [prevSubLoading, setPrevSubLoading] = useState(true);
+  const [usingPrevCode, setUsingPrevCode] = useState(false);
+
   // Derived busy flags
   const isRunning = execState.runStatus === 'loading';
   const isSubmitting = execState.submitStatus === 'loading';
@@ -633,12 +653,40 @@ function EditorPage() {
   useEffect(() => {
     setCode(getStarter(slug, lang));
     setResult(null);
+    setPrevSubmission(null);
+    setUsingPrevCode(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   useEffect(() => {
     dispatch(FetchChallengeBySlug(slug));
   }, [dispatch, slug]);
+
+  // Fetch the user's previous submission for this challenge
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPrev = async () => {
+      setPrevSubLoading(true);
+      try {
+        const res = await API.get(`/api/v1/my-submissions/${slug}`);
+        if (!cancelled && res.data?.found) {
+          setPrevSubmission(res.data);
+          // Auto-load previous code
+          const shortLang = BACKEND_LANG_TO_SHORT[res.data.language] ?? "ts";
+          setLang(shortLang);
+          setCode(res.data.code);
+          setUsingPrevCode(true);
+        }
+      } catch (_) {
+        // Not authenticated or no submission — silently ignore
+      } finally {
+        if (!cancelled) setPrevSubLoading(false);
+      }
+    };
+    if (user) fetchPrev();
+    else setPrevSubLoading(false);
+    return () => { cancelled = true; };
+  }, [slug, user]);
 
   const handleLangChange = useCallback(
     (l) => {
@@ -663,6 +711,14 @@ function EditorPage() {
     setActiveTab("result");
     dispatch(submitCode({ code, language: lang, slug, userId: user?.user_id }));
   }, [code, lang, slug, dispatch, user]);
+
+  // Reset editor to default starter code, dismissing previous submission
+  const handleResetToStarter = useCallback(() => {
+    const starterCode = getStarter(slug, lang);
+    setCode(starterCode);
+    setUsingPrevCode(false);
+    setResult(null);
+  }, [slug, lang]);
 
   if (loading && !c)
     return (
@@ -760,7 +816,60 @@ function EditorPage() {
         </div>
       </div>
 
+      {/* ── Previous Submission Acknowledgement Banner ───────────────────── */}
+      {usingPrevCode && prevSubmission && !c?.locked && (
+        <div
+          className={`flex items-center gap-3 px-4 py-2.5 text-sm border-b ${
+            prevSubmission.is_accepted
+              ? "bg-emerald-950/40 border-emerald-800/40 text-emerald-300"
+              : "bg-amber-950/40 border-amber-800/40 text-amber-300"
+          }`}
+        >
+          {prevSubmission.is_accepted ? (
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+          ) : (
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+          )}
+          <div className="flex-1 min-w-0">
+            <span className="font-semibold">
+              {prevSubmission.is_accepted
+                ? "You've already solved this challenge!"
+                : "Previously attempted"}
+            </span>
+            <span className="ml-2 text-xs opacity-70">
+              {prevSubmission.is_accepted
+                ? "Your accepted solution is loaded below. You can re-submit to improve."
+                : `Your last submission is loaded (${prevSubmission.total_attempts} attempt${prevSubmission.total_attempts !== 1 ? "s" : ""} · not yet accepted). Keep improving!`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {prevSubmission.score > 0 && (
+              <Badge
+                variant="outline"
+                className={`font-mono text-[10px] ${
+                  prevSubmission.is_accepted
+                    ? "border-emerald-700 text-emerald-300"
+                    : "border-amber-700 text-amber-300"
+                }`}
+              >
+                {prevSubmission.score}/100
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleResetToStarter}
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Reset to starter
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Workspace Area: Locked check */}
+
       {c?.locked ? (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-56px-49px)] bg-zinc-950 px-4 text-center">
           <div className="max-w-md w-full bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-8 space-y-6 shadow-xl relative overflow-hidden">
