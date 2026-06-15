@@ -238,6 +238,67 @@ async def get_submission(submission_id: str) -> dict[str, Any]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# GET /api/v1/submissions/my/{problem_slug}
+# Returns the current user's most recent submission for a problem slug.
+# IMPORTANT: This route MUST be registered before /{submission_id} to avoid
+# the static path "my" being captured as a submission_id wildcard.
+# We achieve this by declaring it separately with a distinct prefix.
+# ─────────────────────────────────────────────────────────────────────────────
+
+@engine_router.get("/my-submissions/{problem_slug}", summary="Get my last submission for a problem")
+async def get_my_submission(
+    problem_slug: str,
+    user_auth=Depends(UserMiddleware.me),
+) -> dict[str, Any]:
+    """
+    **Get the current user's most recent submission for a specific problem.**
+
+    Returns the submission code, language, verdict, score, and timestamp.
+    Used by the editor to show an "Already Attempted" banner and pre-fill code.
+    """
+    user_doc = user_auth.get("user")
+    user_id = str(user_doc["user_id"])
+    db = get_db()
+
+    # Find the most recent submission for this user+slug, any verdict
+    submission = await db.submissions.find_one(
+        {"user_id": user_id, "problem_slug": problem_slug},
+        {"_id": 0},
+        sort=[("created_at", -1)],
+    )
+
+    if not submission:
+        return {"found": False}
+
+    # Also check if there's an accepted submission
+    accepted = await db.submissions.find_one(
+        {"user_id": user_id, "problem_slug": problem_slug, "status": "accepted"},
+        {"_id": 0},
+        sort=[("created_at", -1)],
+    )
+
+    # Prefer the accepted submission's code over partial; use latest for metadata
+    result_sub = accepted if accepted else submission
+
+    return {
+        "found": True,
+        "is_accepted": accepted is not None,
+        "submission_id": result_sub.get("submission_id") or result_sub.get("id"),
+        "code": result_sub.get("source_code") or result_sub.get("code", ""),
+        "language": result_sub.get("language", ""),
+        "status": result_sub.get("status", ""),
+        "score": result_sub.get("score", 0),
+        "verdict": result_sub.get("verdict", ""),
+        "created_at": str(result_sub.get("created_at", "")),
+        "total_attempts": await db.submissions.count_documents(
+            {"user_id": user_id, "problem_slug": problem_slug}
+        ),
+    }
+
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GET /api/v1/results/{submission_id}
 # ─────────────────────────────────────────────────────────────────────────────
 

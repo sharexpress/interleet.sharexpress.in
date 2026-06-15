@@ -31,11 +31,39 @@ class InterviewReportRepository:
             "report": report,
             "created_at": datetime.utcnow(),
         }
+
+        # Check if this is a NEW report (upsert may be updating an existing one)
+        existing = await db[cls.collection_name].find_one({"session_id": session_id})
+        is_new_report = existing is None
+
         await db[cls.collection_name].update_one(
             {"session_id": session_id},
             {"$set": document},
             upsert=True,
         )
+
+        # Update user stats only when this is the first time saving this session
+        if is_new_report and user_id:
+            overall_score = (
+                report.get("overall_score")
+                or report.get("average_score")
+                or 0
+            )
+            try:
+                await db.users.update_one(
+                    {"user_id": user_id},
+                    {
+                        "$inc": {"interview_count": 1},
+                        "$set": {
+                            "last_interview_at": datetime.utcnow(),
+                            "last_interview_role": state.get("role", ""),
+                            "last_interview_score": overall_score,
+                        },
+                    },
+                )
+            except Exception:
+                # Non-fatal — profile stats will still be computed from interview_reports
+                pass
 
     @classmethod
     async def get_report(cls, session_id: str) -> dict[str, Any] | None:
