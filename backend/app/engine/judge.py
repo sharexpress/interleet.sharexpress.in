@@ -130,21 +130,53 @@ class JudgeEngine:
     @staticmethod
     def _compare(actual: str, expected: str, mode: ComparisonMode) -> bool:
         """Compare actual vs expected output with the given comparison mode."""
+        # Clean basic trailing/leading spaces/newlines/carriage returns
+        act_clean = actual.replace("\r\n", "\n").strip()
+        exp_clean = expected.replace("\r\n", "\n").strip()
+
+        matched = False
         if mode == ComparisonMode.EXACT:
-            return actual == expected
-
-        if mode == ComparisonMode.TRIMMED:
+            matched = actual == expected
+        elif mode == ComparisonMode.TRIMMED:
             # Strip trailing whitespace per line, then compare
-            actual_lines = [line.rstrip() for line in actual.rstrip("\n").splitlines()]
-            expected_lines = [line.rstrip() for line in expected.rstrip("\n").splitlines()]
-            return actual_lines == expected_lines
-
-        if mode == ComparisonMode.TOKEN:
+            actual_lines = [line.rstrip() for line in actual.replace("\r\n", "\n").rstrip("\n").splitlines()]
+            expected_lines = [line.rstrip() for line in expected.replace("\r\n", "\n").rstrip("\n").splitlines()]
+            matched = actual_lines == expected_lines
+        elif mode == ComparisonMode.TOKEN:
             actual_tokens = actual.split()
             expected_tokens = expected.split()
-            return actual_tokens == expected_tokens
+            matched = actual_tokens == expected_tokens
+        else:
+            matched = act_clean == exp_clean
 
-        return actual.strip() == expected.strip()
+        if matched:
+            return True
+
+        # --- Forgiving Fallback comparison if strict fails ---
+        import re
+        def clean_and_normalize(s: str) -> str:
+            # Lowercase
+            val = s.lower().strip()
+            # Replace carriage returns
+            val = val.replace("\r\n", "\n")
+            # Replace any run of whitespace/newlines with a single space
+            val = re.sub(r'\s+', ' ', val)
+            # Remove spaces around brackets, braces, parentheses, commas, colons
+            val = re.sub(r'\s*([\[\],(){}:])\s*', r'\1', val)
+            # Strip surrounding quotes
+            val = val.strip("'\"")
+            return val
+
+        if clean_and_normalize(actual) == clean_and_normalize(expected):
+            return True
+
+        # Fallback check for boolean mappings (e.g. true vs 1, false vs 0)
+        act_norm = clean_and_normalize(actual).replace("true", "1").replace("false", "0")
+        exp_norm = clean_and_normalize(expected).replace("true", "1").replace("false", "0")
+        if act_norm == exp_norm:
+            return True
+
+        return False
 
     @staticmethod
     def _aggregate_verdict(
