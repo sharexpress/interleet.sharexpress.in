@@ -9,7 +9,7 @@ from app.ai.graph.nodes.difficulty_node import difficulty_node
 from app.ai.graph.nodes.evaluation_node import evaluation_node
 from app.ai.graph.nodes.question_node import question_node
 from app.ai.graph.state import InterviewState
-from app.ai.schemas.interview import InterviewStateModel
+from app.ai.schemas.interview import Difficulty, InterviewStateModel
 
 
 def build_initial_state(payload: dict[str, Any]) -> InterviewState:
@@ -47,7 +47,7 @@ def build_initial_state(payload: dict[str, Any]) -> InterviewState:
         session_id=payload.get("session_id") or str(uuid.uuid4()),
         role=role,
         interview_type=interview_type,
-        difficulty=mock_test.get("difficulty", "medium"),
+        difficulty=Difficulty.EASY,  # Always start at "easy" baseline for warmup
         jd=jd,
         additional_context=payload.get("additional_context", ""),
         candidate_summary=str(parsed_resume.get("summary", "")),
@@ -61,6 +61,7 @@ def build_initial_state(payload: dict[str, Any]) -> InterviewState:
         min_questions=min_questions,
         metadata={
             "mock_test": mock_test,
+            "target_difficulty": mock_test.get("difficulty", "medium"),
             "question_budget_includes_intro": True,
             "assessment_dimensions": _assessment_dimensions(interview_type),
         },
@@ -69,9 +70,6 @@ def build_initial_state(payload: dict[str, Any]) -> InterviewState:
 
 
 async def run_interview_graph(state: InterviewState) -> InterviewState:
-    graph = _build_langgraph()
-    if graph is not None:
-        return await graph.ainvoke(state)
     return await _run_manual_graph(state)
 
 
@@ -127,13 +125,74 @@ async def _run_manual_graph(state: InterviewState) -> InterviewState:
         current = {**state, **await context_node(state)}
         return {**current, **await question_node(current)}
 
-    current = {**state, **await evaluation_node(state)}
-    current = {**current, **await context_node(current)}
+    # Parallelize evaluation and question generation LLM calls
+    import asyncio
+    from app.ai.graph.nodes.context_node import _detect_covered_topics
+
+    topic = state.get("current_topic") or state.get("last_answer_topic", "")
+    temp_turn = {
+        "question":   state.get("current_question", ""),
+        "answer":     state.get("last_answer", ""),
+        "topic":      topic,
+        "difficulty": state.get("difficulty", "medium"),
+        "evaluation": {},  # evaluation is computed in parallel
+    }
+    
+    # Pre-calculate covered topics for the question node
+    covered_topics = list(state.get("covered_topics", []))
+    for matched in _detect_covered_topics(state, topic):
+        if matched not in covered_topics:
+            covered_topics.append(matched)
+            
+    remaining_topics = [
+        t for t in state.get("target_topics", [])
+        if t not in covered_topics
+    ]
+
+    state_for_question = {
+        **state,
+        "turns":            [*state.get("turns", []), temp_turn],
+        "covered_topics":   covered_topics,
+        "remaining_topics": remaining_topics,
+    }
+
+    # Launch evaluation and question node LLM execution concurrently
+    eval_task = asyncio.create_task(evaluation_node(state))
+    question_task = asyncio.create_task(question_node(state_for_question))
+    
+    eval_res, question_res = await asyncio.gather(eval_task, question_task)
+    
+    state_with_eval = {**state, **eval_res}
+    
+    # Save the current turn (with the real evaluation)
+    current = {**state_with_eval, **await context_node(state_with_eval)}
     current = {**current, **await difficulty_node(current)}
     current = {**current, **await completion_node(current)}
-    if _after_completion(current) == "complete":
+    
+    if current.get("completed"):
         return current
-    return {**current, **await question_node(current)}
+
+    # Merge pre-computed question results into final state
+    final_state = {**current}
+    for key in [
+        "current_question", "current_preamble", "current_affect", 
+        "current_answer_guidance", "current_topic", "current_intent", 
+        "current_expected_signal", "difficulty"
+    ]:
+        if key in question_res:
+            final_state[key] = question_res[key]
+            
+    final_state["questions_asked"] = [*current.get("questions_asked", []), question_res["current_question"]]
+    
+    # Build full message matching the schema
+    p = (question_res.get("current_preamble") or "").strip()
+    q = (question_res.get("current_question") or "").strip()
+    full_msg = f"{p}\n\n{q}" if p else q
+    
+    final_state["interviewer_messages"] = [*current.get("interviewer_messages", []), full_msg]
+    final_state["current_question_index"] = len(final_state["questions_asked"])
+    
+    return final_state
 
 
 def _entrypoint(state: InterviewState) -> str:
@@ -184,6 +243,8 @@ def _default_topics(interview_type: str) -> list[str]:
         "system_design": ["requirements", "data model", "scaling", "tradeoffs", "risk handling"],
         "behavioral": ["ownership", "conflict", "failure", "leadership", "communication"],
         "hr": ["motivation", "collaboration", "strengths", "role fit", "career goals"],
+        "fullstack": ["React architecture", "state management", "API design & middleware", "database optimization", "security"],
+        "mern": ["React components", "Node/Express middleware", "MongoDB Mongoose schemas", "JWT authentication", "performance optimization"],
     }
     return presets.get(interview_type.lower(), presets["backend"])
 

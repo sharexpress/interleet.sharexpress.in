@@ -336,7 +336,7 @@ function LiveInterview() {
     clearSilence();
     if (interactionModeRef.current !== "auto") return;
 
-    const DURATION = 2500;
+    const DURATION = 1500;
     const t0 = Date.now();
 
     countdownIntervalRef.current = setInterval(() => {

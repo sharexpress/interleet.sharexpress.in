@@ -44,7 +44,8 @@ function InterviewsPage() {
             { t: "System Design (L5)", d: "End-to-end architecture for production systems.", m: 60 },
             { t: "DevOps Lead", d: "CI/CD, infrastructure, reliability, on-call.", m: 45 },
             { t: "API Design", d: "REST, contracts, versioning, evolvability.", m: 30 },
-            { t: "Full-Stack Generalist", d: "Mixed scenarios across the stack.", m: 50 }
+            { t: "Full-Stack Generalist", d: "Mixed scenarios across the stack.", m: 50 },
+            { t: "MERN Stack Developer", d: "MongoDB, Express, React, Node.js integration.", m: 45 }
           ]);
           setLoadingRoles(false);
         }

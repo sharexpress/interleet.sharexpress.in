@@ -11,7 +11,8 @@ DEFAULT_INTERVIEW_PRESETS = [
     { "id": "sysdesign", "title": "System Design (L5)", "description": "End-to-end architecture for production systems.", "duration_minutes": 60 },
     { "id": "devops", "title": "DevOps Lead", "description": "CI/CD, infrastructure, reliability, on-call.", "duration_minutes": 45 },
     { "id": "apidesign", "title": "API Design", "description": "REST, contracts, versioning, evolvability.", "duration_minutes": 30 },
-    { "id": "fullstack", "title": "Full-Stack Generalist", "description": "Mixed scenarios across the stack.", "duration_minutes": 50 }
+    { "id": "fullstack", "title": "Full-Stack Generalist", "description": "Mixed scenarios across the stack.", "duration_minutes": 50 },
+    { "id": "mern", "title": "MERN Stack Developer", "description": "MongoDB, Express, React, Node.js, full-stack API integration.", "duration_minutes": 45 }
 ]
 
 DEFAULT_SYSTEM_DESIGN_CHALLENGES = [
@@ -81,15 +82,11 @@ class AdminController:
     # ─── INTERVIEW PRESETS ────────────────────────────────────────────────
     @staticmethod
     async def list_presets():
+        # Upsert default presets to guarantee any updates are always available in DB
+        for p in DEFAULT_INTERVIEW_PRESETS:
+            await db.interview_presets.update_one({"id": p["id"]}, {"$set": p}, upsert=True)
         cursor = db.interview_presets.find({}, {"_id": 0})
-        presets = [p async for p in cursor]
-        if not presets:
-            # Seed default presets
-            for p in DEFAULT_INTERVIEW_PRESETS:
-                await db.interview_presets.update_one({"id": p["id"]}, {"$set": p}, upsert=True)
-            cursor = db.interview_presets.find({}, {"_id": 0})
-            presets = [p async for p in cursor]
-        return presets
+        return [p async for p in cursor]
 
     @staticmethod
     async def save_preset(preset_id: str, payload: dict):

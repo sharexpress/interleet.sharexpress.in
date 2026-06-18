@@ -7,6 +7,7 @@ Turn record includes the evaluation from evaluation_node (via last_evaluation).
 For the intro path (self_introduction), evaluation is skipped, so we record
 an empty evaluation dict.
 """
+from pydantic import BaseModel, Field
 from app.ai.graph.state import InterviewState
 
 
@@ -27,14 +28,20 @@ async def context_node(state: InterviewState):
     turns = [*state.get("turns", []), turn]
 
     # ── Covered / remaining topic tracking ────────────────────────────────────
+    target_topics = list(state.get("target_topics", []))
     covered_topics = list(state.get("covered_topics", []))
+
+    if is_intro:
+        # Dynamically build interview topics (nodes) from the candidate's introduction text
+        target_topics = await _generate_topics_from_intro(state, state.get("last_answer", ""))
+
     if not is_intro:
         for matched in _detect_covered_topics(state, topic):
             if matched not in covered_topics:
                 covered_topics.append(matched)
 
     remaining_topics = [
-        t for t in state.get("target_topics", [])
+        t for t in target_topics
         if t not in covered_topics
     ]
 
@@ -46,6 +53,7 @@ async def context_node(state: InterviewState):
 
     return {
         "turns":                  turns,
+        "target_topics":          target_topics,
         "covered_topics":         covered_topics,
         "remaining_topics":       remaining_topics,
         "candidate_introduction": state.get("last_answer", "")
@@ -71,3 +79,37 @@ def _detect_covered_topics(state: InterviewState, generated_topic: str) -> list[
         if t.lower() in haystack or haystack in t.lower()
     ]
     return matched if matched else ([generated_topic] if generated_topic else [])
+
+
+class extracted_topics(BaseModel):
+    topics: list[str] = Field(default_factory=list)
+
+
+async def _generate_topics_from_intro(state: InterviewState, intro_text: str) -> list[str]:
+    from pydantic import BaseModel, Field
+    from app.ai.prompts.system_prompt import INTRO_TOPICS_PROMPT
+    from app.ai.services.ai_client import ai_client
+    
+    user_prompt = f"""
+Role: {state.get("role", "")}
+Interview type: {state.get("interview_type", "")}
+JD Context: {(state.get("jd") or "")[:1000]}
+Skills context: {state.get("skills", [])}
+Candidate Self-Introduction:
+{intro_text}
+"""
+    try:
+        res = await ai_client.generate_json(
+            system=INTRO_TOPICS_PROMPT,
+            user=user_prompt,
+            schema=extracted_topics,
+            temperature=0.3,
+        )
+        if res.topics:
+            # Clean and return exactly 5 topics
+            return [t.strip() for t in res.topics if t.strip()][:5]
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning(f"[context_node] Dynamic topic generation failed: {exc}")
+        
+    return state.get("target_topics", [])

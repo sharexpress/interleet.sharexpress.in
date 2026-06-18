@@ -208,18 +208,19 @@ async def text_to_speech(text: str, voice: str = "nova"):
         raise HTTPException(status_code=400, detail="text parameter is required")
 
     try:
-        def _call_openai():
-            client   = OpenAI(api_key=OPENAI_API_KEY)
-            response = client.audio.speech.create(
+        client = OpenAI(api_key=OPENAI_API_KEY)
+
+        def _stream_audio():
+            with client.audio.speech.with_streaming_response.create(
                 model="tts-1",
                 voice=voice,
                 input=text.strip(),
-            )
-            return response.content
+            ) as response:
+                for chunk in response.iter_bytes(chunk_size=4096):
+                    yield chunk
 
-        audio_data = await anyio.to_thread.run_sync(_call_openai)
         return StreamingResponse(
-            io.BytesIO(audio_data),
+            _stream_audio(),
             media_type="audio/mpeg",
             headers={
                 "Cache-Control": "public, max-age=86400",  # Cache TTS for 24h
