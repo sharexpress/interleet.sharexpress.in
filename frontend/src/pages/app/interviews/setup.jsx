@@ -164,6 +164,30 @@ const ROLE_JDS = {
     "technologies": ["React", "Node.js", "Express", "PostgreSQL", "Prisma", "Git", "Docker"],
     "level": "L4 / Senior Developer",
     "salary": "$120,000 - $160,000"
+  },
+  "MERN Stack Developer": {
+    "title": "MERN Stack Developer",
+    "overview": "Develop and maintain robust web applications using MongoDB, Express.js, React, and Node.js. Focus on component optimization, state lifecycles, and database aggregation query logic.",
+    "responsibilities": [
+      "Implement and secure RESTful APIs using Node.js, Express, and JWT.",
+      "Model hierarchical, relational-style databases inside MongoDB using Mongoose schemas.",
+      "Optimize React client-side rendering performance, state caches, and hook lifecycles.",
+      "Ensure API safety through middleware verification and payload validation."
+    ],
+    "requirements": [
+      "Strong JavaScript/TypeScript proficiency.",
+      "Proficiency with MongoDB document structures, indices, and pipeline aggregations.",
+      "Solid comprehension of the Node.js event-loop and asynchronous control flow.",
+      "Experience with client state libraries (Redux Toolkit, Context, or Zustand)."
+    ],
+    "focus_areas": [
+      "React render optimization and caching",
+      "MongoDB database modeling and index optimizations",
+      "Token-based authorization and session security middleware"
+    ],
+    "technologies": ["MongoDB", "Express.js", "React", "Node.js", "Mongoose", "Redux", "JWT"],
+    "level": "L4 / Senior Developer",
+    "salary": "$115,000 - $145,000"
   }
 };
 
@@ -175,6 +199,7 @@ const ROLE_INTERVIEW_TYPE = {
   "DevOps Lead": "devops",
   "API Design": "backend",
   "Full-Stack Generalist": "fullstack",
+  "MERN Stack Developer": "mern",
 };
 
 const ROLE_TOPICS = {
@@ -184,6 +209,7 @@ const ROLE_TOPICS = {
   "DevOps Lead": ["CI/CD", "Docker", "Kubernetes", "Cloud Infrastructure", "Monitoring"],
   "API Design": ["REST", "GraphQL", "Auth", "Rate Limiting", "Versioning"],
   "Full-Stack Generalist": ["React", "Node.js", "SQL", "APIs", "Testing"],
+  "MERN Stack Developer": ["React Hooks", "Node.js Express", "MongoDB Mongoose", "JWT Auth", "State Management"],
 };
 
 const DIFFICULTY_MAP = { Easy: "easy", Intermediate: "medium", Hard: "hard" };

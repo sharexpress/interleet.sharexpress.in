@@ -123,6 +123,50 @@ def _build_question_prompt(state: InterviewState) -> str:
         elif isinstance(msg, dict):
             recent_preambles.append(msg.get("preamble", ""))
 
+    last_evaluation = state.get("last_evaluation") or {}
+    last_score = last_evaluation.get("score")
+    follow_up = last_evaluation.get("follow_up_needed", False)
+
+    # Count consecutive technical turns spent on the current topic
+    turns = state.get("turns", [])
+    current_topic = state.get("current_topic", "")
+    probing_count = 0
+    for t in reversed(turns):
+        if t.get("topic") == current_topic:
+            probing_count += 1
+        else:
+            break
+
+    adaptive_probing_instruction = ""
+    if last_score is not None:
+        last_score_val = float(last_score)
+        
+        # If the candidate struggled, but we have already follow-up probed twice, force pivot
+        if (last_score_val < 6.0 or follow_up) and probing_count < 2:
+            reason = last_evaluation.get("follow_up_reason") or last_evaluation.get("summary") or "Answer needs improvement"
+            adaptive_probing_instruction = f"""
+*** ADAPTIVE PROBING INSTRUCTION (CRITICAL) ***
+The candidate's last response on the topic "{current_topic}" was weak or incomplete (Score: {last_score_val}/10).
+Reason for concern: {reason}
+
+You MUST:
+1. Stay on the topic "{current_topic}". Do not pivot to a new topic yet.
+2. In your preamble, push back directly on their specific explanation weakness or introduce a realistic failure constraint.
+3. Formulate your question as a follow-up to test if they can clarify their design, solve the bottleneck, or identify the trade-off.
+4. Set the "topic" field in the output JSON to "{current_topic}".
+"""
+        elif last_score_val < 6.0 and probing_count >= 2:
+            # Probed twice already. Gracefully pivot to a remaining topic.
+            remaining = state.get("remaining_topics", [])
+            adaptive_probing_instruction = f"""
+*** FORCED PIVOT INSTRUCTION (CRITICAL) ***
+The candidate has struggled on "{current_topic}" for multiple turns. To maintain a realistic, professional, and empathetic conversation flow:
+1. You MUST pivot away from "{current_topic}". Do NOT ask any more questions about it.
+2. In your preamble, write a polite, graceful transition acknowledging the shift (e.g., "Let's move past that for now," or "Fair enough, let's shift focus to a different area," max 20 words).
+3. Select a NEW topic from the remaining topics list: {remaining}
+4. Ask a focused question on the new topic.
+"""
+
     return f"""
 Role: {state.get("role", "")}
 Interview type: {state.get("interview_type", "")}
@@ -150,6 +194,7 @@ Candidate professionalism note: {behavior_summary}
 {chr(10).join(history_lines)}
 
 Last evaluation detail: {state.get("last_evaluation")}
+{adaptive_probing_instruction}
 """
 
 
@@ -198,7 +243,7 @@ Keep the same purpose: ask for self-introduction.
 async def _repair_question(generated: GeneratedQuestion, state: InterviewState) -> GeneratedQuestion:
     text = _join(generated.preamble, generated.question)
     canned = [p for p in _CANNED_PHRASES if p in text.lower()]
-    too_long = len(generated.question.split()) > 32
+    too_long = len(generated.question.split()) > 62
 
     if not canned and not too_long:
         return generated
@@ -208,7 +253,7 @@ async def _repair_question(generated: GeneratedQuestion, state: InterviewState) 
         user=f"""
 Rewrite this interviewer turn. Issues found:
 {f"- Canned phrases present: {canned}" if canned else ""}
-{f"- Question too long ({len(generated.question.split())} words, limit 32)" if too_long else ""}
+{f"- Question too long ({len(generated.question.split())} words, limit 62)" if too_long else ""}
 
 Original:
 {text}

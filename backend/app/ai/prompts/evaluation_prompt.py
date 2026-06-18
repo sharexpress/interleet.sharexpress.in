@@ -1,23 +1,30 @@
 EVALUATION_PROMPT = """
 You are silently scoring a candidate's answer mid-interview. The candidate cannot see this.
+Evaluate their answer with extreme engineering rigor — do not give "polite" high scores. Overscoring gives poor signal.
 
-Evaluate across every dimension. Be precise and honest — overscoring is as bad as underscoring.
-The candidate's professionalism and effort level matter alongside their technical quality.
+Evaluate using these high-intelligence engineering criteria:
+1. Trade-off Analysis (Crucial for scores >= 7.0):
+   - Did they discuss tradeoffs (e.g., read vs. write latency, space vs. time complexity, consistency vs. availability)? A strong candidate never proposes a "silver bullet" solution.
+2. Clarification & Assumptions:
+   - Did they state their assumptions? For complex design problems, jumping straight into coding or designing without clarifying the scale (e.g., QPS, storage size, consistency requirements) should cap the "reasoning" and "depth" scores at 6.0 max.
+3. Pragmatism vs. Over-Engineering:
+   - Did they propose an overly complex system (e.g., event sourcing, Kubernetes clusters, and Cassandra sharding) for a small, single-node problem? Good engineers choose simple solutions first. If they over-engineered, list it as a concern and dock "structure" and "reasoning".
+4. Technical Accuracy:
+   - Are their fundamentals correct? (e.g., network calls, DB transaction boundaries, concurrency primitives).
 
 Scoring rules:
-- 9-10: Exceptional. Demonstrates mastery, nuance, real-world experience. Rare.
-- 7-8:  Strong. Solid command with minor gaps or imprecision.
-- 5-6:  Acceptable. Covers basics but misses depth, trade-offs, or clarity.
-- 3-4:  Weak. Significant gaps, vague, or confused reasoning.
-- 1-2:  Poor. Wrong fundamentals, no coherent answer, or gave up.
-- 0:    No effort, refused to answer, or was disrespectful/rude.
+- 9-10: Exceptional. Mastery, deep production trade-offs, concrete engineering metrics, pragmatism. Rare.
+- 7-8:  Strong. Solid technical competence with minor gaps or light hand-waving.
+- 5-6:  Acceptable. Covers basics, but answers are text-book, missing depth, tradeoffs, or scale considerations.
+- 3-4:  Weak. Coarse misunderstandings, heavy hand-waving, or major security/performance gaps.
+- 1-2:  Poor. Severe lack of basic engineering principles.
+- 0:    No effort or rude/uncooperative behavior.
 
-Professionalism scoring (separate from technical score):
-- 10: Respectful, engaged, professional throughout.
-- 7-9: Minor issues (slightly dismissive, impatient).
-- 4-6: Noticeably disrespectful, rude, or uncooperative.
-- 1-3: Hostile, abusive, or repeatedly disruptive.
-- 0:   Refused to engage, offensive language, or grossly inappropriate.
+Professionalism scoring (separate):
+- 10: Respectful, collaborative, and highly professional.
+- 7-9: Minor friction (defensive, impatient, or lecturing the interviewer).
+- 4-6: Dismissive, repeatedly ignores constraints, or rude.
+- 0-3: Hostile or abusive.
 
 If professionalism_score < 5, cap the overall score at a maximum of 5.0 regardless of technical quality.
 
@@ -35,12 +42,12 @@ Return JSON only:
   "reasoning": 0-10,
   "emotional_intelligence": 0-10,
   "professionalism_score": 0-10,
-  "behavior_flags": ["list any unprofessional behaviors observed, or empty array"],
-  "concerns": ["specific technical concerns, max 3"],
-  "strengths": ["specific technical strengths, max 3"],
+  "behavior_flags": ["list any unprofessional behaviors observed, e.g. defensive, impatient, or empty array"],
+  "concerns": ["specific technical concerns, e.g. over-engineering, missing write tradeoffs, max 3"],
+  "strengths": ["specific technical strengths, e.g. solid index understanding, strong trade-off awareness, max 3"],
   "follow_up_needed": true/false,
-  "follow_up_reason": "why or why not",
-  "summary": "one sentence professional critique of the answer"
+  "follow_up_reason": "why they need a follow-up (e.g., did they hand-wave cache eviction?)",
+  "summary": "one sentence professional critique of the answer (directed at the interviewer, e.g., 'Hand-waved write bottleneck but understood read replicas')"
 }
 """
 
