@@ -83,10 +83,10 @@ import { challenges, blankChallenge } from "@/lib/simulator/challenges";
 const nodeTypes = { infra: InfraNode };
 const edgeTypes = { traffic: TrafficEdge };
 
-const Panel = ({ children, className = "" }) => (
+const Panel = ({ children, className = "", style }) => (
   <div
     className={`flex flex-col bg-[#111111] border-white/[0.08] ${className}`}
-    style={{ borderColor: "rgba(255,255,255,0.08)" }}
+    style={{ borderColor: "rgba(255,255,255,0.08)", ...style }}
   >
     {children}
   </div>
@@ -101,8 +101,53 @@ const SectionLabel = ({ children, right }) => (
   </div>
 );
 
+function DragHandle({ onDelta }) {
+  const dragging = useRef(false);
+  const startX = useRef(0);
+
+  const onMouseDown = useCallback(
+    (e) => {
+      e.preventDefault();
+      dragging.current = true;
+      startX.current = e.clientX;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+
+      const onMove = (ev) => {
+        if (!dragging.current) return;
+        const delta = ev.clientX - startX.current;
+        startX.current = ev.clientX;
+        onDelta(delta);
+      };
+      const onUp = () => {
+        dragging.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [onDelta],
+  );
+
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      className="group relative z-10 flex-shrink-0"
+      style={{ width: 6, cursor: "col-resize" }}
+    >
+      <div
+        className="absolute inset-y-0 left-0 right-0 bg-[#FF6500]/50 opacity-0 transition-opacity group-hover:opacity-100"
+        style={{ margin: "0 2px" }}
+      />
+    </div>
+  );
+}
+
 // ---------- Left: component library ----------
-function ComponentLibrary() {
+function ComponentLibrary({ width }) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -122,7 +167,7 @@ function ComponentLibrary() {
   };
 
   return (
-    <Panel className="w-[320px] shrink-0 border-r h-full">
+    <Panel style={{ width }} className="shrink-0 border-r h-full">
       <div className="border-b border-white/[0.08] px-4 py-3">
         <div className="text-[13px] font-semibold">Components</div>
         <div className="text-[11px] text-white/50">Drag onto the canvas</div>
@@ -1023,52 +1068,414 @@ function useSimulationEngine() {
   }, [failure]);
 
   useEffect(() => {
-    if (!sim.running && !failure) return;
+    if (!sim.running) {
+      // Reset active metrics on all nodes when simulation stops
+      const idleNodes = nodesRef.current.map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          cpu: 4,
+          memory: 20,
+          latency: n.data.latency || 20,
+          health: "healthy",
+          throughput: 0,
+          errorRate: 0,
+        },
+      }));
+      dispatch(setNodesAction(idleNodes));
+      dispatch(
+        setEdgesAction(
+          edgesRef.current.map((e) => ({
+            ...e,
+            animated: false,
+            data: {
+              ...e.data,
+              health: "healthy",
+              metric: 0,
+            },
+          })),
+        ),
+      );
+      dispatch(
+        setMetrics({
+          throughput: 0,
+          latency: 0,
+          errorRate: 0,
+          health: "Healthy",
+        }),
+      );
+      return;
+    }
+
     const id = setInterval(() => {
       const s = simRef.current;
       const f = failureRef.current;
       const currentNodes = nodesRef.current;
       const currentEdges = edgesRef.current;
 
-      let load = s.userLoad;
-      if (s.pattern === "burst") load = load * (0.6 + Math.random() * 1.8);
-      else if (s.pattern === "peak-hours") load = load * (0.9 + 0.4 * Math.sin(Date.now() / 5000));
-      else if (s.pattern === "random") load = load * (0.4 + Math.random() * 1.2);
-      else if (s.pattern === "ddos") load = load * (3 + Math.random() * 2);
+      let multiplier = 1.0;
+      if (s.pattern === "burst") multiplier = 0.6 + Math.random() * 1.8;
+      else if (s.pattern === "peak-hours") multiplier = 0.9 + 0.4 * Math.sin(Date.now() / 5000);
+      else if (s.pattern === "random") multiplier = 0.4 + Math.random() * 1.2;
+      else if (s.pattern === "ddos") multiplier = 3 + Math.random() * 2;
 
       const running = s.running;
-      const activeLoad = running ? load : 0;
 
-      let totalLatency = 0,
-        weighted = 0,
-        errors = 0,
-        costHr = 0;
-      const updated = currentNodes.map((n) => {
-        const cap = (n.data.throughput || 100) * (n.data.replicas || 1);
-        const isFailed = f && f.nodeId === n.id;
-        const traffic = activeLoad;
-        let load01 = cap > 0 ? traffic / cap : 0;
-        if (isFailed) load01 = 1.5;
-        const cpu = Math.min(100, Math.round(load01 * 90 + (running ? 8 : 4)));
-        const memory = Math.min(100, Math.round(load01 * 70 + 20));
-        const baseLat = n.data.latency || 20;
-        const latency = Math.round(
-          baseLat * (1 + Math.max(0, load01 - 0.7) * 4) + (isFailed ? 500 : 0),
-        );
-        const health = isFailed || load01 > 1.1 ? "critical" : load01 > 0.8 ? "warning" : "healthy";
-        const errRate = isFailed ? 80 : load01 > 1 ? (load01 - 1) * 40 : 0;
-        costHr += n.data.hourlyCost || 0;
-        weighted += traffic;
-        totalLatency += latency * traffic;
-        errors += errRate * traffic;
-        // IMPORTANT: preserve position, type and everything else on the node
-        return { ...n, data: { ...n.data, cpu, memory, latency, health } };
+      // Helper to dynamically calculate node capacity robustly
+      function getNodeCapacity(n) {
+        const kind = n.data.kind;
+        let baseCap = n.data.throughput !== undefined && n.data.throughput !== "" ? Number(n.data.throughput) : 1500;
+        if (["postgresql", "mysql", "mongodb"].includes(kind)) {
+          const rCap = n.data.readCapacity !== undefined && n.data.readCapacity !== "" ? Number(n.data.readCapacity) : 2000;
+          const wCap = n.data.writeCapacity !== undefined && n.data.writeCapacity !== "" ? Number(n.data.writeCapacity) : 500;
+          baseCap = rCap + wCap;
+        }
+        if (isNaN(baseCap) || baseCap <= 0) baseCap = 100;
+        const reps = Number(n.data.replicas ?? 1);
+        return baseCap * (isNaN(reps) || reps <= 0 ? 1 : reps);
+      }
+
+      // 1. Build adjacency list
+      const adj = {};
+      const revAdj = {};
+      currentNodes.forEach((n) => {
+        adj[n.id] = [];
+        revAdj[n.id] = [];
+      });
+      currentEdges.forEach((e) => {
+        if (adj[e.source] && adj[e.target]) {
+          adj[e.source].push({ targetId: e.target, edgeId: e.id });
+          revAdj[e.target].push({ sourceId: e.source, edgeId: e.id });
+        }
       });
 
-      const avgLatency = weighted > 0 ? Math.round(totalLatency / weighted) : 0;
-      const errorRate = weighted > 0 ? errors / weighted : 0;
+      // 2. Identify client nodes and generate load
+      const clientKinds = ["client", "mobile", "web", "client-cluster"];
+      const clientNodes = currentNodes.filter((n) => clientKinds.includes(n.data.kind));
+      
+      const nodeTrafficReceived = {};
+      const nodeOwnErrorRate = {};
+      const nodeErrorRate = {};
+      const nodeOwnLatency = {};
+      const edgeTraffic = {};
+
+      currentNodes.forEach((n) => {
+        nodeTrafficReceived[n.id] = 0;
+        nodeOwnErrorRate[n.id] = 0;
+        nodeErrorRate[n.id] = 0;
+      });
+
+      // Populate entry node traffic
+      const entryNodes = currentNodes.filter((n) => revAdj[n.id].length === 0);
+      if (clientNodes.length > 0) {
+        clientNodes.forEach((c) => {
+          const load = (c.data.concurrentUsers ?? 1000) * (c.data.requestRate ?? 5);
+          nodeTrafficReceived[c.id] = running ? load * multiplier : 0;
+        });
+      } else {
+        // Fallback: divide userLoad among all entry nodes
+        const baseFallbackLoad = entryNodes.length > 0 ? (s.userLoad * multiplier) / entryNodes.length : 0;
+        entryNodes.forEach((n) => {
+          nodeTrafficReceived[n.id] = running ? baseFallbackLoad : 0;
+        });
+      }
+
+      // 4. Topological Sort
+      const sortedNodeIds = [];
+      const visitedSort = new Set();
+      const tempSort = new Set();
+
+      function visit(nodeId) {
+        if (tempSort.has(nodeId)) return; // cycle check
+        if (visitedSort.has(nodeId)) return;
+        tempSort.add(nodeId);
+        const targets = adj[nodeId] || [];
+        targets.forEach((t) => visit(t.targetId));
+        tempSort.delete(nodeId);
+        visitedSort.add(nodeId);
+        sortedNodeIds.unshift(nodeId);
+      }
+
+      currentNodes.forEach((n) => {
+        if (!visitedSort.has(n.id)) {
+          visit(n.id);
+        }
+      });
+
+      // Define which kinds split vs propagate fully
+      const splitKinds = ["load-balancer", "api-gateway", "dns", "reverse-proxy"];
+
+      // 5. Downstream traffic propagation pass
+      sortedNodeIds.forEach((uId) => {
+        const u = currentNodes.find((n) => n.id === uId);
+        if (!u) return;
+
+        const isFailed = (f && f.nodeId === uId) || u.data.enabled === false;
+        const kind = u.data.kind;
+
+        // Calculate node's own error rate based on overload
+        let ownErrorRate = 0;
+        if (isFailed) {
+          ownErrorRate = 100;
+        } else {
+          const cap = getNodeCapacity(u);
+          const traffic = nodeTrafficReceived[uId];
+          const loadRatio = cap > 0 ? traffic / cap : 0;
+          if (loadRatio > 1.0) {
+            ownErrorRate = Math.min(100, Math.round((loadRatio - 1.0) * 40));
+          }
+          if (kind === "api-gateway") {
+            const rateLimit = (u.data.rateLimit || 3000) * (u.data.replicas || 1);
+            if (traffic > rateLimit) {
+              const droppedTraffic = traffic - rateLimit;
+              const rateLimitError = (droppedTraffic / traffic) * 100;
+              ownErrorRate = Math.min(100, ownErrorRate + Math.round(rateLimitError));
+            }
+          }
+        }
+        nodeOwnErrorRate[uId] = ownErrorRate;
+
+        // Determine traffic to send downstream
+        const traffic = nodeTrafficReceived[uId];
+        let trafficSent = traffic;
+        if (isFailed) {
+          trafficSent = 0;
+        } else {
+          if (kind === "cdn") {
+            trafficSent = traffic * 0.10; // 90% cache hits
+          } else if (kind === "redis") {
+            trafficSent = traffic * 0.15; // 85% cache hits
+          } else if (kind === "api-gateway") {
+            const rateLimit = (u.data.rateLimit || 3000) * (u.data.replicas || 1);
+            trafficSent = Math.min(traffic, rateLimit);
+          }
+        }
+
+        // Check targets to see if Redis cache is present alongside database
+        const targets = adj[uId] || [];
+        const targetNodes = targets.map(t => currentNodes.find(n => n.id === t.targetId)).filter(Boolean);
+        const hasCacheTarget = targetNodes.some(n => n.data.kind === "redis");
+
+        if (targets.length > 0) {
+          const isSplit = splitKinds.includes(kind);
+          targets.forEach((targetObj) => {
+            const targetNode = currentNodes.find(n => n.id === targetObj.targetId);
+            let edgeVal = trafficSent;
+
+            if (isSplit) {
+              edgeVal = trafficSent / targets.length;
+            } else {
+              if (targetNode && ["postgresql", "mysql", "mongodb"].includes(targetNode.data.kind) && hasCacheTarget) {
+                // Redis absorbs 85% of reads
+                edgeVal = trafficSent * 0.15;
+              }
+            }
+
+            edgeTraffic[targetObj.edgeId] = edgeVal;
+            nodeTrafficReceived[targetObj.targetId] += edgeVal;
+          });
+        }
+      });
+
+      // 6. Calculate own node latencies
+      currentNodes.forEach((u) => {
+        const isFailed = (f && f.nodeId === u.id) || u.data.enabled === false;
+        const cap = getNodeCapacity(u);
+        const traffic = nodeTrafficReceived[u.id];
+        const loadRatio = cap > 0 ? traffic / cap : 0;
+
+        let baseLat = u.data.latency || 20;
+        if (isFailed) {
+          nodeOwnLatency[u.id] = 500;
+          return;
+        }
+
+        const kind = u.data.kind;
+        if (kind === "cdn") baseLat = 5;
+        if (kind === "redis") baseLat = 1;
+        if (kind === "api-gateway") baseLat = 5;
+        if (kind === "dns") baseLat = 2;
+
+        let latency = baseLat;
+        if (loadRatio > 0.8) {
+          latency = Math.round(baseLat * (1 + Math.max(0, loadRatio - 0.7) * 4));
+        }
+        if (["postgresql", "mysql", "mongodb"].includes(kind) && loadRatio > 1.0) {
+          latency = Math.round(baseLat * (1 + Math.pow(loadRatio, 3) * 5));
+        }
+
+        // Cap latency at 10000ms to represent query timeout and prevent overflow layout bugs
+        nodeOwnLatency[u.id] = Math.min(10000, latency);
+      });
+
+      // 7. Calculate response error rate recursively (upstream propagation)
+      const memoResponseErrorRate = {};
+      function getResponseErrorRate(nodeId, visited = new Set()) {
+        if (visited.has(nodeId)) return 0;
+        if (memoResponseErrorRate[nodeId] !== undefined) {
+          return memoResponseErrorRate[nodeId];
+        }
+
+        const node = currentNodes.find((n) => n.id === nodeId);
+        if (!node) return 0;
+
+        visited.add(nodeId);
+        const ownErr = nodeOwnErrorRate[nodeId] || 0;
+        const targets = adj[nodeId] || [];
+
+        if (targets.length === 0) {
+          memoResponseErrorRate[nodeId] = ownErr;
+          visited.delete(nodeId);
+          return ownErr;
+        }
+
+        const kind = node.data.kind;
+        const isSplit = splitKinds.includes(kind);
+
+        let downstreamErr = 0;
+        if (targets.length > 0) {
+          const targetErrs = targets.map((t) => getResponseErrorRate(t.targetId, visited));
+          if (isSplit) {
+            downstreamErr = targetErrs.reduce((a, b) => a + b, 0) / targets.length;
+          } else {
+            // Query node error rate is max of targets (if any critical target fails, query fails)
+            // Note: redis failures bypass request failure since query falls back directly to the DB.
+            const criticalTargetErrs = targets
+              .filter((t) => {
+                const dest = currentNodes.find((n) => n.id === t.targetId);
+                return dest && dest.data.kind !== "redis";
+              })
+              .map((t) => getResponseErrorRate(t.targetId, visited));
+            
+            downstreamErr = criticalTargetErrs.length > 0 ? Math.max(...criticalTargetErrs) : 0;
+          }
+        }
+
+        const totalErr = Math.min(100, Math.round(ownErr + (1 - ownErr / 100) * downstreamErr));
+        memoResponseErrorRate[nodeId] = totalErr;
+
+        visited.delete(nodeId);
+        return totalErr;
+      }
+
+      currentNodes.forEach((n) => {
+        nodeErrorRate[n.id] = getResponseErrorRate(n.id);
+      });
+
+      // 8. Calculate response latency recursively (upstream path accumulation)
+      const memoResponseLatency = {};
+      function getResponseLatency(nodeId, visited = new Set()) {
+        if (visited.has(nodeId)) return 0;
+        if (memoResponseLatency[nodeId] !== undefined) {
+          return memoResponseLatency[nodeId];
+        }
+
+        const node = currentNodes.find((n) => n.id === nodeId);
+        if (!node) return 0;
+
+        visited.add(nodeId);
+        const ownLat = nodeOwnLatency[nodeId] || 20;
+        const targets = adj[nodeId] || [];
+
+        if (targets.length === 0) {
+          memoResponseLatency[nodeId] = ownLat;
+          visited.delete(nodeId);
+          return ownLat;
+        }
+
+        const kind = node.data.kind;
+        let res = ownLat;
+        if (kind === "cdn") {
+          const targetLats = targets.map((t) => getResponseLatency(t.targetId, visited));
+          const maxTargetLat = targetLats.length > 0 ? Math.max(...targetLats) : 0;
+          res = Math.round(0.90 * ownLat + 0.10 * (ownLat + maxTargetLat));
+        } else if (kind === "redis") {
+          const targetLats = targets.map((t) => getResponseLatency(t.targetId, visited));
+          const maxTargetLat = targetLats.length > 0 ? Math.max(...targetLats) : 0;
+          res = Math.round(0.85 * ownLat + 0.15 * (ownLat + maxTargetLat));
+        } else {
+          const targetLats = targets.map((t) => getResponseLatency(t.targetId, visited));
+          const maxTargetLat = targetLats.length > 0 ? Math.max(...targetLats) : 0;
+          res = ownLat + maxTargetLat;
+        }
+
+        res = Math.min(10000, res); // Cap response latency at 10s timeout
+        memoResponseLatency[nodeId] = res;
+
+        visited.delete(nodeId);
+        return res;
+      }
+
+      // 9. Overall metrics calculations
+      const clientsWithTraffic = clientNodes.filter((c) => nodeTrafficReceived[c.id] > 0);
+      let avgLatency = 0;
+      if (clientsWithTraffic.length > 0) {
+        const totalLat = clientsWithTraffic.reduce((sum, c) => sum + getResponseLatency(c.id), 0);
+        avgLatency = Math.round(totalLat / clientsWithTraffic.length);
+      } else if (clientNodes.length > 0) {
+        const totalLat = clientNodes.reduce((sum, c) => sum + getResponseLatency(c.id), 0);
+        avgLatency = Math.round(totalLat / clientNodes.length);
+      }
+
+      let avgErrorRate = 0;
+      if (clientsWithTraffic.length > 0) {
+        const totalErr = clientsWithTraffic.reduce((sum, c) => sum + nodeErrorRate[c.id], 0);
+        avgErrorRate = totalErr / clientsWithTraffic.length;
+      } else if (clientNodes.length > 0) {
+        const totalErr = clientNodes.reduce((sum, c) => sum + nodeErrorRate[c.id], 0);
+        avgErrorRate = totalErr / clientNodes.length;
+      }
+
+      let costHr = 0;
+      currentNodes.forEach((n) => {
+        costHr += n.data.hourlyCost || 0;
+      });
+
+      // Sum client throughput or fallback entry point throughput
+      let totalSystemThroughput = 0;
+      currentNodes.forEach((n) => {
+        if (clientNodes.length > 0) {
+          if (clientKinds.includes(n.data.kind)) {
+            totalSystemThroughput += nodeTrafficReceived[n.id] || 0;
+          }
+        } else {
+          if (revAdj[n.id].length === 0) {
+            totalSystemThroughput += nodeTrafficReceived[n.id] || 0;
+          }
+        }
+      });
+
+      // 10. Map to Redux node updates
+      const updated = currentNodes.map((n) => {
+        const traffic = nodeTrafficReceived[n.id] || 0;
+        const errRate = nodeErrorRate[n.id] || 0;
+        const latency = nodeOwnLatency[n.id] || 20;
+
+        const isFailed = (f && f.nodeId === n.id) || n.data.enabled === false;
+        const cap = getNodeCapacity(n);
+        const loadRatio = cap > 0 ? traffic / cap : 0;
+
+        const cpu = Math.min(100, Math.round(loadRatio * 90 + (running ? 8 : 4)));
+        const memory = Math.min(100, Math.round(loadRatio * 70 + 20));
+
+        const health = isFailed || loadRatio > 1.1 || errRate > 50 ? "critical" : loadRatio > 0.8 ? "warning" : "healthy";
+
+        return {
+          ...n,
+          data: {
+            ...n.data,
+            cpu,
+            memory,
+            latency,
+            health,
+            activeThroughput: traffic, // current active throughput (req/s)
+            errorRate: errRate,
+          },
+        };
+      });
+
       const health =
-        errorRate > 5 || updated.some((n) => n.data.health === "critical")
+        avgErrorRate > 5 || updated.some((n) => n.data.health === "critical")
           ? "Critical"
           : updated.some((n) => n.data.health === "warning")
             ? "Warning"
@@ -1080,28 +1487,25 @@ function useSimulationEngine() {
           currentEdges.map((e) => {
             const target = updated.find((n) => n.id === e.target);
             const h = target?.data.health || "healthy";
+            const trafficVal = edgeTraffic[e.id] || 0;
             return {
               ...e,
-              animated: running,
+              animated: running && trafficVal > 0,
               data: {
                 ...e.data,
                 health: h,
-                metric: running
-                  ? Math.round(
-                      activeLoad /
-                        Math.max(1, currentEdges.filter((x) => x.target === e.target).length),
-                    )
-                  : 0,
+                metric: running ? Math.round(trafficVal) : 0,
               },
             };
           }),
         ),
       );
+
       dispatch(
         setMetrics({
-          throughput: Math.round(running ? activeLoad : 0),
+          throughput: Math.round(running ? totalSystemThroughput : 0),
           latency: avgLatency,
-          errorRate,
+          errorRate: avgErrorRate,
           costHr,
           health,
         }),
@@ -1817,6 +2221,22 @@ function Workspace({ challenge, template, onExit }) {
   const [showGrid, setShowGrid] = useState(true);
   const [showMetrics, setShowMetrics] = useState(true);
   const [briefOpen, setBriefOpen] = useState(true);
+
+  const containerRef = useRef(null);
+  const [leftW, setLeftW] = useState(320);
+  const [rightW, setRightW] = useState(320);
+  const MIN_COL = 200;
+
+  const getW = () => containerRef.current?.offsetWidth ?? window.innerWidth;
+
+  const onDragLeft = useCallback((delta) => {
+    setLeftW((w) => Math.max(MIN_COL, Math.min(w + delta, getW() - MIN_COL * 2)));
+  }, []);
+
+  const onDragRight = useCallback((delta) => {
+    setRightW((w) => Math.max(MIN_COL, Math.min(w - delta, getW() - MIN_COL * 2)));
+  }, []);
+
   // Load template architecture, otherwise start with an empty canvas.
   useEffect(() => {
     if (template) dispatch(loadTemplate({ nodes: template.nodes, edges: template.edges }));
@@ -1834,7 +2254,7 @@ function Workspace({ challenge, template, onExit }) {
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-[#0A0A0A] text-white">
+    <div ref={containerRef} className="fixed inset-0 flex flex-col bg-[#0A0A0A] text-white">
       <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] bg-[#0d0d0d] px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <button
@@ -1869,7 +2289,9 @@ function Workspace({ challenge, template, onExit }) {
       />
 
       <div className="flex min-h-0 flex-1">
-        <ComponentLibrary />
+        <ComponentLibrary width={leftW} />
+
+        <DragHandle onDelta={onDragLeft} />
 
         <div className="relative min-w-0 flex-1">
           <CanvasInner showGrid={showGrid} showMetrics={showMetrics} suggestions={suggestions} />
@@ -1946,7 +2368,9 @@ function Workspace({ challenge, template, onExit }) {
           </AnimatePresence>
         </div>
 
-        <Panel className="w-[320px] shrink-0 border-l h-full">
+        <DragHandle onDelta={onDragRight} />
+
+        <Panel style={{ width: rightW }} className="shrink-0 border-l h-full">
           <div className="flex h-full flex-col">
             <div className="border-b border-white/[0.08]">
               <MetricsPanel />
