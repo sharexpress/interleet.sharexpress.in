@@ -10,7 +10,7 @@ async def create_order(
     user_auth=Depends(UserMiddleware.me)
 ):
     user_id = user_auth["user"]["user_id"]
-    amount_paise = payload.get("amount", 49900)
+    amount_paise = payload.get("amount", 4900)
     return await PaymentController.create_order(user_id, amount_paise=amount_paise)
 
 @router.post("/verify-payment")

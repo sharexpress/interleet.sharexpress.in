@@ -182,7 +182,7 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
             </p>
             <div className="border border-dashed border-zinc-800 bg-zinc-900/60 p-3 rounded text-left font-mono text-[11px] text-zinc-500 space-y-1">
               <div>Order ID: {sandboxOrder.order_id}</div>
-              <div>Amount: ₹499 (INR)</div>
+              <div>Amount: ₹49 (INR)</div>
               <div>Currency: INR</div>
             </div>
             <div className="flex gap-2">
@@ -217,7 +217,7 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
                 <div className="text-sm font-semibold text-zinc-300">Monthly Billing</div>
               </div>
               <div className="text-right">
-                <span className="text-3xl font-extrabold text-white">₹499</span>
+                <span className="text-3xl font-extrabold text-white">₹49</span>
                 <span className="text-xs text-zinc-500 ml-1">/ month</span>
               </div>
             </div>

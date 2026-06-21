@@ -13,7 +13,7 @@ RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
 class PaymentController:
     @staticmethod
-    async def create_order(user_id: str, amount_paise: int = 49900):
+    async def create_order(user_id: str, amount_paise: int = 4900):
         # Validate amount >= 100 paise
         if amount_paise < 100:
             raise HTTPException(status_code=400, detail="Amount must be at least 100 paise (1 INR).")
@@ -24,6 +24,16 @@ class PaymentController:
         if is_mock_mode:
             import uuid
             mock_order_id = f"order_mock_{uuid.uuid4().hex[:12]}"
+            order_doc = {
+                "order_id": mock_order_id,
+                "user_id": user_id,
+                "amount": amount_paise,
+                "currency": "INR",
+                "status": "created",
+                "created_at": datetime.utcnow(),
+                "is_mock": True
+            }
+            await db.orders.insert_one(order_doc)
             return {
                 "success": True,
                 "order_id": mock_order_id,
@@ -56,9 +66,20 @@ class PaymentController:
                         detail=f"Razorpay order creation failed: {response.text}"
                     )
                 order_data = response.json()
+                order_id = order_data["id"]
+                order_doc = {
+                    "order_id": order_id,
+                    "user_id": user_id,
+                    "amount": amount_paise,
+                    "currency": "INR",
+                    "status": "created",
+                    "created_at": datetime.utcnow(),
+                    "is_mock": False
+                }
+                await db.orders.insert_one(order_doc)
                 return {
                     "success": True,
-                    "order_id": order_data["id"],
+                    "order_id": order_id,
                     "amount": order_data["amount"],
                     "currency": order_data["currency"],
                     "key_id": RAZORPAY_KEY_ID,
@@ -74,11 +95,41 @@ class PaymentController:
 
     @staticmethod
     async def verify_payment(user_id: str, order_id: str, payment_id: str, signature: str):
-        is_mock_order = order_id.startswith("order_mock_")
+        # 1. Fetch and validate the order from the database
+        order = await db.orders.find_one({"order_id": order_id})
+        if not order:
+            raise HTTPException(status_code=400, detail="Invalid order ID. Order does not exist.")
+            
+        # 2. Prevent User-Mismatch Attacks: Validate that this order belongs to the requesting user
+        if order.get("user_id") != user_id:
+            raise HTTPException(status_code=400, detail="Unauthorized payment verification. Mismatched user credentials.")
+            
+        # 3. Prevent Replay Attacks: Check if order has already been marked paid
+        if order.get("status") == "paid":
+            raise HTTPException(status_code=400, detail="Replay attack blocked: This order has already been paid for.")
+            
+        # 4. Check for duplicate payment ID to prevent multiple users verifying the same payment ID
+        duplicate_payment = await db.orders.find_one({"payment_id": payment_id})
+        if duplicate_payment:
+            raise HTTPException(status_code=400, detail="Duplicate payment transaction detected. Verification blocked.")
+            
+        # 5. A Proper Clock: Enforce strict order expiration timeline (e.g. 30 minutes)
+        created_at = order.get("created_at")
+        if not created_at:
+            raise HTTPException(status_code=400, detail="Order creation time is missing. Verification blocked.")
+            
+        order_age = datetime.utcnow() - created_at
+        if order_age > timedelta(minutes=30):
+            raise HTTPException(status_code=400, detail="Payment request expired. Please initiate a new subscription.")
+            
+        # 6. Signature verification
+        is_mock_order = order.get("is_mock", False)
         verified = False
 
         if is_mock_order:
-            verified = True
+            # For mock order, signature verify is bypass/mock validation, but still verify that order ID starts with order_mock_
+            if order_id.startswith("order_mock_"):
+                verified = True
         else:
             if not RAZORPAY_KEY_SECRET:
                 raise HTTPException(status_code=400, detail="Missing server Razorpay configuration.")
@@ -97,8 +148,21 @@ class PaymentController:
         if not verified:
             raise HTTPException(status_code=400, detail="Payment signature verification failed. Security breach blocked.")
 
-        # Activate premium subscription in database
+        # Update order status to paid
         now = datetime.utcnow()
+        await db.orders.update_one(
+            {"order_id": order_id},
+            {
+                "$set": {
+                    "status": "paid",
+                    "payment_id": payment_id,
+                    "signature": signature,
+                    "paid_at": now
+                }
+            }
+        )
+
+        # Activate premium subscription in database
         ends_at = now + timedelta(days=30)
 
         updates = {
