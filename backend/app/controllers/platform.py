@@ -259,16 +259,65 @@ class PlatformController:
                     "type": "solved",
                     "text": f"Solved {prob.get('title')}",
                     "when": when_str,
-                    "domain": prob.get("domain", "Backend")
+                    "domain": prob.get("domain", "Backend"),
+                    "created_at": dt_val,
+                    "link": f"/app/challenges/{prob.get('slug')}"
                 })
                 
         for rep in interviews_db[:2]:
+            dt_val = rep.get("created_at")
+            when_str = "1d ago"
+            if isinstance(dt_val, datetime):
+                diff = datetime.utcnow() - dt_val
+                if diff.days == 0:
+                    when_str = "Today"
+                else:
+                    when_str = f"{diff.days}d ago"
             recent_activities.append({
                 "type": "interview",
                 "text": f"Completed AI Interview - {rep.get('role')}",
-                "when": rep.get("when", "1d ago"),
-                "domain": "Interview"
+                "when": when_str,
+                "domain": "Interview",
+                "created_at": dt_val,
+                "link": f"/app/interviews/{rep.get('session_id')}/report"
             })
+
+        # Fetch user's latest notifications to show them in the activity feed
+        notifs_cursor = db.notifications.find({"user_id": user_id}).sort("created_at", -1)
+        db_notifs = await notifs_cursor.to_list(length=10)
+        
+        for n in db_notifs:
+            dt_val = n.get("created_at")
+            if isinstance(dt_val, str):
+                try:
+                    dt_val = datetime.fromisoformat(dt_val.replace("Z", "+00:00"))
+                except ValueError:
+                    dt_val = datetime.utcnow()
+            elif not isinstance(dt_val, datetime):
+                dt_val = datetime.utcnow()
+
+            diff = datetime.utcnow() - dt_val
+            if diff.days == 0:
+                when_str = "Today"
+            elif diff.days == 1:
+                when_str = "1d ago"
+            else:
+                when_str = f"{diff.days}d ago"
+
+            recent_activities.append({
+                "id": n.get("id"),
+                "type": "notification",
+                "notification_type": n.get("type", "system"),
+                "text": n.get("message") or n.get("title"),
+                "when": when_str,
+                "domain": "Contest" if n.get("type") == "invite" else "Alert",
+                "created_at": dt_val,
+                "link": n.get("link"),
+                "read": n.get("read", False)
+            })
+
+        # Sort all activities chronologically (newest first)
+        recent_activities.sort(key=lambda x: x.get("created_at") or datetime.min, reverse=True)
 
 
         # --- C. Recommended Challenges (not yet solved) ---

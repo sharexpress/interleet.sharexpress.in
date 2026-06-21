@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -24,7 +24,16 @@ const nav = [
 ];
 
 function Settings() {
-  const [active, setActive] = useState("account");
+  const location = useLocation();
+  const query = React.useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const tabParam = query.get("tab");
+  const [active, setActive] = useState(tabParam && nav.some(n => n.key === tabParam) ? tabParam : "account");
+
+  React.useEffect(() => {
+    if (tabParam && nav.some(n => n.key === tabParam)) {
+      setActive(tabParam);
+    }
+  }, [tabParam]);
 
   return (
     <AppShell>

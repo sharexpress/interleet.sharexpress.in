@@ -97,7 +97,10 @@ function ContestLobby() {
   }, [code]);
 
   useEffect(() => {
-    if (!contest || !user) return;
+    if (!user || !code) return;
+
+    let active = true;
+    let ws = null;
 
     // Join room database entry first
     const initJoinAndConnect = async () => {
@@ -107,17 +110,30 @@ function ContestLobby() {
         console.error("Auto join lobby failed:", err);
       }
 
+      if (!active) return;
+
       const token = getCookie("user");
       const backendUrl = import.meta.env?.VITE_BACKEND_URL || import.meta.env?.BACKEND_URL || "https://interleet-backend.sharexpress.in";
       const wsBase = backendUrl.replace(/^http/, "ws");
       const wsUrl = `${wsBase}/api/contest/ws/${code}${token ? `?token=${token}` : ""}`;
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      
+      const wsInstance = new WebSocket(wsUrl);
+      ws = wsInstance;
+      wsRef.current = wsInstance;
 
       ws.onmessage = (event) => {
+        if (!active) return;
         const data = JSON.parse(event.data);
         if (data.type === "chat") {
-          setChatMessages((prev) => [...prev, data]);
+          setChatMessages((prev) => {
+            if (prev.length > 0) {
+              const lastMsg = prev[prev.length - 1];
+              if (data.username === "System" && lastMsg.username === "System" && lastMsg.message === data.message) {
+                return prev;
+              }
+            }
+            return [...prev, data];
+          });
         } else if (data.type === "user_joined") {
           fetchContestDetails();
         } else if (data.type === "contest_started") {
@@ -129,6 +145,7 @@ function ContestLobby() {
       };
 
       ws.onerror = (err) => {
+        if (!active) return;
         console.error("WS Lobby error:", err);
       };
 
@@ -140,9 +157,12 @@ function ContestLobby() {
     initJoinAndConnect();
 
     return () => {
-      if (wsRef.current) wsRef.current.close();
+      active = false;
+      if (ws) {
+        ws.close();
+      }
     };
-  }, [contest, user]);
+  }, [code, user?.user_id]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -230,18 +250,23 @@ function ContestLobby() {
 
                     if (isSystem) {
                       return (
-                        <div key={i} className="text-center text-[10px] text-zinc-500 italic">
+                        <div key={i} className="text-center text-[10px] text-zinc-550 italic my-1 font-mono">
                           {msg.message}
                         </div>
                       );
                     }
 
+                    const prevMsg = i > 0 ? chatMessages[i - 1] : null;
+                    const showHeader = !prevMsg || prevMsg.username !== msg.username || prevMsg.username === "System";
+
                     return (
-                      <div key={i} className={`flex flex-col ${isSelf ? "items-end" : "items-start"}`}>
-                        <span className="text-[10px] text-zinc-500 mb-0.5 px-1 font-mono">
-                          @{msg.username}
-                        </span>
-                        <div className={`text-xs rounded-xl px-3.5 py-2 max-w-[80%] ${isSelf
+                      <div key={i} className={`flex flex-col ${isSelf ? "items-end" : "items-start"} ${showHeader ? "mt-3" : "mt-0.5"}`}>
+                        {showHeader && (
+                          <span className="text-[10px] text-zinc-500 mb-0.5 px-1 font-mono">
+                            @{msg.username}
+                          </span>
+                        )}
+                        <div className={`text-xs rounded-xl px-3.5 py-1.5 max-w-[80%] ${isSelf
                             ? "bg-primary text-primary-foreground font-medium rounded-tr-none"
                             : "bg-zinc-850 text-zinc-200 rounded-tl-none border border-zinc-800"
                           }`}>

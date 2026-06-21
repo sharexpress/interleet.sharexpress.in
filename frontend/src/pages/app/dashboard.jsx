@@ -1,5 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { API } from "@/api/api";
@@ -28,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
-import { ArrowUpRight, Sparkles, Trophy, Flame, Target, Award, ChevronRight, CheckCircle2, Circle } from "lucide-react";
+import { ArrowUpRight, Sparkles, Trophy, Flame, Target, Award, ChevronRight, CheckCircle2, Circle, Bell, Mail } from "lucide-react";
 
 import { activityWeekly, challenges, recentActivity } from "@/lib/mock";
 
@@ -36,6 +36,7 @@ import { ChallengeCard } from "@/components/domain/ChallengeCard";
 import UpgradeModal from "@/components/UpgradeModal";
 
 function Dashboard() {
+  const navigate = useNavigate();
   // state.user.user is the flat user object — no double-nesting needed
   const { user } = useSelector((state) => state.user);
 
@@ -357,24 +358,93 @@ function Dashboard() {
             {/* Recent Activity Card */}
             <Card className="border-border bg-card p-5 shadow-sm">
               <h3 className="mb-4 text-sm font-semibold">Recent activity</h3>
-              <ul className="space-y-3">
+              <ul className="space-y-2">
                 {activeRecentActivity.length === 0 ? (
                   <p className="text-xs text-muted-foreground py-4 text-center font-mono">No recent activity. Start solving challenges!</p>
                 ) : (
-                  activeRecentActivity.map((activity, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm">{activity.text}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {activity.domain} · {activity.when}
-                        </p>
-                      </div>
-                    </li>
-                  ))
+                  activeRecentActivity.map((activity, index) => {
+                    const isNotification = activity.type === "notification";
+                    const isUnreadNotif = isNotification && activity.read === false;
+
+                    const getActivityIcon = () => {
+                      if (activity.type === "solved") {
+                        return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+                      }
+                      if (activity.type === "interview") {
+                        return <Sparkles className="h-4 w-4 text-amber-500" />;
+                      }
+                      if (isNotification) {
+                        if (activity.notification_type === "invite") {
+                          return <Mail className="h-4 w-4 text-blue-500" />;
+                        }
+                        return <Bell className="h-4 w-4 text-purple-500" />;
+                      }
+                      return <span className="h-2 w-2 rounded-full bg-primary mt-1.5" />;
+                    };
+
+                    const handleActivityClick = async () => {
+                      if (isNotification && isUnreadNotif) {
+                        try {
+                          await API.post(`/api/notifications/${activity.id}/read`);
+                          if (dashboardData) {
+                            const updatedRecent = dashboardData.recentActivity.map((act) =>
+                              act.id === activity.id ? { ...act, read: true } : act
+                            );
+                            setDashboardData({
+                              ...dashboardData,
+                              recentActivity: updatedRecent,
+                            });
+                          }
+                        } catch (err) {
+                          console.error("Failed to mark notification as read:", err);
+                        }
+                      }
+                      if (activity.link) {
+                        navigate(activity.link);
+                      }
+                    };
+
+                    const isClickable = !!activity.link;
+
+                    return (
+                      <li
+                        key={index}
+                        onClick={isClickable ? handleActivityClick : undefined}
+                        className={`group flex items-start gap-3 p-2 rounded-lg transition-all ${
+                          isClickable
+                            ? "hover:bg-zinc-800/40 cursor-pointer active:scale-[0.98]"
+                            : ""
+                        } ${isUnreadNotif ? "bg-primary/5 border border-primary/20" : ""}`}
+                      >
+                        <div className="mt-0.5 shrink-0">
+                          {getActivityIcon()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className={`truncate text-sm ${isUnreadNotif ? "font-semibold text-white" : "text-zinc-300"}`}>
+                              {activity.text}
+                            </p>
+                            {isUnreadNotif && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {activity.domain} · {activity.when}
+                          </p>
+                        </div>
+                        {isClickable && (
+                          <ChevronRight className="h-3.5 w-3.5 text-zinc-650 shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity" />
+                        )}
+                      </li>
+                    );
+                  })
                 )}
               </ul>
-              <Button variant="ghost" className="mt-3 w-full">
+              <Button
+                variant="ghost"
+                className="mt-3 w-full"
+                onClick={() => navigate("/app/settings?tab=notifications")}
+              >
                 View all activity
                 <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
               </Button>
