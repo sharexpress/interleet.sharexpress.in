@@ -284,23 +284,24 @@ async def join_contest(code_or_id: str, user_auth=Depends(UserMiddleware.me)):
             "total_score": 0,
             "finish_time": None
         }
-        await db.contests.update_one(
-            {"_id": doc["_id"]},
+        res = await db.contests.update_one(
+            {"_id": doc["_id"], "participants.user_id": {"$ne": user_id_str}},
             {"$push": {"participants": new_participant}}
         )
         # Fetch updated doc
         doc = await db.contests.find_one({"_id": doc["_id"]})
 
-        # Broadcast user joined over WS
-        room_key = doc.get("room_code") or doc.get("contest_id")
-        await contest_ws_manager.broadcast(room_key, {
-            "type": "user_joined",
-            "username": user["username"],
-            "participants": [
-                {"user_id": p["user_id"], "username": p["username"]}
-                for p in doc["participants"]
-            ]
-        })
+        if res.modified_count > 0:
+            # Broadcast user joined over WS
+            room_key = doc.get("room_code") or doc.get("contest_id")
+            await contest_ws_manager.broadcast(room_key, {
+                "type": "user_joined",
+                "username": user["username"],
+                "participants": [
+                    {"user_id": p["user_id"], "username": p["username"]}
+                    for p in doc["participants"]
+                ]
+            })
 
     doc.pop("_id", None)
     return {"success": True, "data": doc}
