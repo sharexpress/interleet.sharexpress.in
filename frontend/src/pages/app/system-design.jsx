@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, memo } from "react";
+import { useSearchParams } from "react-router-dom";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -1189,8 +1190,15 @@ function useSimulationEngine() {
       // Populate entry node traffic
       const entryNodes = currentNodes.filter((n) => revAdj[n.id].length === 0);
       if (clientNodes.length > 0) {
+        // Distribute or scale the slider's userLoad proportionally based on client properties
+        const totalConfiguredLoad = clientNodes.reduce((sum, c) => {
+          return sum + (c.data.concurrentUsers ?? 1000) * (c.data.requestRate ?? 5);
+        }, 0);
+
         clientNodes.forEach((c) => {
-          const load = (c.data.concurrentUsers ?? 1000) * (c.data.requestRate ?? 5);
+          const clientConfiguredLoad = (c.data.concurrentUsers ?? 1000) * (c.data.requestRate ?? 5);
+          const share = totalConfiguredLoad > 0 ? (clientConfiguredLoad / totalConfiguredLoad) : (1 / clientNodes.length);
+          const load = s.userLoad * share;
           nodeTrafficReceived[c.id] = running ? load * multiplier : 0;
         });
       } else {
@@ -1238,7 +1246,8 @@ function useSimulationEngine() {
         let ownErrorRate = 0;
         if (isFailed) {
           ownErrorRate = 100;
-        } else {
+        } else if (!clientKinds.includes(kind)) {
+          // Client nodes generate traffic rather than process it, so they cannot be overloaded
           const cap = getNodeCapacity(u);
           const traffic = nodeTrafficReceived[uId];
           const loadRatio = cap > 0 ? traffic / cap : 0;
@@ -1312,6 +1321,12 @@ function useSimulationEngine() {
         }
 
         const kind = u.data.kind;
+        if (clientKinds.includes(kind)) {
+          // Client nodes have 0 internal latency contribution
+          nodeOwnLatency[u.id] = 0;
+          return;
+        }
+
         if (kind === "cdn") baseLat = 5;
         if (kind === "redis") baseLat = 1;
         if (kind === "api-gateway") baseLat = 5;
@@ -2162,6 +2177,7 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
 
 // ---------- Page ----------
 export default function SystemDesignSimulator() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [challenge, setChallenge] = useState(null);
   const [template, setTemplate] = useState(null);
   const user = useSelector((state) => state.user?.user);
@@ -2169,7 +2185,11 @@ export default function SystemDesignSimulator() {
   const [customChallenges, setCustomChallenges] = useState([]);
   const [customTemplates, setCustomTemplates] = useState([]);
   const [userProgress, setUserProgress] = useState({});
+  const [userCanvas, setUserCanvas] = useState({});
   const [loading, setLoading] = useState(true);
+
+  const challengeId = searchParams.get("c");
+  const templateId = searchParams.get("t");
 
   const loadSystemDesign = useCallback(async () => {
     try {
@@ -2177,6 +2197,7 @@ export default function SystemDesignSimulator() {
       if (response.data.challenges) setCustomChallenges(response.data.challenges);
       if (response.data.templates) setCustomTemplates(response.data.templates);
       if (response.data.userProgress) setUserProgress(response.data.userProgress);
+      if (response.data.userCanvas) setUserCanvas(response.data.userCanvas);
       setLoading(false);
     } catch (err) {
       console.error("Failed to load system design API configurations", err);
@@ -2194,6 +2215,41 @@ export default function SystemDesignSimulator() {
       loadSystemDesign();
     }
   }, [challenge, loadSystemDesign]);
+
+  useEffect(() => {
+    if (challengeId && !challenge) {
+      const pool = customChallenges.length > 0 ? customChallenges : challenges;
+      const found = pool.find((c) => c.id === challengeId);
+      if (found) {
+        setChallenge(found);
+        setTemplate(null);
+      }
+    }
+  }, [challengeId, customChallenges, challenge]);
+
+  useEffect(() => {
+    if (templateId && !template && customTemplates.length > 0) {
+      const found = customTemplates.find((t) => t.id === templateId);
+      if (found) {
+        if (!user?.is_premium) {
+          setUpgradeOpen(true);
+        } else {
+          setTemplate(found);
+          setChallenge({
+            id: `tpl-${found.id}`,
+            title: found.name,
+            difficulty: "Template",
+            tags: ["Practice"],
+            brief:
+              found.description ||
+              `Prebuilt ${found.name} reference architecture. Study it, tweak nodes, or simulate load.`,
+            requirements: found.requirements || [],
+            hints: found.hints || [],
+          });
+        }
+      }
+    }
+  }, [templateId, customTemplates, template, user]);
 
   const handlePickChallenge = (c) => {
     if (c.id !== "blank" && !user?.is_premium) {
@@ -2241,9 +2297,11 @@ export default function SystemDesignSimulator() {
         <Workspace
           challenge={challenge}
           template={template}
+          userCanvas={userCanvas}
           onExit={() => {
             setChallenge(null);
             setTemplate(null);
+            setSearchParams({});
           }}
         />
       )}
@@ -2251,10 +2309,11 @@ export default function SystemDesignSimulator() {
   );
 }
 
-function Workspace({ challenge, template, onExit }) {
+function Workspace({ challenge, template, userCanvas, onExit }) {
   const dispatch = useDispatch();
   const rf = useReactFlow();
   const nodes = useSelector((s) => s.simulator.nodes);
+  const edges = useSelector((s) => s.simulator.edges);
   const [showGrid, setShowGrid] = useState(true);
   const [showMetrics, setShowMetrics] = useState(true);
   const [briefOpen, setBriefOpen] = useState(true);
@@ -2276,11 +2335,45 @@ function Workspace({ challenge, template, onExit }) {
     setRightW((w) => Math.max(MIN_COL, Math.min(w - delta, getW() - MIN_COL * 2)));
   }, []);
 
-  // Load template architecture, otherwise start with an empty canvas.
+  // Load saved canvas layout from DB, template architecture, or start with empty.
   useEffect(() => {
-    if (template) dispatch(loadTemplate({ nodes: template.nodes, edges: template.edges }));
-    else dispatch(clearCanvas());
-  }, [challenge?.id, template, dispatch]);
+    if (challenge && userCanvas && userCanvas[challenge.id]) {
+      const saved = userCanvas[challenge.id];
+      dispatch(loadTemplate({ nodes: saved.nodes, edges: saved.edges }));
+    } else if (template) {
+      dispatch(loadTemplate({ nodes: template.nodes, edges: template.edges }));
+    } else {
+      dispatch(clearCanvas());
+    }
+  }, [challenge?.id, template, userCanvas, dispatch]);
+
+  // Debounced auto-save of custom canvas state (nodes & edges) to MongoDB
+  const autoSaveTimeoutRef = useRef(null);
+  useEffect(() => {
+    if (!challenge || challenge.id === "blank") return;
+
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    autoSaveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await API.post("/system-design/canvas", {
+          challenge_id: challenge.id,
+          nodes,
+          edges,
+        });
+      } catch (err) {
+        console.error("Failed to auto-save system design canvas", err);
+      }
+    }, 2000);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [nodes, edges, challenge?.id]);
 
   // Synchronize state from props
   useEffect(() => {

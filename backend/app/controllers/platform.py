@@ -391,21 +391,105 @@ class PlatformController:
 
     @staticmethod
     async def leaderboard(page: int = 1, limit: int = 25, q: str | None = None):
-        items = await _collection_or_seed("leaderboards", LEADERBOARD)
-        items.sort(key=lambda entry: entry.get("rank", 999999))
-
-        # Filter by search query (username)
+        # Query users from MongoDB users collection
+        cursor = db.users.find({})
+        users = await cursor.to_list(length=1000)
+        
+        # If only 1 or 2 users exist in the DB, seed other participants to make the arena active
+        if len(users) <= 2:
+            seed_users = [
+                {"user_id": str(uuid4()), "username": "amelia.dev", "full_name": "Amelia Dev", "rating": 2843, "total_xp": 184200, "country": "US", "delta": 24, "badges": ["Top 1%", "DevOps"], "email": "amelia@example.com"},
+                {"user_id": str(uuid4()), "username": "kenji_w", "full_name": "Kenji Watanabe", "rating": 2790, "total_xp": 172480, "country": "JP", "delta": 12, "badges": ["Top 1%"], "email": "kenji@example.com"},
+                {"user_id": str(uuid4()), "username": "priya.s", "full_name": "Priya Sharma", "rating": 2755, "total_xp": 168120, "country": "IN", "delta": -3, "badges": ["Backend"], "email": "priya@example.com"},
+                {"user_id": str(uuid4()), "username": "lucasf", "full_name": "Lucas Ferraz", "rating": 2710, "total_xp": 161300, "country": "BR", "delta": 8, "badges": ["System Design"], "email": "lucas@example.com"},
+                {"user_id": str(uuid4()), "username": "noor.k", "full_name": "Noor Khan", "rating": 2682, "total_xp": 158020, "country": "AE", "delta": 5, "badges": ["APIs"], "email": "noor@example.com"},
+                {"user_id": str(uuid4()), "username": "aria.j", "full_name": "Aria Jeong", "rating": 2654, "total_xp": 152410, "country": "KR", "delta": 0, "badges": ["Frontend"], "email": "aria@example.com"}
+            ]
+            for su in seed_users:
+                await db.users.update_one({"username": su["username"]}, {"$set": su}, upsert=True)
+            cursor = db.users.find({})
+            users = await cursor.to_list(length=1000)
+            
+        items = []
+        for u in users:
+            user_id = u["user_id"]
+            # Count accepted submissions
+            subs_count = await db.submissions.count_documents({"user_id": user_id, "status": "accepted"})
+            
+            # Count interview reports
+            interviews_count = await db.interview_reports.count_documents({"user_id": user_id})
+            
+            # Find accepted problem slugs
+            accepted_subs = await db.submissions.find({"user_id": user_id, "status": "accepted"}).to_list(length=1000)
+            solved_slugs = {s["problem_slug"] for s in accepted_subs if s.get("problem_slug")}
+            
+            # Count system design completed
+            completed_sys_design = await db.user_system_design_progress.count_documents({"user_id": user_id, "progress": "Completed"})
+            
+            # Fetch problem definitions to sum XP
+            problems_cursor = db.problems.find({"slug": {"$in": list(solved_slugs)}})
+            problems_list = await problems_cursor.to_list(length=1000)
+            problems_by_slug = {p["slug"]: p for p in problems_list}
+            
+            base_xp = sum(problems_by_slug[slug].get("xp_reward", 100) for slug in solved_slugs if slug in problems_by_slug)
+            sys_design_xp = completed_sys_design * 100
+            
+            spent_xp = u.get("spent_xp", 0)
+            xp = max(0, base_xp + sys_design_xp - spent_xp)
+            
+            # Fall back to user document details if no calculated progress (e.g. for mock seeded users)
+            if xp == 0:
+                xp = u.get("total_xp") or u.get("xp") or 0
+                
+            rating = 1000 + subs_count * 100 + completed_sys_design * 50 + int(xp * 0.1)
+            if subs_count == 0 and completed_sys_design == 0:
+                rating = u.get("rating") or u.get("overall_rating") or 1000
+                
+            badges = []
+            db_badges = u.get("badges", [])
+            for b in db_badges:
+                if isinstance(b, dict):
+                    badges.append(b.get("badge_id"))
+                elif isinstance(b, str):
+                    badges.append(b)
+                    
+            if subs_count >= 1 and "First Milestone" not in badges:
+                badges.append("First Milestone")
+            if completed_sys_design >= 1 and "System Design" not in badges:
+                badges.append("System Design")
+                
+            if not badges:
+                badges = ["Novice Engineer"]
+                
+            items.append({
+                "username": u.get("username") or "developer",
+                "rating": rating,
+                "xp": xp,
+                "country": u.get("country") or "GLOBAL",
+                "delta": u.get("delta", 0),
+                "badges": badges,
+                "avatar": u.get("avatar")
+            })
+            
+        # Sort by rating, then by xp
+        items.sort(key=lambda x: (x["rating"], x["xp"]), reverse=True)
+        
+        # Assign ranks
+        for idx, item in enumerate(items):
+            item["rank"] = idx + 1
+            
+        # Filter by query
         if q:
             query_str = q.strip().lower()
             items = [entry for entry in items if query_str in entry.get("username", "").lower()]
-
+            
         total = len(items)
-
-        # Pagination slicing
+        
+        # Slicing
         start = (page - 1) * limit
         end = start + limit
         paginated_items = items[start:end]
-
+        
         return {
             "items": paginated_items,
             "total": total,
@@ -622,15 +706,129 @@ class PlatformController:
         return {"history": INTERVIEW_HISTORY}
 
     @staticmethod
-    async def system_design():
+    async def system_design(user_id: str):
         from app.controllers.admin import AdminController
         ch = await AdminController.list_system_design_challenges()
         tpl = await AdminController.list_system_design_templates()
+        
+        # Fetch user's progress
+        progress_cursor = db.user_system_design_progress.find({"user_id": user_id})
+        progress_list = await progress_cursor.to_list(length=100)
+        
+        if not progress_list:
+            # Seed initial standard progress (2 Completed, 3 In Progress, 2 Not Started)
+            DEFAULT_PROGRESS = {
+                "url-shortener": "Completed",
+                "chat-app": "Completed",
+                "video-streaming": "In Progress",
+                "social-feed": "In Progress",
+                "blank": "In Progress",
+                "ride-sharing": "Not Started",
+                "ecommerce": "Not Started"
+            }
+            for cid, status in DEFAULT_PROGRESS.items():
+                await db.user_system_design_progress.update_one(
+                    {"user_id": user_id, "challenge_id": cid},
+                    {
+                        "$set": {
+                            "user_id": user_id,
+                            "challenge_id": cid,
+                            "progress": status,
+                            "updated_at": datetime.utcnow()
+                        }
+                    },
+                    upsert=True
+                )
+            
+            # Sync user model total completed count
+            await db.users.update_one(
+                {"user_id": user_id},
+                {"$set": {"total_system_design_completed": 2}}
+            )
+            
+            progress_cursor = db.user_system_design_progress.find({"user_id": user_id})
+            progress_list = await progress_cursor.to_list(length=100)
+            
+        user_progress = {p["challenge_id"]: p["progress"] for p in progress_list}
+        user_canvas = {
+            p["challenge_id"]: {
+                "nodes": p["nodes"],
+                "edges": p["edges"]
+            } for p in progress_list if "nodes" in p and "edges" in p
+        }
+        
+        # Merge progress with challenges
+        for c in ch:
+            c["progress"] = user_progress.get(c["id"], "Not Started")
+            
         return {
             "topics": SYSTEM_DESIGN_TOPICS,
             "challenges": ch,
-            "templates": tpl
+            "templates": tpl,
+            "userProgress": user_progress,
+            "userCanvas": user_canvas
         }
+
+    @staticmethod
+    async def update_system_design_progress(user_id: str, challenge_id: str, progress: str):
+        if progress not in ("Completed", "In Progress", "Not Started"):
+            raise HTTPException(status_code=400, detail="Invalid progress status value")
+            
+        prev = await db.user_system_design_progress.find_one({"user_id": user_id, "challenge_id": challenge_id})
+        prev_progress = prev.get("progress") if prev else None
+        
+        await db.user_system_design_progress.update_one(
+            {"user_id": user_id, "challenge_id": challenge_id},
+            {
+                "$set": {
+                    "user_id": user_id,
+                    "challenge_id": challenge_id,
+                    "progress": progress,
+                    "updated_at": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+        
+        if progress == "Completed" and prev_progress != "Completed":
+            await db.users.update_one(
+                {"user_id": user_id},
+                {
+                    "$inc": {
+                        "total_system_design_completed": 1,
+                        "total_xp": 100,
+                        "system_design_rating": 50
+                    }
+                }
+            )
+        elif prev_progress == "Completed" and progress != "Completed":
+            await db.users.update_one(
+                {"user_id": user_id},
+                {
+                    "$inc": {
+                        "total_system_design_completed": -1,
+                        "total_xp": -100,
+                        "system_design_rating": -50
+                    }
+                }
+            )
+            
+        return {"success": True, "progress": progress}
+
+    @staticmethod
+    async def save_system_design_canvas(user_id: str, challenge_id: str, nodes: list, edges: list):
+        await db.user_system_design_progress.update_one(
+            {"user_id": user_id, "challenge_id": challenge_id},
+            {
+                "$set": {
+                    "nodes": nodes,
+                    "edges": edges,
+                    "updated_at": datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+        return {"success": True}
 
     @staticmethod
     async def candidates():

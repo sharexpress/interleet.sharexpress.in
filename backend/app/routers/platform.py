@@ -66,8 +66,27 @@ async def interviews():
 
 
 @router.get("/system-design")
-async def system_design():
-    return await PlatformController.system_design()
+async def system_design(user=Depends(UserMiddleware.me)):
+    return await PlatformController.system_design(user_id=str(user["user"]["user_id"]))
+
+
+@router.post("/system-design/progress")
+async def update_system_design_progress(payload: dict = Body(...), user=Depends(UserMiddleware.me)):
+    return await PlatformController.update_system_design_progress(
+        user_id=str(user["user"]["user_id"]),
+        challenge_id=payload.get("challenge_id"),
+        progress=payload.get("progress")
+    )
+
+
+@router.post("/system-design/canvas")
+async def save_system_design_canvas(payload: dict = Body(...), user=Depends(UserMiddleware.me)):
+    return await PlatformController.save_system_design_canvas(
+        user_id=str(user["user"]["user_id"]),
+        challenge_id=payload.get("challenge_id"),
+        nodes=payload.get("nodes"),
+        edges=payload.get("edges")
+    )
 
 
 @router.get("/candidates")

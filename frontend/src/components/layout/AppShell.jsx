@@ -8,7 +8,6 @@ import {
   User,
   Settings,
   Menu,
-  Search,
   Bell,
   LogOut,
   Briefcase,
@@ -25,7 +24,7 @@ import { API } from "@/api/api";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { GlobalSearch } from "./GlobalSearch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -98,22 +97,66 @@ function NavLinks({ user, orientation = "horizontal", onNavigate }) {
   );
 }
 
+// Local cache to avoid redundant notification API queries during route transitions
+let notificationCache = {
+  userId: null,
+  data: [],
+  unreadCount: 0,
+  lastFetched: 0,
+};
+
 export function AppShell({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const { user } = useSelector((state) => state.user);
+  const userId = user?.user_id || user?.id;
 
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState(() => {
+    if (userId && notificationCache.userId === userId) {
+      return notificationCache.data;
+    }
+    return [];
+  });
+  const [unreadCount, setUnreadCount] = useState(() => {
+    if (userId && notificationCache.userId === userId) {
+      return notificationCache.unreadCount;
+    }
+    return 0;
+  });
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = async (force = false) => {
+    if (!userId) return;
+
+    // Prevent fetching if tab/document is hidden to save bandwidth/requests
+    if (document.visibilityState !== "visible") {
+      return;
+    }
+
+    const now = Date.now();
+    const userChanged = notificationCache.userId !== userId;
+
+    // Only query if forced, user session changed, or cache has expired (15 seconds)
+    if (!force && !userChanged && (now - notificationCache.lastFetched < 15000)) {
+      return;
+    }
+
     try {
       const res = await API.get("/api/notifications");
       if (res.data && res.data.success) {
-        setNotifications(res.data.data);
-        setUnreadCount(res.data.data.filter((n) => !n.read).length);
+        const notifs = res.data.data;
+        const unread = notifs.filter((n) => !n.read).length;
+
+        notificationCache = {
+          userId,
+          data: notifs,
+          unreadCount: unread,
+          lastFetched: now,
+        };
+
+        setNotifications(notifs);
+        setUnreadCount(unread);
       }
     } catch (err) {
       console.error("Failed to fetch notifications", err);
@@ -121,16 +164,22 @@ export function AppShell({ children }) {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
+
+    // Fetch immediately on mount (subject to the 15-second cache check)
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 8000);
+
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 15000);
+
     return () => clearInterval(interval);
-  }, [user]);
+  }, [userId]);
 
   const handleNotificationClick = async (notif) => {
     try {
       await API.post(`/api/notifications/${notif.id}/read`);
-      fetchNotifications();
+      await fetchNotifications(true); // force fetch
       if (notif.link) {
         navigate(notif.link);
       }
@@ -142,7 +191,7 @@ export function AppShell({ children }) {
   const handleMarkAllRead = async () => {
     try {
       await API.post("/api/notifications/read-all");
-      fetchNotifications();
+      await fetchNotifications(true); // force fetch
       toast.success("All notifications marked as read");
     } catch (err) {
       console.error("Error marking all read", err);
@@ -193,16 +242,7 @@ export function AppShell({ children }) {
           <NavLinks user={user} />
         </div>
 
-        <div className="relative ml-4 hidden flex-1 max-w-sm md:block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search challenges, topics, people…"
-            className="h-9 bg-card pl-9 pr-14"
-          />
-          <kbd className="pointer-events-none absolute right-2 top-1/2 hidden h-5 -translate-y-1/2 select-none items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground md:inline-flex">
-            ⌘K
-          </kbd>
-        </div>
+        <GlobalSearch />
 
         <div className="ml-auto flex items-center gap-2">
           <DropdownMenu>
