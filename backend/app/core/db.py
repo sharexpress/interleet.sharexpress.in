@@ -254,7 +254,7 @@ class CachedDatabase:
         return self._collections[name]
 
     def __getattr__(self, name):
-        if name.startswith('_'):
+        if name.startswith('_') or hasattr(self._raw.__class__, name):
             return getattr(self._raw, name)
         return self[name]
 
