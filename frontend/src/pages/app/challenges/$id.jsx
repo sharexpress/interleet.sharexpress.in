@@ -12,6 +12,7 @@ import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { DifficultyPill, DomainTag } from "@/components/domain/Tags";
 import {
   ArrowLeft,
@@ -22,6 +23,7 @@ import {
   FileCode,
   Beaker,
   RefreshCw,
+  Share2,
 } from "lucide-react";
 
 function ChallengeDetail() {
@@ -35,6 +37,30 @@ function ChallengeDetail() {
   useEffect(() => {
     dispatch(FetchChallengeBySlug(slug));
   }, [dispatch, slug]);
+
+  const handleShare = async () => {
+    const challengeUrl = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${c?.title || 'Challenge'} - Interleet`,
+          text: `Check out this coding challenge: "${c?.title || 'Challenge'}" on Interleet!`,
+          url: challengeUrl,
+        });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          toast.error("Failed to share challenge.");
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(challengeUrl);
+        toast.success("Challenge link copied to clipboard!");
+      } catch (err) {
+        toast.error("Failed to copy link.");
+      }
+    }
+  };
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading && !c) {
@@ -85,6 +111,10 @@ function ChallengeDetail() {
         badge={c.domain}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={handleShare}>
+              <Share2 className="mr-1.5 h-4 w-4" />
+              Share
+            </Button>
             <Button variant="outline" asChild>
               <Link to="/app/challenges">
                 <ArrowLeft className="mr-1.5 h-4 w-4" />

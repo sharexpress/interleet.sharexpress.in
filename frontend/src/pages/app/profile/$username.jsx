@@ -66,6 +66,32 @@ function ProfilePage() {
     }
   };
 
+  const handleShare = async () => {
+    const profileUrl = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${profileData?.user?.username || 'Developer'}'s Profile - Interleet`,
+          text: `Check out ${profileData?.user?.username || 'this developer'}'s profile on Interleet!`,
+          url: profileUrl,
+        });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          toast.error("Failed to share profile.");
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(profileUrl);
+        toast.success("Profile link copied to clipboard!");
+      } catch (err) {
+        toast.error("Failed to copy link.");
+      }
+    }
+  };
+
+
+
   useEffect(() => {
     let isMounted = true;
     const fetchProfile = async () => {
@@ -273,7 +299,7 @@ function ProfilePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">Share</Button>
+            <Button variant="outline" size="sm" onClick={handleShare}>Share</Button>
             {actual_user?.username === user.username ? (
               <Button size="sm" asChild>
                 <Link to="/app/settings?tab=profile">Edit Profile</Link>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { MessageSquare, Users, UserPlus, Play, ArrowLeft, Send, ShieldAlert, Award } from "lucide-react";
+import { MessageSquare, Users, UserPlus, Play, ArrowLeft, Send, ShieldAlert, Award, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
@@ -196,9 +196,22 @@ function ContestLobby() {
             <ArrowLeft className="h-4 w-4" /> Back to Arena
           </button>
 
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-            <span className="text-[11px] font-mono text-zinc-400">Match Code: {contest.room_code}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+              <span className="text-[11px] font-mono text-zinc-400">Match Code: {contest.room_code}</span>
+            </div>
+            <button
+              onClick={() => {
+                const inviteUrl = `${window.location.origin}/app/contest/room/${contest.room_code}`;
+                navigator.clipboard.writeText(inviteUrl);
+                toast.success("Contest invite link copied!");
+              }}
+              className="text-zinc-400 hover:text-white transition-colors p-1 rounded hover:bg-zinc-800"
+              title="Copy Invite Link"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
 
