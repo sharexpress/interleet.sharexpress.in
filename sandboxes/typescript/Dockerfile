@@ -11,10 +11,12 @@ ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
 RUN npm install -g typescript ts-node && \
     npm cache clean --force
 
-# Install types and dependencies in the root /node_modules
-WORKDIR /
-RUN npm install @types/node lodash @types/lodash axios redis ws @types/ws uuid @types/uuid && \
-    npm cache clean --force
+# Install types and dependencies in the root /node_modules via a temp directory
+WORKDIR /tmp/deps
+RUN npm init -y && \
+    npm install @types/node lodash @types/lodash axios redis ws @types/ws uuid @types/uuid && \
+    mv node_modules /node_modules && \
+    cd / && rm -rf /tmp/deps
 
 # Create a non-root judge user
 RUN addgroup -S judge && adduser -S -G judge -H -s /bin/false judge

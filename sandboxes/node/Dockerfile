@@ -8,10 +8,12 @@ FROM node:20-alpine
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
     NODE_ENV=production
 
-# Install common modules in the root /node_modules
-WORKDIR /
-RUN npm install lodash axios redis ws uuid && \
-    npm cache clean --force
+# Install common modules in the root /node_modules via a temp directory
+WORKDIR /tmp/deps
+RUN npm init -y && \
+    npm install lodash axios redis ws uuid && \
+    mv node_modules /node_modules && \
+    cd / && rm -rf /tmp/deps
 
 # Create a non-root judge user
 RUN addgroup -S judge && adduser -S -G judge -H -s /bin/false judge
