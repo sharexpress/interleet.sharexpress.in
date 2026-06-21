@@ -145,6 +145,7 @@ class SubmissionService:
                 "name":            tc.get("name"),
                 "time_limit":      tc.get("time_limit"),
                 "memory_limit":    tc.get("memory_limit"),
+                "comparison_mode": tc.get("comparison_mode"),
             })
 
         logger.info(

@@ -1,11 +1,25 @@
 """
 Interleet Judge Engine — Judge & Scoring Logic
 Determines verdicts and scores for testcase results.
+
+Comparison Pipeline (layered, short-circuits on first match):
+  1. Exact Match         — raw string equality
+  2. Trimmed Match       — strip per-line trailing whitespace
+  3. Token Match         — whitespace-agnostic token comparison
+  4. Semantic Structure  — parse as JSON/Python literals, deep-compare
+  5. Numeric Tolerance   — floating-point epsilon comparison
+  6. Line-by-Line Semantic — per-line structured comparison
+  7. Normalized Fallback — lowercase, strip all formatting
 """
 
 from __future__ import annotations
 
+import ast
+import json
 import logging
+import math
+import re
+from typing import Any, Optional
 
 from app.engine.enums import ComparisonMode, Verdict
 from app.engine.schemas import (
@@ -17,11 +31,14 @@ from app.engine.schemas import (
 
 logger = logging.getLogger(__name__)
 
+# Default tolerance for floating-point comparisons
+FLOAT_EPSILON = 1e-6
+
 
 class JudgeEngine:
     """
     Evaluates sandbox output against expected output and produces a Verdict.
-    Supports exact match, trimmed match, and token-based comparison.
+    Supports exact, trimmed, token, semantic, and unordered comparison modes.
     """
 
     # ─── Single testcase evaluation ────────────────────────────────────────
@@ -34,6 +51,9 @@ class JudgeEngine:
         comparison_mode: ComparisonMode = ComparisonMode.TRIMMED,
     ) -> TestCaseResult:
         """Produce a TestCaseResult for a single testcase run."""
+
+        # Per-testcase comparison_mode override takes priority
+        effective_mode = testcase.comparison_mode or comparison_mode
 
         # Build base result
         result = TestCaseResult(
@@ -74,11 +94,11 @@ class JudgeEngine:
             result.passed = False
             return result
 
-        # Compare output
+        # Compare output using the layered comparison pipeline
         output_matches = JudgeEngine._compare(
             actual=sandbox_result.stdout,
             expected=testcase.expected_output,
-            mode=comparison_mode,
+            mode=effective_mode,
         )
 
         if output_matches:
@@ -125,104 +145,48 @@ class JudgeEngine:
             max_memory_mb=max_mem,
         )
 
-    # ─── Internal helpers ──────────────────────────────────────────────────
+    # ─── Core Comparison Pipeline ──────────────────────────────────────────
 
     @staticmethod
     def _compare(actual: str, expected: str, mode: ComparisonMode) -> bool:
-        """Compare actual vs expected output with the given comparison mode."""
-        # Clean basic trailing/leading spaces/newlines/carriage returns
-        act_clean = actual.replace("\r\n", "\n").strip()
-        exp_clean = expected.replace("\r\n", "\n").strip()
+        """
+        Layered comparison pipeline. Each layer is progressively more lenient.
+        Short-circuits on the first match.
 
-        matched = False
+        For EXACT/TRIMMED/TOKEN modes: uses the strict pipeline only.
+        For SEMANTIC mode: uses all layers including structured data parsing.
+        For UNORDERED mode: treats output lines as an unordered set.
+        """
+        # ── Layer 1: Exact Match ──────────────────────────────────────
+        if actual == expected:
+            return True
+
         if mode == ComparisonMode.EXACT:
-            matched = actual == expected
-        elif mode == ComparisonMode.TRIMMED:
-            # Strip trailing whitespace per line, then compare
-            actual_lines = [line.rstrip() for line in actual.replace("\r\n", "\n").rstrip("\n").splitlines()]
-            expected_lines = [line.rstrip() for line in expected.replace("\r\n", "\n").rstrip("\n").splitlines()]
-            matched = actual_lines == expected_lines
-        elif mode == ComparisonMode.TOKEN:
-            actual_tokens = actual.split()
-            expected_tokens = expected.split()
-            matched = actual_tokens == expected_tokens
-        else:
-            matched = act_clean == exp_clean
+            return False  # Exact mode stops here
 
-        if matched:
+        # ── Layer 2: Trimmed Match ────────────────────────────────────
+        if _trimmed_match(actual, expected):
             return True
 
-        # --- Dynamic Structured Comparison Fallback (JSON / Python Literals) ---
-        from typing import Any
-        def parse_structure(s: str) -> Any:
-            s_stripped = s.strip()
-            if not s_stripped:
-                return s_stripped
+        if mode == ComparisonMode.TRIMMED:
+            # For TRIMMED mode, still try semantic as a fallback
+            # This ensures backward compatibility with challenges that
+            # were written before SEMANTIC mode existed
+            return _semantic_pipeline(actual, expected)
 
-            # Try JSON loads
-            try:
-                import json
-                return json.loads(s_stripped)
-            except Exception:
-                pass
+        # ── Layer 3: Token Match ──────────────────────────────────────
+        if _token_match(actual, expected):
+            return True
 
-            # Try ast.literal_eval
-            try:
-                import ast
-                return ast.literal_eval(s_stripped)
-            except Exception:
-                pass
+        if mode == ComparisonMode.TOKEN:
+            return _semantic_pipeline(actual, expected)
 
-            # Handle common single-value mismatches
-            s_lower = s_stripped.lower()
-            if s_lower == "true":
+        # ── SEMANTIC & UNORDERED: Full pipeline ───────────────────────
+        if mode == ComparisonMode.UNORDERED:
+            if _unordered_match(actual, expected):
                 return True
-            if s_lower == "false":
-                return False
-            if s_lower in ("null", "none"):
-                return None
 
-            return s_stripped
-
-        try:
-            parsed_act = parse_structure(act_clean)
-            parsed_exp = parse_structure(exp_clean)
-
-            # Check if they are complex types or non-str matches
-            is_structured = (
-                isinstance(parsed_act, (dict, list, bool, int, float, type(None)))
-                or isinstance(parsed_exp, (dict, list, bool, int, float, type(None)))
-            )
-            if is_structured and parsed_act == parsed_exp:
-                return True
-        except Exception:
-            pass
-
-        # --- Forgiving Fallback comparison if strict fails ---
-        import re
-        def clean_and_normalize(s: str) -> str:
-            # Lowercase
-            val = s.lower().strip()
-            # Replace carriage returns
-            val = val.replace("\r\n", "\n")
-            # Replace any run of whitespace/newlines with a single space
-            val = re.sub(r'\s+', ' ', val)
-            # Remove spaces around brackets, braces, parentheses, commas, colons
-            val = re.sub(r'\s*([\[\],(){}:])\s*', r'\1', val)
-            # Strip surrounding quotes
-            val = val.strip("'\"")
-            return val
-
-        if clean_and_normalize(actual) == clean_and_normalize(expected):
-            return True
-
-        # Fallback check for boolean mappings (e.g. true vs 1, false vs 0)
-        act_norm = clean_and_normalize(actual).replace("true", "1").replace("false", "0")
-        exp_norm = clean_and_normalize(expected).replace("true", "1").replace("false", "0")
-        if act_norm == exp_norm:
-            return True
-
-        return False
+        return _semantic_pipeline(actual, expected)
 
     @staticmethod
     def _aggregate_verdict(
@@ -247,3 +211,268 @@ class JudgeEngine:
         if passed < total:
             return Verdict.WRONG_ANSWER
         return Verdict.ACCEPTED
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Comparison Helpers (module-level for testability)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _trimmed_match(actual: str, expected: str) -> bool:
+    """Layer 2: Strip trailing whitespace per line, normalize newlines."""
+    actual_lines = [
+        line.rstrip()
+        for line in actual.replace("\r\n", "\n").rstrip("\n").splitlines()
+    ]
+    expected_lines = [
+        line.rstrip()
+        for line in expected.replace("\r\n", "\n").rstrip("\n").splitlines()
+    ]
+    return actual_lines == expected_lines
+
+
+def _token_match(actual: str, expected: str) -> bool:
+    """Layer 3: Split on whitespace and compare tokens."""
+    return actual.split() == expected.split()
+
+
+def _unordered_match(actual: str, expected: str) -> bool:
+    """Compare output lines as unordered sets (for problems where order doesn't matter)."""
+    actual_lines = sorted(
+        line.strip()
+        for line in actual.replace("\r\n", "\n").strip().splitlines()
+        if line.strip()
+    )
+    expected_lines = sorted(
+        line.strip()
+        for line in expected.replace("\r\n", "\n").strip().splitlines()
+        if line.strip()
+    )
+    if actual_lines == expected_lines:
+        return True
+
+    # Also try semantic comparison on each sorted pair
+    if len(actual_lines) == len(expected_lines):
+        return all(
+            _semantic_value_match(a, e)
+            for a, e in zip(actual_lines, expected_lines)
+        )
+    return False
+
+
+def _semantic_pipeline(actual: str, expected: str) -> bool:
+    """
+    Layers 4–7: The full semantic comparison pipeline.
+    Tries structured parsing, numeric tolerance, line-by-line, and normalized fallback.
+    """
+    act_clean = actual.replace("\r\n", "\n").strip()
+    exp_clean = expected.replace("\r\n", "\n").strip()
+
+    # ── Layer 4: Semantic Structure Match ─────────────────────────
+    if _semantic_value_match(act_clean, exp_clean):
+        return True
+
+    # ── Layer 5: Numeric Tolerance ────────────────────────────────
+    if _numeric_match(act_clean, exp_clean):
+        return True
+
+    # ── Layer 6: Line-by-Line Semantic Match ──────────────────────
+    if _line_by_line_semantic(act_clean, exp_clean):
+        return True
+
+    # ── Layer 7: Normalized Fallback ──────────────────────────────
+    if _normalized_match(act_clean, exp_clean):
+        return True
+
+    return False
+
+
+# ─── Layer 4: Semantic Value Match ─────────────────────────────────────────
+
+def _parse_value(s: str) -> Any:
+    """
+    Parse a string into a Python value.
+    Tries JSON first, then Python literal_eval, then boolean/null constants.
+    Returns the original string if nothing parses.
+    """
+    s_stripped = s.strip()
+    if not s_stripped:
+        return s_stripped
+
+    # Try JSON
+    try:
+        return json.loads(s_stripped)
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    # Try Python literal_eval (handles True, False, None, tuples, etc.)
+    try:
+        return ast.literal_eval(s_stripped)
+    except (ValueError, SyntaxError):
+        pass
+
+    # Handle standalone boolean/null constants across languages
+    lower = s_stripped.lower()
+    if lower == "true":
+        return True
+    if lower == "false":
+        return False
+    if lower in ("null", "none", "nil"):
+        return None
+
+    return s_stripped
+
+
+def _deep_equals(a: Any, b: Any, epsilon: float = FLOAT_EPSILON) -> bool:
+    """
+    Recursively compare two parsed values with:
+    - Dict comparison (order-insensitive keys)
+    - List comparison (order-sensitive elements)
+    - Float tolerance
+    - Cross-language type normalization
+    """
+    # Normalize cross-language types
+    a = _normalize_value(a)
+    b = _normalize_value(b)
+
+    # Both None
+    if a is None and b is None:
+        return True
+
+    # Both booleans
+    if isinstance(a, bool) and isinstance(b, bool):
+        return a == b
+
+    # Both numeric (int or float, but not bool)
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        if not isinstance(a, bool) and not isinstance(b, bool):
+            if isinstance(a, float) or isinstance(b, float):
+                return math.isclose(float(a), float(b), rel_tol=epsilon, abs_tol=epsilon)
+            return a == b
+
+    # Both strings
+    if isinstance(a, str) and isinstance(b, str):
+        return a == b
+
+    # Both dicts — key-order-insensitive
+    if isinstance(a, dict) and isinstance(b, dict):
+        if set(a.keys()) != set(b.keys()):
+            return False
+        return all(_deep_equals(a[k], b[k], epsilon) for k in a)
+
+    # Both lists/tuples — element-order-sensitive
+    if isinstance(a, (list, tuple)) and isinstance(b, (list, tuple)):
+        if len(a) != len(b):
+            return False
+        return all(_deep_equals(x, y, epsilon) for x, y in zip(a, b))
+
+    # Fallback: string comparison of repr
+    return str(a) == str(b)
+
+
+def _normalize_value(v: Any) -> Any:
+    """Normalize cross-language value representations."""
+    if isinstance(v, str):
+        lower = v.lower().strip()
+        if lower == "true":
+            return True
+        if lower == "false":
+            return False
+        if lower in ("null", "none", "nil"):
+            return None
+        # Try to parse string-wrapped numbers
+        try:
+            if "." in v:
+                return float(v)
+            return int(v)
+        except (ValueError, TypeError):
+            pass
+    return v
+
+
+def _semantic_value_match(actual: str, expected: str) -> bool:
+    """Parse both values and deep-compare with type normalization."""
+    try:
+        parsed_act = _parse_value(actual)
+        parsed_exp = _parse_value(expected)
+
+        # Only use semantic comparison if at least one side parsed to a non-string type
+        act_is_structured = not isinstance(parsed_act, str)
+        exp_is_structured = not isinstance(parsed_exp, str)
+
+        if act_is_structured or exp_is_structured:
+            return _deep_equals(parsed_act, parsed_exp)
+    except Exception:
+        pass
+    return False
+
+
+# ─── Layer 5: Numeric Tolerance ────────────────────────────────────────────
+
+def _numeric_match(actual: str, expected: str) -> bool:
+    """Compare as floating-point numbers with epsilon tolerance."""
+    try:
+        a = float(actual)
+        e = float(expected)
+        return math.isclose(a, e, rel_tol=FLOAT_EPSILON, abs_tol=FLOAT_EPSILON)
+    except (ValueError, TypeError):
+        pass
+    return False
+
+
+# ─── Layer 6: Line-by-Line Semantic Match ──────────────────────────────────
+
+def _line_by_line_semantic(actual: str, expected: str) -> bool:
+    """
+    Split into lines and compare each line through the semantic pipeline.
+    Handles multiline outputs where each line is a separate value/object.
+    """
+    actual_lines = [l.strip() for l in actual.splitlines() if l.strip()]
+    expected_lines = [l.strip() for l in expected.splitlines() if l.strip()]
+
+    if len(actual_lines) != len(expected_lines):
+        return False
+
+    if not actual_lines:
+        return True
+
+    for act_line, exp_line in zip(actual_lines, expected_lines):
+        # Try direct string match first
+        if act_line == exp_line:
+            continue
+        # Try semantic value match
+        if _semantic_value_match(act_line, exp_line):
+            continue
+        # Try numeric match
+        if _numeric_match(act_line, exp_line):
+            continue
+        # Try normalized match
+        if _normalize_string(act_line) == _normalize_string(exp_line):
+            continue
+        return False
+
+    return True
+
+
+# ─── Layer 7: Normalized Fallback ──────────────────────────────────────────
+
+_BRACKET_RE = re.compile(r'\s*([\[\],(){}:])\s*')
+_WHITESPACE_RE = re.compile(r'\s+')
+
+
+def _normalize_string(s: str) -> str:
+    """Aggressively normalize a string for last-resort comparison."""
+    val = s.lower().strip()
+    val = val.replace("\r\n", "\n")
+    val = _WHITESPACE_RE.sub(" ", val)
+    val = _BRACKET_RE.sub(r'\1', val)
+    val = val.strip("'\"")
+    # Normalize boolean/null representations
+    val = val.replace("true", "1").replace("false", "0")
+    val = val.replace("none", "null")
+    return val
+
+
+def _normalized_match(actual: str, expected: str) -> bool:
+    """Layer 7: Aggressively normalize and compare."""
+    return _normalize_string(actual) == _normalize_string(expected)

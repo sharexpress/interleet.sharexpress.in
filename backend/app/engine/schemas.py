@@ -105,6 +105,7 @@ class TestCaseSchema(BaseModel):
     time_limit: Optional[float] = None   # per-testcase override
     memory_limit: Optional[int] = None   # per-testcase override
     name: Optional[str] = None
+    comparison_mode: Optional[ComparisonMode] = None  # per-testcase comparison override
 
 
 class TestCaseResult(BaseModel):

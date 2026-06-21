@@ -49,3 +49,5 @@ class ComparisonMode(str, Enum):
     EXACT = "exact"
     TRIMMED = "trimmed"
     TOKEN = "token"
+    SEMANTIC = "semantic"      # Smart structured comparison (JSON/Python literals)
+    UNORDERED = "unordered"    # Order-independent comparison (sets, dicts)

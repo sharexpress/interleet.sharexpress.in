@@ -122,7 +122,7 @@ class ExecutionWorker:
                         sandbox_result=sandbox_result,
                         testcase=testcase,
                         compile_output=compile_output if compile_result and not compile_result.success else "",
-                        comparison_mode=job.comparison_mode,
+                        comparison_mode=testcase.comparison_mode or job.comparison_mode,
                     )
                     testcase_results.append(tc_result)
 

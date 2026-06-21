@@ -27,6 +27,7 @@ CHALLENGES = [
                 "expected_output": "true\n",
                 "hidden": False,
                 "weight": 1,
+                "comparison_mode": "semantic",
             },
             {
                 "id": "rate-limit-visible-2",
@@ -36,6 +37,7 @@ CHALLENGES = [
                 "expected_output": "false\n",
                 "hidden": False,
                 "weight": 1,
+                "comparison_mode": "semantic",
             },
             {
                 "id": "rate-limit-hidden-1",
@@ -45,6 +47,7 @@ CHALLENGES = [
                 "expected_output": "false\n",
                 "hidden": True,
                 "weight": 2,
+                "comparison_mode": "semantic",
             },
         ],
     },
