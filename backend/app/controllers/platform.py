@@ -763,40 +763,6 @@ class PlatformController:
         # Fetch user's progress
         progress_cursor = db.user_system_design_progress.find({"user_id": user_id})
         progress_list = await progress_cursor.to_list(length=100)
-        
-        if not progress_list:
-            # Seed initial standard progress (2 Completed, 3 In Progress, 2 Not Started)
-            DEFAULT_PROGRESS = {
-                "url-shortener": "Completed",
-                "chat-app": "Completed",
-                "video-streaming": "In Progress",
-                "social-feed": "In Progress",
-                "blank": "In Progress",
-                "ride-sharing": "Not Started",
-                "ecommerce": "Not Started"
-            }
-            for cid, status in DEFAULT_PROGRESS.items():
-                await db.user_system_design_progress.update_one(
-                    {"user_id": user_id, "challenge_id": cid},
-                    {
-                        "$set": {
-                            "user_id": user_id,
-                            "challenge_id": cid,
-                            "progress": status,
-                            "updated_at": datetime.utcnow()
-                        }
-                    },
-                    upsert=True
-                )
-            
-            # Sync user model total completed count
-            await db.users.update_one(
-                {"user_id": user_id},
-                {"$set": {"total_system_design_completed": 2}}
-            )
-            
-            progress_cursor = db.user_system_design_progress.find({"user_id": user_id})
-            progress_list = await progress_cursor.to_list(length=100)
             
         user_progress = {p["challenge_id"]: p["progress"] for p in progress_list}
         user_canvas = {

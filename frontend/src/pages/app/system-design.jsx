@@ -1632,18 +1632,18 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
   // Enrich challenges with metadata for a better UI experience
   const enrichedChallenges = useMemo(() => {
     const data = {
-      "url-shortener": { duration: "30m", popularity: 94, attempts: 2420, completion: 82, lastAttempted: "2 days ago", type: "System Design", date: "2026-05-15", progress: "Completed" },
-      "video-streaming": { duration: "45m", popularity: 88, attempts: 1850, completion: 45, lastAttempted: "1 week ago", type: "System Design", date: "2026-05-01", progress: "In Progress" },
-      "ride-sharing": { duration: "50m", popularity: 91, attempts: 1980, completion: 0, lastAttempted: "Not attempted", type: "Realtime Systems", date: "2026-04-20", progress: "Not Started" },
-      "chat-app": { duration: "35m", popularity: 96, attempts: 3200, completion: 74, lastAttempted: "Yesterday", type: "System Design", date: "2026-05-10", progress: "Completed" },
-      "ecommerce": { duration: "40m", popularity: 92, attempts: 2100, completion: 0, lastAttempted: "Not attempted", type: "System Design", date: "2026-05-05", progress: "Not Started" },
-      "social-feed": { duration: "45m", popularity: 89, attempts: 1540, completion: 48, lastAttempted: "3 days ago", type: "System Design", date: "2026-04-25", progress: "In Progress" },
-      "blank": { duration: "Self-paced", popularity: 99, attempts: 5400, completion: 100, lastAttempted: "1 day ago", type: "Sandbox", date: "2026-01-01", progress: "In Progress" }
+      "url-shortener": { duration: "30m", popularity: 94, attempts: 2420, completion: 82, lastAttempted: "2 days ago", type: "System Design", date: "2026-05-15" },
+      "video-streaming": { duration: "45m", popularity: 88, attempts: 1850, completion: 45, lastAttempted: "1 week ago", type: "System Design", date: "2026-05-01" },
+      "ride-sharing": { duration: "50m", popularity: 91, attempts: 1980, completion: 0, lastAttempted: "Not attempted", type: "Realtime Systems", date: "2026-04-20" },
+      "chat-app": { duration: "35m", popularity: 96, attempts: 3200, completion: 74, lastAttempted: "Yesterday", type: "System Design", date: "2026-05-10" },
+      "ecommerce": { duration: "40m", popularity: 92, attempts: 2100, completion: 0, lastAttempted: "Not attempted", type: "System Design", date: "2026-05-05" },
+      "social-feed": { duration: "45m", popularity: 89, attempts: 1540, completion: 48, lastAttempted: "3 days ago", type: "System Design", date: "2026-04-25" },
+      "blank": { duration: "Self-paced", popularity: 99, attempts: 5400, completion: 100, lastAttempted: "1 day ago", type: "Sandbox", date: "2026-01-01" }
     };
     
     return all.map(c => {
-      const baseMeta = data[c.id] || { duration: "30m", popularity: 80, attempts: 500, completion: 0, lastAttempted: "Not attempted", type: "System Design", date: "2026-01-01", progress: "Not Started" };
-      const dynamicProgress = userProgress[c.id] || c.progress || baseMeta.progress || "Not Started";
+      const baseMeta = data[c.id] || { duration: "30m", popularity: 80, attempts: 500, completion: 0, lastAttempted: "Not attempted", type: "System Design", date: "2026-01-01" };
+      const dynamicProgress = userProgress[c.id] || c.progress || "Not Started";
       return {
         ...c,
         ...baseMeta,
