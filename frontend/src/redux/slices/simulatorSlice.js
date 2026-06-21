@@ -1,41 +1,42 @@
 import { createSlice, nanoid } from "@reduxjs/toolkit";
+import { defaultPropsFor } from "../../lib/simulator/catalog";
 
 const defaultNodes = [
   {
     id: "n1",
     type: "infra",
     position: { x: 80, y: 240 },
-    data: { kind: "client", label: "Client", category: "Client" },
+    data: { kind: "client", label: "Client", category: "Client", ...defaultPropsFor("client") },
   },
   {
     id: "n2",
     type: "infra",
     position: { x: 340, y: 240 },
-    data: { kind: "load-balancer", label: "Load Balancer", category: "Network" },
+    data: { kind: "load-balancer", label: "Load Balancer", category: "Network", ...defaultPropsFor("load-balancer") },
   },
   {
     id: "n3",
     type: "infra",
     position: { x: 600, y: 240 },
-    data: { kind: "api-gateway", label: "API Gateway", category: "Network" },
+    data: { kind: "api-gateway", label: "API Gateway", category: "Network", ...defaultPropsFor("api-gateway") },
   },
   {
     id: "n4",
     type: "infra",
     position: { x: 860, y: 240 },
-    data: { kind: "microservice", label: "Microservice", category: "Application" },
+    data: { kind: "microservice", label: "Microservice", category: "Application", ...defaultPropsFor("microservice") },
   },
   {
     id: "n5",
     type: "infra",
     position: { x: 1120, y: 120 },
-    data: { kind: "redis", label: "Redis Cache", category: "Data" },
+    data: { kind: "redis", label: "Redis Cache", category: "Data", ...defaultPropsFor("redis") },
   },
   {
     id: "n6",
     type: "infra",
     position: { x: 1120, y: 360 },
-    data: { kind: "postgresql", label: "PostgreSQL", category: "Data" },
+    data: { kind: "postgresql", label: "PostgreSQL", category: "Data", ...defaultPropsFor("postgresql") },
   },
 ];
 
@@ -151,7 +152,13 @@ const slice = createSlice({
       resetCanvasState(s);
     },
     loadTemplate: (s, a) => {
-      s.nodes = a.payload.nodes;
+      s.nodes = a.payload.nodes.map((n) => ({
+        ...n,
+        data: {
+          ...defaultPropsFor(n.data.kind),
+          ...n.data,
+        },
+      }));
       s.edges = a.payload.edges;
       s.failure = null;
     },

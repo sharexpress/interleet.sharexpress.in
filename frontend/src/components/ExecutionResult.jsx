@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { Loader2, Check, AlertTriangle, X, Clock, Database } from "lucide-react";
 import TestCaseResultCard from "./TestCaseResultCard";
 
@@ -17,7 +17,7 @@ import TestCaseResultCard from "./TestCaseResultCard";
  *   result:       ExecutionResult object from backend
  *   error:        string error message
  */
-export default function ExecutionResult({ mode = 'run', status, result, error }) {
+const ExecutionResult = memo(function ExecutionResult({ mode = 'run', status, result, error }) {
   if (!status || status === 'idle') return null;
 
   // ── Loading ────────────────────────────────────────────────────────────────
@@ -156,4 +156,6 @@ export default function ExecutionResult({ mode = 'run', status, result, error })
   }
 
   return null;
-}
+});
+
+export default ExecutionResult;

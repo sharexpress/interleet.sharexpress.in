@@ -283,122 +283,75 @@ function InfraNode({ data, selected }) {
   const active = (data.activeThroughput ?? 0) > 0 && !isFailed;
   
   const DeviceGraphic = DEVICE_RENDERERS[data.kind] || ServerSVG;
-  const h = HEALTH[data.health || "healthy"];
   const throughput = data.activeThroughput !== undefined ? data.activeThroughput : (data.throughput ?? 0);
-  const latency = data.latency ?? 0;
   const cpu = data.cpu ?? 12;
-  const memory = data.memory ?? 24;
-  const cost = data.hourlyCost ?? 0;
 
   return (
     <div
-      className="group relative rounded-xl bg-zinc-950 text-white shadow-[0_4px_20px_rgba(0,0,0,0.5),0_1px_0_0_rgba(255,255,255,0.06)_inset] transition-all hover:shadow-[0_4px_30px_rgba(0,0,0,0.7)]"
+      className="group relative flex flex-col items-center justify-center"
       style={{
-        borderColor: selected ? "#FF6500" : "rgba(255,255,255,0.08)",
-        borderWidth: "1.5px",
-        minWidth: 240,
-        padding: 0,
+        width: 80,
+        height: 80,
       }}
     >
-      <NodeResizer minWidth={200} minHeight={140} isVisible={selected} lineClassName="!border-[#FF6500]/50" handleClassName="!bg-[#FF6500] !border-none !w-2.5 !h-2.5" />
-      
-      {/* Ethernet RJ45 handles */}
+      {/* Connection Handles */}
       <Handle
         type="target"
         position={Position.Left}
-        className="!h-3.5 !w-3.5 !rounded-sm !bg-zinc-900 !border !border-zinc-700 hover:!border-primary hover:!scale-110 transition-transform shadow-[inset_0_1px_4px_rgba(0,0,0,0.8)] flex items-center justify-center after:content-[''] after:w-1.5 after:h-1 after:bg-amber-500/80 after:rounded-t-sm"
+        className="!h-2.5 !w-2.5 !rounded-full !bg-[#FF6500] !border !border-white/20 hover:!scale-125 transition-transform shadow-[0_0_6px_rgba(255,101,0,0.4)] opacity-30 group-hover:opacity-100 transition-opacity"
       />
       <Handle
         type="source"
         position={Position.Right}
-        className="!h-3.5 !w-3.5 !rounded-sm !bg-zinc-900 !border !border-zinc-700 hover:!border-primary hover:!scale-110 transition-transform shadow-[inset_0_1px_4px_rgba(0,0,0,0.8)] flex items-center justify-center after:content-[''] after:w-1.5 after:h-1 after:bg-amber-500/80 after:rounded-t-sm"
+        className="!h-2.5 !w-2.5 !rounded-full !bg-[#FF6500] !border !border-white/20 hover:!scale-125 transition-transform shadow-[0_0_6px_rgba(255,101,0,0.4)] opacity-30 group-hover:opacity-100 transition-opacity"
       />
       <Handle
         type="target"
         position={Position.Top}
         id="t"
-        className="!h-3.5 !w-3.5 !rounded-sm !bg-zinc-900 !border !border-zinc-700 hover:!border-primary hover:!scale-110 transition-transform shadow-[inset_0_1px_4px_rgba(0,0,0,0.8)] flex items-center justify-center after:content-[''] after:w-1.5 after:h-1 after:bg-amber-500/80 after:rounded-t-sm"
+        className="!h-2.5 !w-2.5 !rounded-full !bg-[#FF6500] !border !border-white/20 hover:!scale-125 transition-transform shadow-[0_0_6px_rgba(255,101,0,0.4)] opacity-30 group-hover:opacity-100 transition-opacity"
       />
       <Handle
         type="source"
         position={Position.Bottom}
         id="b"
-        className="!h-3.5 !w-3.5 !rounded-sm !bg-zinc-900 !border !border-zinc-700 hover:!border-primary hover:!scale-110 transition-transform shadow-[inset_0_1px_4px_rgba(0,0,0,0.8)] flex items-center justify-center after:content-[''] after:w-1.5 after:h-1 after:bg-amber-500/80 after:rounded-t-sm"
+        className="!h-2.5 !w-2.5 !rounded-full !bg-[#FF6500] !border !border-white/20 hover:!scale-125 transition-transform shadow-[0_0_6px_rgba(255,101,0,0.4)] opacity-30 group-hover:opacity-100 transition-opacity"
       />
 
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-900 bg-zinc-900/60 px-4 py-3 rounded-t-xl">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-black/60 shadow-[inset_0_2px_4px_rgba(0,0,0,0.7)]">
-            <DeviceGraphic active={active} cpu={cpu} />
-          </span>
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-bold tracking-wide text-zinc-100">{data.label}</div>
-            <div className="font-mono text-[9px] uppercase tracking-[0.15em] text-zinc-500">{data.category}</div>
-          </div>
-        </div>
+      {/* Central Device Circular Backdrop & Glows */}
+      <div
+        className={`relative h-16 w-16 rounded-full flex items-center justify-center bg-zinc-950/80 border transition-all duration-300 ${
+          selected ? "border-[#FF6500] shadow-[0_0_15px_rgba(255,101,0,0.35)]" : "border-white/[0.08]"
+        }`}
+      >
+        {/* Glow rings based on health */}
+        <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
+          isFailed ? "ring-4 ring-red-500/20 border-red-500/50 animate-pulse bg-red-500/5" :
+          data.health === "warning" ? "ring-4 ring-amber-500/15 border-amber-500/40 bg-amber-500/5" :
+          active ? "ring-2 ring-emerald-500/10 border-emerald-500/30 bg-emerald-500/5" : ""
+        }`} />
         
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-1.5 bg-black/45 border border-zinc-800/80 rounded px-1.5 py-0.5">
-            <span className={`h-1.5 w-1.5 rounded-full ${h.dot}`} />
-            <span className={`font-mono text-[8px] uppercase tracking-wider ${h.text}`}>{h.label}</span>
-          </div>
-          {data.replicas > 1 && (
-            <span className="text-[9px] font-mono text-zinc-400 bg-zinc-800/50 px-1 rounded">
-              x{data.replicas} repl
-            </span>
-          )}
+        {/* Device Graphic SVG */}
+        <div className={`z-10 transition-transform duration-300 group-hover:scale-110 ${isFailed ? "opacity-50 grayscale" : ""}`}>
+          <DeviceGraphic active={active} cpu={cpu} />
         </div>
       </div>
 
-      {/* Physical details (screws) */}
-      <div className="absolute top-1.5 left-1.5 h-1 w-1 rounded-full bg-zinc-700/85 border border-zinc-500 shadow-inner" />
-      <div className="absolute top-1.5 right-1.5 h-1 w-1 rounded-full bg-zinc-700/85 border border-zinc-500 shadow-inner" />
-      <div className="absolute bottom-1.5 left-1.5 h-1 w-1 rounded-full bg-zinc-700/85 border border-zinc-500 shadow-inner" />
-      <div className="absolute bottom-1.5 right-1.5 h-1 w-1 rounded-full bg-zinc-700/85 border border-zinc-500 shadow-inner" />
+      {/* Replica mini-badge */}
+      {data.replicas > 1 && (
+        <span className="absolute top-1 right-1 z-20 rounded-full bg-zinc-900 border border-zinc-700 px-1 py-0.5 font-mono text-[8px] font-bold text-zinc-300 select-none shadow-md">
+          x{data.replicas}
+        </span>
+      )}
 
-      {/* Readings */}
-      <div className="p-3.5 space-y-3">
-        <div className="grid grid-cols-2 gap-2 text-[11px]">
-          <div className="rounded-lg border border-zinc-900 bg-[#0c0d0e] px-2.5 py-2 shadow-inner">
-            <div className="font-mono text-[8px] uppercase tracking-wider text-zinc-500">Throughput</div>
-            <div className="font-mono font-bold text-zinc-200 mt-0.5 tabular-nums">
-              {throughput.toLocaleString()} <span className="text-[9px] text-zinc-500">req/s</span>
-            </div>
-          </div>
-          
-          <div className="rounded-lg border border-zinc-900 bg-[#0c0d0e] px-2.5 py-2 shadow-inner">
-            <div className="font-mono text-[8px] uppercase tracking-wider text-zinc-500">Latency</div>
-            <div className="font-mono font-bold text-zinc-200 mt-0.5 tabular-nums">
-              {latency} <span className="text-[9px] text-zinc-500">ms</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 text-[10px] border-t border-zinc-900 pt-3">
-          <Metric label="CPU" value={`${cpu}%`} pct={cpu} />
-          <Metric label="MEM" value={`${memory}%`} pct={memory} />
-          
-          <div className="rounded-lg border border-zinc-900 bg-[#0c0d0e] px-2 py-1.5 text-center flex flex-col justify-between">
-            <span className="font-mono text-[8px] uppercase tracking-wider text-zinc-500">Cost/Hr</span>
-            <span className="font-mono font-semibold text-amber-500 mt-0.5">${cost.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Metric({ label, value, pct }) {
-  const color = pct > 80 ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : pct > 60 ? "bg-amber-500 shadow-[0_0_8px_#f59e0b]" : "bg-emerald-500 shadow-[0_0_8px_#10b981]";
-  return (
-    <div className="rounded-lg border border-zinc-900 bg-[#0c0d0e] px-2 py-1.5 flex flex-col justify-between">
-      <div className="flex items-center justify-between font-mono text-[8px] uppercase tracking-wider text-zinc-500">
-        <span>{label}</span>
-        <span className="text-zinc-300 font-semibold">{value}</span>
-      </div>
-      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-zinc-800">
-        <div className={`h-full ${color} transition-all duration-300`} style={{ width: `${Math.min(100, pct)}%` }} />
+      {/* Label and details underneath */}
+      <div className="absolute top-[68px] flex flex-col items-center justify-center text-center w-36 pointer-events-none select-none">
+        <span className="truncate text-[11px] font-bold text-zinc-200 font-mono tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+          {data.label}
+        </span>
+        <span className="text-[8px] font-semibold text-zinc-500 uppercase tracking-widest mt-0.5">
+          {throughput > 0 ? `${(throughput).toLocaleString()} r/s` : data.category}
+        </span>
       </div>
     </div>
   );

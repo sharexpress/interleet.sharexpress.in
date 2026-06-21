@@ -20,9 +20,23 @@ function TrafficEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, t
     <>
       <BaseEdge id={id} path={path} style={{ stroke, strokeWidth: selected ? 2.4 : 1.6 }} />
       {animated && (
-        <circle r="3" fill={stroke}>
-          <animateMotion dur="2.2s" repeatCount="indefinite" path={path} />
-        </circle>
+        <>
+          <g>
+            <rect width="10" height="7" rx="1" fill={stroke} x="-5" y="-3.5" />
+            <path d="M-5 -3.5 L0 0.5 L5 -3.5" stroke="#111111" strokeWidth="1" fill="none" />
+            <animateMotion dur="2.4s" begin="0s" repeatCount="indefinite" path={path} />
+          </g>
+          <g>
+            <rect width="10" height="7" rx="1" fill={stroke} x="-5" y="-3.5" />
+            <path d="M-5 -3.5 L0 0.5 L5 -3.5" stroke="#111111" strokeWidth="1" fill="none" />
+            <animateMotion dur="2.4s" begin="0.8s" repeatCount="indefinite" path={path} />
+          </g>
+          <g>
+            <rect width="10" height="7" rx="1" fill={stroke} x="-5" y="-3.5" />
+            <path d="M-5 -3.5 L0 0.5 L5 -3.5" stroke="#111111" strokeWidth="1" fill="none" />
+            <animateMotion dur="2.4s" begin="1.6s" repeatCount="indefinite" path={path} />
+          </g>
+        </>
       )}
       {label && (
         <EdgeLabelRenderer>

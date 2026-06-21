@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { Camera, CameraOff, RefreshCw, CheckCircle2, ShieldAlert, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function FaceScanner({
+export const FaceScanner = memo(function FaceScanner({
   onFrameCaptured,
   onMultiFaceDetected = null,
   activeChallenge = null,
@@ -334,4 +334,4 @@ export function FaceScanner({
       </div>
     </div>
   );
-}
+});

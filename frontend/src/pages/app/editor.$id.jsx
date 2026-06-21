@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { AppShell } from "@/components/layout/AppShell";
@@ -392,7 +392,7 @@ function runCodeLocally(code, lang) {
 
 // ─── Monaco Editor component ──────────────────────────────────────────────────
 
-function MonacoEditor({ value, language, onChange }) {
+const MonacoEditor = memo(function MonacoEditor({ value, language, onChange }) {
   const containerRef = useRef(null);
   const editorRef = useRef(null);
   const subRef = useRef(null);
@@ -452,7 +452,7 @@ function MonacoEditor({ value, language, onChange }) {
   }, [language, value]);
 
   return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
-}
+});
 
 // ─── Console output ───────────────────────────────────────────────────────────
 
@@ -472,7 +472,7 @@ function valColor(v) {
   return "#858585";
 }
 
-function ObjToken({ data }) {
+const ObjToken = memo(function ObjToken({ data }) {
   const entries = Object.entries(data);
   return (
     <span
@@ -499,9 +499,9 @@ function ObjToken({ data }) {
       <span style={{ color: "#858585" }}>{"}"}</span>
     </span>
   );
-}
+});
 
-function ConsoleOutput({ result, isRunning }) {
+const ConsoleOutput = memo(function ConsoleOutput({ result, isRunning }) {
   if (isRunning)
     return (
       <div className="flex items-center gap-2 p-3 font-mono text-xs text-muted-foreground">
@@ -561,11 +561,11 @@ function ConsoleOutput({ result, isRunning }) {
       )}
     </div>
   );
-}
+});
 
 // ─── Drag handle ──────────────────────────────────────────────────────────────
 
-function DragHandle({ onDelta }) {
+const DragHandle = memo(function DragHandle({ onDelta }) {
   const dragging = useRef(false);
   const startX = useRef(0);
 
@@ -608,7 +608,7 @@ function DragHandle({ onDelta }) {
       />
     </div>
   );
-}
+});
 
 // ─── Main EditorPage ──────────────────────────────────────────────────────────
 
@@ -723,10 +723,43 @@ function EditorPage() {
   if (loading && !c)
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-32">
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <div className="h-8 w-8 animate-spin rounded-full border border-zinc-700 border-t-primary" />
-            <p className="text-sm">Loading editor...</p>
+        {/* Mock workspace toolbar */}
+        <div className="flex h-12 items-center justify-between border-b border-border bg-card/40 px-4 py-2 animate-pulse">
+          <div className="flex items-center gap-3 w-1/3">
+            <div className="h-6 w-8 rounded bg-zinc-800/40" />
+            <div className="space-y-1.5 w-full">
+              <div className="h-3.5 w-24 rounded bg-zinc-800/40" />
+              <div className="h-2 w-32 rounded bg-zinc-800/20" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-24 rounded bg-zinc-800/40" />
+            <div className="h-7 w-16 rounded bg-zinc-800/40" />
+            <div className="h-7 w-16 rounded bg-zinc-800/40" />
+          </div>
+        </div>
+        {/* Mock panel layout */}
+        <div className="flex h-[calc(100vh-56px-49px)] overflow-hidden animate-pulse">
+          {/* Left panel skeleton */}
+          <div className="w-80 border-r border-border p-4 space-y-4 shrink-0 bg-card/10">
+            <div className="h-4 w-1/3 rounded bg-zinc-800/40" />
+            <div className="h-3 w-2/3 rounded bg-zinc-800/30" />
+            <div className="space-y-2 pt-4">
+              <div className="h-3 w-full rounded bg-zinc-800/20" />
+              <div className="h-3 w-full rounded bg-zinc-800/20" />
+              <div className="h-3 w-5/6 rounded bg-zinc-800/20" />
+            </div>
+          </div>
+          {/* Center sizer mock */}
+          <div className="w-1 border-r border-border shrink-0" />
+          {/* Monaco mock code workspace */}
+          <div className="flex-1 bg-zinc-950 p-6 space-y-3">
+            <div className="h-3.5 w-48 rounded bg-zinc-800/30" />
+            <div className="h-3 w-64 rounded bg-zinc-800/20 ml-4" />
+            <div className="h-3 w-32 rounded bg-zinc-800/20 ml-4" />
+            <div className="h-3 w-80 rounded bg-zinc-800/20 ml-8" />
+            <div className="h-3 w-56 rounded bg-zinc-800/20 ml-12" />
+            <div className="h-3 w-40 rounded bg-zinc-800/20 ml-8" />
           </div>
         </div>
       </AppShell>
@@ -1164,7 +1197,7 @@ function EditorPage() {
 
 // ─── BrowserPreview ───────────────────────────────────────────────────────────
 
-function BrowserPreview({ domain, slug, title, code, execState }) {
+const BrowserPreview = memo(function BrowserPreview({ domain, slug, title, code, execState }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
       <div className="border-b border-border bg-background/60 px-3 py-2">
@@ -1189,11 +1222,11 @@ function BrowserPreview({ domain, slug, title, code, execState }) {
       <PreviewArea domain={domain} slug={slug} title={title} code={code} execState={execState} />
     </div>
   );
-}
+});
 
 const FRONTEND_DOMAINS = new Set(["Frontend"]);
 
-function PreviewArea({ domain, slug, title, code, execState }) {
+const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execState }) {
   if (FRONTEND_DOMAINS.has(domain)) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden bg-white">
@@ -1336,7 +1369,7 @@ function PreviewArea({ domain, slug, title, code, execState }) {
       </div>
     );
   }
-}
+});
 
 function getProgramOutput(slug) {
   switch (slug) {

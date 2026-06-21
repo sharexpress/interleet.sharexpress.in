@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, memo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { Play, Send, FileCode2, Terminal as TerminalIcon, Check, X, ArrowLeft, Clock, ShieldAlert, Award, Loader2, RefreshCw, BookOpen, Sparkles, Users, Maximize, Lock } from "lucide-react";
@@ -40,7 +40,7 @@ function loadMonaco() {
   });
 }
 
-function MonacoEditor({ value, language, onChange }) {
+const MonacoEditor = memo(function MonacoEditor({ value, language, onChange }) {
   const containerRef = useRef(null);
   const editorRef = useRef(null);
   const subRef = useRef(null);
@@ -106,10 +106,10 @@ function MonacoEditor({ value, language, onChange }) {
   }, [language, value]);
 
   return <div ref={containerRef} style={{ height: "100%", width: "100%" }} />;
-}
+});
 
 // Drag Handle for resizable split pane layout
-function DragHandle({ onDelta }) {
+const DragHandle = memo(function DragHandle({ onDelta }) {
   const dragging = useRef(false);
   const startX = useRef(0);
 
@@ -152,7 +152,7 @@ function DragHandle({ onDelta }) {
       />
     </div>
   );
-}
+});
 
 function ContestWorkspace() {
   const { code: roomCode } = useParams();

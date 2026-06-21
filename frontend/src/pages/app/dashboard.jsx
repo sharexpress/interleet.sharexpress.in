@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
@@ -41,6 +41,13 @@ function Dashboard() {
 
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+
+  useLayoutEffect(() => {
+    if (!loading) {
+      setIsReady(true);
+    }
+  }, [loading]);
 
   const [quests, setQuests] = useState([
     { id: "1", text: "Maintain active streak", reward: "50 XP", done: true, type: "streak" },
@@ -89,15 +96,17 @@ function Dashboard() {
   ];
 
   // Map domainData dynamically from user.domains or backend ratings
-  const domainData = (activeUser.domains || [
-    { domain: "Frontend", score: activeUser.frontend_rating || 0 },
-    { domain: "Backend", score: activeUser.backend_rating || 0 },
-    { domain: "Fullstack", score: activeUser.fullstack_rating || 0 },
-    { domain: "DevOps", score: activeUser.devops_rating || 0 },
-  ]).map(d => ({
-    domain: d.domain,
-    score: d.score || d.rating || 0
-  }));
+  const domainData = useMemo(() => {
+    return (activeUser.domains || [
+      { domain: "Frontend", score: activeUser.frontend_rating || 0 },
+      { domain: "Backend", score: activeUser.backend_rating || 0 },
+      { domain: "Fullstack", score: activeUser.fullstack_rating || 0 },
+      { domain: "DevOps", score: activeUser.devops_rating || 0 },
+    ]).map(d => ({
+      domain: d.domain,
+      score: d.score || d.rating || 0
+    }));
+  }, [activeUser]);
 
   const handleQuestToggle = (id) => {
     setQuests(prev => prev.map(q => {
@@ -205,37 +214,51 @@ function Dashboard() {
             </div>
 
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={activeWeekly}>
-                  <CartesianGrid
-                    stroke="var(--color-border)"
-                    strokeDasharray="3 3"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="day"
-                    stroke="var(--color-muted-foreground)"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="var(--color-muted-foreground)"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--color-card)",
-                      border: "1px solid var(--color-border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Bar dataKey="solved" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {isReady ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={activeWeekly}>
+                    <CartesianGrid
+                      stroke="var(--color-border)"
+                      strokeDasharray="3 3"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="day"
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      stroke="var(--color-muted-foreground)"
+                      fontSize={11}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--color-card)",
+                        border: "1px solid var(--color-border)",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                    />
+                    <Bar dataKey="solved" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl p-4 flex flex-col justify-end gap-3 animate-pulse">
+                  <div className="flex items-end justify-between gap-3 h-full px-2">
+                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[40%]" />
+                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[70%]" />
+                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[50%]" />
+                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[90%]" />
+                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[30%]" />
+                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[60%]" />
+                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[80%]" />
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -246,22 +269,32 @@ function Dashboard() {
             </div>
 
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={domainData}>
-                  <PolarGrid stroke="var(--color-border)" />
-                  <PolarAngleAxis
-                    dataKey="domain"
-                    tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
-                  />
-                  <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 100]} />
-                  <Radar
-                    dataKey="score"
-                    stroke="var(--color-primary)"
-                    fill="var(--color-primary)"
-                    fillOpacity={0.25}
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
+              {isReady ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={domainData}>
+                    <PolarGrid stroke="var(--color-border)" />
+                    <PolarAngleAxis
+                      dataKey="domain"
+                      tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
+                    />
+                    <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 100]} />
+                    <Radar
+                      dataKey="score"
+                      stroke="var(--color-primary)"
+                      fill="var(--color-primary)"
+                      fillOpacity={0.25}
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl flex items-center justify-center animate-pulse">
+                  <div className="relative w-36 h-36 rounded-full border border-dashed border-zinc-800/80 flex items-center justify-center">
+                    <div className="w-24 h-24 rounded-full border border-dashed border-zinc-800/60 flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-full bg-zinc-850 dark:bg-zinc-800/80" />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -365,7 +398,14 @@ function Dashboard() {
             </div>
 
              <div className="h-56">
-              {activeInterviewTrend.length === 0 ? (
+              {!isReady ? (
+                <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl p-4 flex flex-col justify-between animate-pulse">
+                  <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
+                  <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
+                  <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
+                  <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
+                </div>
+              ) : activeInterviewTrend.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center border border-dashed border-border rounded bg-zinc-950/20 p-4 text-center">
                   <p className="text-xs text-muted-foreground font-mono">No mock interviews completed yet.</p>
                   <p className="text-[10px] text-zinc-500 font-mono mt-1">Practice mock interviews to plot your score trends!</p>

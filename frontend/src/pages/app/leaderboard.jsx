@@ -239,6 +239,102 @@ function Leaderboard() {
     return podium;
   };
 
+  if (loading) {
+    return (
+      <AppShell>
+        <PageHeader
+          title="Leaderboard"
+          description="Rated by domain. Ranked weekly. Climb the arena."
+        />
+        <div className="px-0 pb-6 md:px-0 space-y-6">
+          {/* Podium Skeleton */}
+          <div className="relative flex flex-col items-center justify-center pt-8 pb-4 overflow-hidden border-b border-zinc-800/50">
+            {/* Dot bg */}
+            <div className="dot-bg pointer-events-none absolute inset-0 opacity-40" />
+            <div className="flex items-center gap-2 mb-6 animate-pulse">
+              <div className="h-4 w-40 rounded bg-zinc-800/40" />
+            </div>
+
+            {/* Podium Row Skeleton */}
+            <div className="flex items-end justify-center gap-2 md:gap-6 w-full max-w-3xl px-6 md:px-20 relative z-10 animate-pulse">
+              {/* 2nd spot */}
+              <div className="flex flex-col items-center flex-1 max-w-[260px] w-full">
+                <div className="h-16 w-16 rounded-full bg-zinc-800/40 mb-3" />
+                <div className="h-28 w-full rounded-t-md bg-zinc-800/20 border-t border-zinc-700/30 flex items-center justify-center">
+                  <span className="text-xl font-mono font-black text-zinc-700">II</span>
+                </div>
+              </div>
+              
+              {/* 1st spot */}
+              <div className="flex flex-col items-center flex-1 max-w-[260px] w-full -translate-y-6">
+                <div className="h-20 w-20 rounded-full bg-zinc-800/40 mb-3" />
+                <div className="h-36 w-full rounded-t-md bg-zinc-800/30 border-t border-zinc-700/40 flex items-center justify-center">
+                  <span className="text-2xl font-mono font-black text-zinc-600">I</span>
+                </div>
+              </div>
+
+              {/* 3rd spot */}
+              <div className="flex flex-col items-center flex-1 max-w-[260px] w-full">
+                <div className="h-16 w-16 rounded-full bg-zinc-800/40 mb-3" />
+                <div className="h-20 w-full rounded-t-md bg-zinc-800/20 border-t border-zinc-700/30 flex items-center justify-center">
+                  <span className="text-lg font-mono font-black text-zinc-700">III</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-4 md:px-8 space-y-6">
+            {/* Spotlight Banner Skeleton */}
+            <div className="h-16 w-full rounded-xl border border-zinc-800/50 bg-card/30 p-4 animate-pulse flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-zinc-800/40 shrink-0" />
+                <div className="space-y-2">
+                  <div className="h-4 w-32 rounded bg-zinc-800/40" />
+                  <div className="h-3 w-48 rounded bg-zinc-800/20" />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="h-8 w-16 rounded bg-zinc-800/25" />
+                <div className="h-8 w-16 rounded bg-zinc-800/25" />
+              </div>
+            </div>
+
+            {/* List/Table Skeleton */}
+            <div className="rounded-xl border border-border bg-card p-0 shadow-xl animate-pulse">
+              {/* Table header skeleton */}
+              <div className="h-10 bg-zinc-900/80 border-b border-border w-full flex items-center px-5 gap-4">
+                <div className="h-3 w-10 bg-zinc-800/30 rounded" />
+                <div className="h-3 w-32 bg-zinc-800/30 rounded" />
+                <div className="h-3 w-24 bg-zinc-800/30 rounded mx-auto" />
+                <div className="h-3 w-16 bg-zinc-800/30 rounded mx-auto" />
+                <div className="h-3 w-20 bg-zinc-800/30 rounded mx-auto" />
+              </div>
+
+              {/* Table rows skeleton */}
+              <div className="divide-y divide-border">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div key={idx} className="h-14 flex items-center px-5 gap-4">
+                    <div className="h-4 w-6 bg-zinc-800/40 rounded shrink-0" />
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="h-8 w-8 rounded-full bg-zinc-800/40 shrink-0" />
+                      <div className="space-y-1.5 flex-1 max-w-[120px]">
+                        <div className="h-3.5 w-full bg-zinc-800/40 rounded" />
+                        <div className="h-2.5 w-2/3 bg-zinc-800/20 rounded" />
+                      </div>
+                    </div>
+                    <div className="h-5 w-20 bg-zinc-800/30 rounded shrink-0 mx-auto" />
+                    <div className="h-4 w-12 bg-zinc-800/40 rounded shrink-0 mx-auto" />
+                    <div className="h-4 w-16 bg-zinc-800/30 rounded shrink-0 mx-auto" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   const podiumUsers = getPodiumList();
   const spotlightUser = user ? leaderboardData.find(u => u.username === user.username) : null;
 
@@ -251,7 +347,7 @@ function Leaderboard() {
       <div className="px-0 pb-6 md:px-0 space-y-6">
 
         {/* ── Podium Section ── */}
-        {!loading && podiumUsers.length > 0 && (
+        {podiumUsers.length > 0 && (
           <div className="relative flex flex-col items-center justify-center pt-8 pb-4 overflow-hidden border-b border-zinc-800/50">
 
             {/* Dot bg — exact homepage hero pattern */}
@@ -292,7 +388,7 @@ function Leaderboard() {
         <div className="px-4 md:px-8 space-y-6">
 
         {/* ── User Spotlight Banner ── */}
-        {user && !loading && (
+        {user && (
           <Card className="border-[#FF6500]/25 bg-gradient-to-r from-[#FF6500]/5 via-zinc-950 to-[#FF6500]/5 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg glow-soft">
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF6500]/15 border border-[#FF6500]/30 text-[#FF6500]">
@@ -361,14 +457,7 @@ function Leaderboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {loading ? (
-                        <tr>
-                          <td colSpan="7" className="py-20 text-center text-muted-foreground">
-                            <Sparkles className="h-6 w-6 animate-spin mx-auto text-[#FF6500] mb-2" />
-                            Loading arena records...
-                          </td>
-                        </tr>
-                      ) : leaderboardData.length === 0 ? (
+                      {leaderboardData.length === 0 ? (
                         <tr>
                           <td colSpan="7" className="py-12 text-center text-muted-foreground">
                             No active participants in this arena yet.
@@ -439,12 +528,7 @@ function Leaderboard() {
 
                 {/* Mobile view */}
                 <ul className="divide-y divide-border md:hidden">
-                  {loading ? (
-                    <li className="py-12 text-center text-muted-foreground">
-                      <Sparkles className="h-5 w-5 animate-spin mx-auto text-[#FF6500] mb-2" />
-                      Loading arena records...
-                    </li>
-                  ) : leaderboardData.length === 0 ? (
+                  {leaderboardData.length === 0 ? (
                     <li className="py-8 text-center text-muted-foreground">No active participants.</li>
                   ) : (
                     leaderboardData.map((row) => {

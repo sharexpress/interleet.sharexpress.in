@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { Check, X, Clock, MemoryStick, ChevronDown, ChevronRight } from "lucide-react";
 
 /**
  * Single test case result card — LeetCode style.
  * Props: { result: TestCaseResult, index: number }
  */
-export default function TestCaseResultCard({ result, index }) {
+const TestCaseResultCard = memo(function TestCaseResultCard({ result, index }) {
   const [open, setOpen] = useState(!result.passed); // auto-expand failures
 
   const passed = result.passed;
@@ -102,4 +102,6 @@ export default function TestCaseResultCard({ result, index }) {
       )}
     </div>
   );
-}
+});
+
+export default TestCaseResultCard;

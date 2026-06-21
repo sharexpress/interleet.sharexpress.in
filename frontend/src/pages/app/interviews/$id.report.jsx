@@ -97,9 +97,51 @@ function ReportPage() {
   if (reportLoading) {
     return (
       <AppShell>
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-sm text-zinc-400">Generating your interview report…</p>
+        <div className="space-y-6 px-4 py-8 md:px-8 animate-pulse">
+          {/* Header toolbar skeleton */}
+          <div className="flex items-center justify-between border-b border-border bg-card/10 p-5 rounded-xl">
+            <div className="space-y-2 w-1/3">
+              <div className="h-5 w-32 rounded bg-zinc-800/40" />
+              <div className="h-3 w-48 rounded bg-zinc-800/20" />
+            </div>
+            <div className="h-8 w-24 rounded bg-zinc-800/40" />
+          </div>
+
+          {/* Hero Overall Score Card skeleton */}
+          <div className="border border-border bg-card/30 p-6 rounded-xl flex items-center gap-6">
+            <div className="w-20 h-20 rounded-full border-4 border-dashed border-zinc-800/60 shrink-0" />
+            <div className="space-y-2.5 w-2/3">
+              <div className="h-4.5 w-40 rounded bg-zinc-800/40" />
+              <div className="h-3.5 w-full rounded bg-zinc-800/20" />
+              <div className="h-3 w-4/5 rounded bg-zinc-800/20" />
+            </div>
+          </div>
+
+          {/* Grid score columns skeleton */}
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="border border-border bg-card/30 p-4 rounded-xl flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-full border-4 border-dashed border-zinc-800/40" />
+                <div className="h-3 w-16 rounded bg-zinc-800/30" />
+              </div>
+            ))}
+          </div>
+
+          {/* Radar & breakdown placeholders */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="border border-border bg-card/30 p-5 rounded-xl h-64 space-y-4">
+              <div className="h-4 w-32 rounded bg-zinc-800/40" />
+              <div className="h-40 rounded bg-zinc-800/10 border border-dashed border-zinc-800" />
+            </div>
+            <div className="border border-border bg-card/30 p-5 rounded-xl h-64 space-y-3">
+              <div className="h-4 w-36 rounded bg-zinc-800/40" />
+              <div className="space-y-2 pt-2">
+                <div className="h-7 w-full rounded bg-zinc-850" />
+                <div className="h-7 w-full rounded bg-zinc-850" />
+                <div className="h-7 w-full rounded bg-zinc-850" />
+              </div>
+            </div>
+          </div>
         </div>
       </AppShell>
     );

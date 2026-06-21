@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, memo } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -13,6 +13,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { useDispatch, useSelector } from "react-redux";
 import { API } from "@/api/api";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Play,
@@ -101,7 +102,7 @@ const SectionLabel = ({ children, right }) => (
   </div>
 );
 
-function DragHandle({ onDelta }) {
+const DragHandle = memo(function DragHandle({ onDelta }) {
   const dragging = useRef(false);
   const startX = useRef(0);
 
@@ -144,7 +145,7 @@ function DragHandle({ onDelta }) {
       />
     </div>
   );
-}
+});
 
 // ---------- Left: component library ----------
 function ComponentLibrary({ width }) {
@@ -1054,18 +1055,29 @@ function useSimulationEngine() {
   const edgesRef = useRef(edges);
   const simRef = useRef(sim);
   const failureRef = useRef(failure);
-  useEffect(() => {
+  useLayoutEffect(() => {
     nodesRef.current = nodes;
-  }, [nodes]);
-  useEffect(() => {
     edgesRef.current = edges;
-  }, [edges]);
-  useEffect(() => {
     simRef.current = sim;
-  }, [sim]);
-  useEffect(() => {
     failureRef.current = failure;
-  }, [failure]);
+  }, [nodes, edges, sim, failure]);
+
+  // Recalculate costHr reactively when nodes change in idle state
+  useEffect(() => {
+    if (!sim.running) {
+      let costHr = 0;
+      nodes.forEach((n) => {
+        const cost = n.data.hourlyCost !== undefined && n.data.hourlyCost !== "" ? Number(n.data.hourlyCost) : 0;
+        const reps = n.data.replicas !== undefined && n.data.replicas !== "" ? Number(n.data.replicas) : 1;
+        costHr += (isNaN(cost) ? 0 : cost) * (isNaN(reps) || reps <= 0 ? 1 : reps);
+      });
+      dispatch(
+        setMetrics({
+          costHr,
+        }),
+      );
+    }
+  }, [nodes, sim.running, dispatch]);
 
   useEffect(() => {
     if (!sim.running) {
@@ -1096,11 +1108,20 @@ function useSimulationEngine() {
           })),
         ),
       );
+
+      let costHr = 0;
+      nodesRef.current.forEach((n) => {
+        const cost = n.data.hourlyCost !== undefined && n.data.hourlyCost !== "" ? Number(n.data.hourlyCost) : 0;
+        const reps = n.data.replicas !== undefined && n.data.replicas !== "" ? Number(n.data.replicas) : 1;
+        costHr += (isNaN(cost) ? 0 : cost) * (isNaN(reps) || reps <= 0 ? 1 : reps);
+      });
+
       dispatch(
         setMetrics({
           throughput: 0,
           latency: 0,
           errorRate: 0,
+          costHr,
           health: "Healthy",
         }),
       );
@@ -1407,28 +1428,32 @@ function useSimulationEngine() {
       }
 
       // 9. Overall metrics calculations
-      const clientsWithTraffic = clientNodes.filter((c) => nodeTrafficReceived[c.id] > 0);
+      const targetNodesForMetrics = clientNodes.length > 0 ? clientNodes : entryNodes;
+      const nodesWithTraffic = targetNodesForMetrics.filter((n) => nodeTrafficReceived[n.id] > 0);
+
       let avgLatency = 0;
-      if (clientsWithTraffic.length > 0) {
-        const totalLat = clientsWithTraffic.reduce((sum, c) => sum + getResponseLatency(c.id), 0);
-        avgLatency = Math.round(totalLat / clientsWithTraffic.length);
-      } else if (clientNodes.length > 0) {
-        const totalLat = clientNodes.reduce((sum, c) => sum + getResponseLatency(c.id), 0);
-        avgLatency = Math.round(totalLat / clientNodes.length);
+      if (nodesWithTraffic.length > 0) {
+        const totalLat = nodesWithTraffic.reduce((sum, n) => sum + getResponseLatency(n.id), 0);
+        avgLatency = Math.round(totalLat / nodesWithTraffic.length);
+      } else if (targetNodesForMetrics.length > 0) {
+        const totalLat = targetNodesForMetrics.reduce((sum, n) => sum + getResponseLatency(n.id), 0);
+        avgLatency = Math.round(totalLat / targetNodesForMetrics.length);
       }
 
       let avgErrorRate = 0;
-      if (clientsWithTraffic.length > 0) {
-        const totalErr = clientsWithTraffic.reduce((sum, c) => sum + nodeErrorRate[c.id], 0);
-        avgErrorRate = totalErr / clientsWithTraffic.length;
-      } else if (clientNodes.length > 0) {
-        const totalErr = clientNodes.reduce((sum, c) => sum + nodeErrorRate[c.id], 0);
-        avgErrorRate = totalErr / clientNodes.length;
+      if (nodesWithTraffic.length > 0) {
+        const totalErr = nodesWithTraffic.reduce((sum, n) => sum + nodeErrorRate[n.id], 0);
+        avgErrorRate = totalErr / nodesWithTraffic.length;
+      } else if (targetNodesForMetrics.length > 0) {
+        const totalErr = targetNodesForMetrics.reduce((sum, n) => sum + nodeErrorRate[n.id], 0);
+        avgErrorRate = totalErr / targetNodesForMetrics.length;
       }
 
       let costHr = 0;
       currentNodes.forEach((n) => {
-        costHr += n.data.hourlyCost || 0;
+        const cost = n.data.hourlyCost !== undefined && n.data.hourlyCost !== "" ? Number(n.data.hourlyCost) : 0;
+        const reps = n.data.replicas !== undefined && n.data.replicas !== "" ? Number(n.data.replicas) : 1;
+        costHr += (isNaN(cost) ? 0 : cost) * (isNaN(reps) || reps <= 0 ? 1 : reps);
       });
 
       // Sum client throughput or fallback entry point throughput
@@ -1578,7 +1603,7 @@ function useSuggestions() {
 }
 
 // ---------- Challenge picker ----------
-function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], customTemplates = [], loading }) {
+function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], customTemplates = [], loading, userProgress = {} }) {
   const user = useSelector((s) => s.user?.user);
   const [tab, setTab] = useState("challenges"); // "challenges" | "practice"
   const [q, setQ] = useState("");
@@ -1601,11 +1626,16 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
       "blank": { duration: "Self-paced", popularity: 99, attempts: 5400, completion: 100, lastAttempted: "1 day ago", type: "Sandbox", date: "2026-01-01", progress: "In Progress" }
     };
     
-    return all.map(c => ({
-      ...c,
-      ...(data[c.id] || { duration: "30m", popularity: 80, attempts: 500, completion: 0, lastAttempted: "Not attempted", type: "System Design", date: "2026-01-01", progress: "Not Started" })
-    }));
-  }, [all]);
+    return all.map(c => {
+      const baseMeta = data[c.id] || { duration: "30m", popularity: 80, attempts: 500, completion: 0, lastAttempted: "Not attempted", type: "System Design", date: "2026-01-01", progress: "Not Started" };
+      const dynamicProgress = userProgress[c.id] || c.progress || baseMeta.progress || "Not Started";
+      return {
+        ...c,
+        ...baseMeta,
+        progress: dynamicProgress
+      };
+    });
+  }, [all, userProgress]);
 
   const finalTemplates = customTemplates.length > 0 ? customTemplates : templates;
 
@@ -2138,26 +2168,32 @@ export default function SystemDesignSimulator() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [customChallenges, setCustomChallenges] = useState([]);
   const [customTemplates, setCustomTemplates] = useState([]);
+  const [userProgress, setUserProgress] = useState({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadSystemDesign = async () => {
-      try {
-        const response = await API.get("/system-design");
-        if (isMounted) {
-          if (response.data.challenges) setCustomChallenges(response.data.challenges);
-          if (response.data.templates) setCustomTemplates(response.data.templates);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Failed to load system design API configurations", err);
-        if (isMounted) setLoading(false);
-      }
-    };
-    loadSystemDesign();
-    return () => { isMounted = false; };
+  const loadSystemDesign = useCallback(async () => {
+    try {
+      const response = await API.get("/system-design");
+      if (response.data.challenges) setCustomChallenges(response.data.challenges);
+      if (response.data.templates) setCustomTemplates(response.data.templates);
+      if (response.data.userProgress) setUserProgress(response.data.userProgress);
+      setLoading(false);
+    } catch (err) {
+      console.error("Failed to load system design API configurations", err);
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadSystemDesign();
+  }, [loadSystemDesign]);
+
+  // Re-fetch challenges/progress whenever returning to the picker (challenge becomes null)
+  useEffect(() => {
+    if (!challenge) {
+      loadSystemDesign();
+    }
+  }, [challenge, loadSystemDesign]);
 
   const handlePickChallenge = (c) => {
     if (c.id !== "blank" && !user?.is_premium) {
@@ -2197,6 +2233,7 @@ export default function SystemDesignSimulator() {
             customChallenges={customChallenges}
             customTemplates={customTemplates}
             loading={loading}
+            userProgress={userProgress}
           />
           <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} />
         </>
@@ -2227,6 +2264,8 @@ function Workspace({ challenge, template, onExit }) {
   const [rightW, setRightW] = useState(320);
   const MIN_COL = 200;
 
+  const [currentProgress, setCurrentProgress] = useState(challenge.progress || "Not Started");
+
   const getW = () => containerRef.current?.offsetWidth ?? window.innerWidth;
 
   const onDragLeft = useCallback((delta) => {
@@ -2242,6 +2281,55 @@ function Workspace({ challenge, template, onExit }) {
     if (template) dispatch(loadTemplate({ nodes: template.nodes, edges: template.edges }));
     else dispatch(clearCanvas());
   }, [challenge?.id, template, dispatch]);
+
+  // Synchronize state from props
+  useEffect(() => {
+    if (challenge.progress) {
+      setCurrentProgress(challenge.progress);
+    }
+  }, [challenge.progress]);
+
+  // Automatically start challenge if it was "Not Started"
+  useEffect(() => {
+    const autoStart = async () => {
+      if (challenge && challenge.id && (challenge.progress === "Not Started" || !challenge.progress)) {
+        try {
+          const response = await API.post("/system-design/progress", {
+            challenge_id: challenge.id,
+            progress: "In Progress"
+          });
+          if (response.data.success) {
+            setCurrentProgress("In Progress");
+          }
+        } catch (err) {
+          console.error("Failed to automatically mark challenge as In Progress", err);
+        }
+      }
+    };
+    autoStart();
+  }, [challenge]);
+
+  const handleToggleCompletion = async () => {
+    const nextProgress = currentProgress === "Completed" ? "In Progress" : "Completed";
+    try {
+      const response = await API.post("/system-design/progress", {
+        challenge_id: challenge.id,
+        progress: nextProgress
+      });
+      if (response.data.success) {
+        setCurrentProgress(nextProgress);
+        if (nextProgress === "Completed") {
+          toast.success("Challenge marked as Completed! +100 XP");
+        } else {
+          toast.success("Challenge status reset to In Progress");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update challenge progress", err);
+      toast.error("Failed to update challenge status");
+    }
+  };
+
   useSimulationEngine();
   const suggestions = useSuggestions();
 
@@ -2267,9 +2355,27 @@ function Workspace({ challenge, template, onExit }) {
 
           <div className="ml-2 truncate text-[12px] font-semibold">{challenge.title}</div>
 
-          <span className="rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-white/55">
+          <span className="rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-white/55 mr-1">
             {challenge.difficulty}
           </span>
+
+          {currentProgress === "Completed" ? (
+            <button
+              onClick={handleToggleCompletion}
+              className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-400 hover:bg-emerald-500/20 transition-all duration-300 cursor-pointer"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Completed
+            </button>
+          ) : (
+            <button
+              onClick={handleToggleCompletion}
+              className="inline-flex items-center gap-1.5 rounded-md border border-orange-500/30 bg-[#FF6500]/10 px-2 py-0.5 text-[11px] font-bold text-orange-400 hover:bg-[#FF6500]/20 transition-all duration-300 cursor-pointer"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[#FF6500]" />
+              Mark Completed
+            </button>
+          )}
         </div>
 
         <button
