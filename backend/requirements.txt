@@ -69,3 +69,6 @@ pinecone
 #
 # deepface>=0.0.93   # Python 3.12 only
 # tf-keras            # required by deepface
+
+razorpay>=2.0.1
+

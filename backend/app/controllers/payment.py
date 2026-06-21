@@ -13,12 +13,13 @@ RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
 class PaymentController:
     @staticmethod
-    async def create_order(user_id: str):
+    async def create_order(user_id: str, amount_paise: int = 49900):
+        # Validate amount >= 100 paise
+        if amount_paise < 100:
+            raise HTTPException(status_code=400, detail="Amount must be at least 100 paise (1 INR).")
+
         # 1. Determine if real Razorpay keys are configured
         is_mock_mode = not RAZORPAY_KEY_ID or not RAZORPAY_KEY_SECRET or RAZORPAY_KEY_ID.startswith("rzp_test_mock")
-
-        amount_inr = 499
-        amount_paise = amount_inr * 100  # Razorpay expects amounts in paise (sub-units)
 
         if is_mock_mode:
             import uuid
@@ -44,6 +45,11 @@ class PaymentController:
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(url, auth=auth, json=data, timeout=10.0)
+                if response.status_code == 401:
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Razorpay authentication failed. Invalid API keys."
+                    )
                 if response.status_code != 200:
                     raise HTTPException(
                         status_code=500,
@@ -58,6 +64,8 @@ class PaymentController:
                     "key_id": RAZORPAY_KEY_ID,
                     "is_mock": False
                 }
+            except HTTPException:
+                raise
             except Exception as e:
                 raise HTTPException(
                     status_code=500,

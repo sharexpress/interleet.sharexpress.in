@@ -70,7 +70,7 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
 
       // 4. Open Razorpay widget
       const options = {
-        key: orderData.key_id,
+        key: orderData.key_id || import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Interleet Premium",
