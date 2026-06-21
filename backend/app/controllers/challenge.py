@@ -81,6 +81,9 @@ class ChallengeController:
                     continue
             items.append(c)
 
+        if q and len(items) == 0:
+            raise HTTPException(status_code=404, detail="No challenges found matching search query.")
+
         if sort == "xp":
             items.sort(key=lambda c: c["xp"], reverse=True)
         elif sort == "time":

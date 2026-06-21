@@ -48,17 +48,55 @@ function ChallengesPage() {
   const [sort, setSort] = useState("popular");
   const [view, setView] = useState("grid");
 
-  // Fetch from API whenever filters / sort change
+  // Displayed items state to support local filtering or backend results
+  const [displayedItems, setDisplayedItems] = useState([]);
+
+  // Sync displayed items with Redux items when Redux items change or on initial load
   useEffect(() => {
-    dispatch(
-      FetchChallenges({
-        ...(q && { q }),
-        ...(domain !== "all" && { domain }),
-        ...(diff !== "all" && { difficulty: diff }),
-        sort,
-      }),
-    );
-  }, [dispatch, q, domain, diff, sort]);
+    setDisplayedItems(items);
+  }, [items]);
+
+  useEffect(() => {
+    const term = q.trim().toLowerCase();
+
+    // 1. If query is empty, fetch standard list from API (with filters)
+    if (!term) {
+      dispatch(
+        FetchChallenges({
+          ...(domain !== "all" && { domain }),
+          ...(diff !== "all" && { difficulty: diff }),
+          sort,
+        })
+      );
+      return;
+    }
+
+    // 2. Check if matching challenges are already available locally in frontend
+    const localMatches = items.filter((c) => {
+      const haystack = `${c.title} ${(c.tags || []).join(" ")} ${c.summary || ""}`.toLowerCase();
+      return haystack.includes(term);
+    });
+
+    if (localMatches.length > 0) {
+      // Direct hit on frontend: return local matches instantly and prevent API call
+      setDisplayedItems(localMatches);
+      return;
+    }
+
+    // 3. Not available in frontend: use debounce to fetch from backend (fewer API calls)
+    const handler = setTimeout(() => {
+      dispatch(
+        FetchChallenges({
+          q: term,
+          ...(domain !== "all" && { domain }),
+          ...(diff !== "all" && { difficulty: diff }),
+          sort,
+        })
+      );
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(handler);
+  }, [dispatch, q, domain, diff, sort, items]);
 
   const openChallenge = (c) => {
     if (c.is_premium && !user?.is_premium) {
@@ -69,7 +107,7 @@ function ChallengesPage() {
   };
 
   // ── Loading state ──────────────────────────────────────────────────────────
-  if (loading && items.length === 0) {
+  if (loading && displayedItems.length === 0) {
     return (
       <AppShell>
         <PageHeader
@@ -110,7 +148,7 @@ function ChallengesPage() {
   }
 
   // ── Error state ────────────────────────────────────────────────────────────
-  if (error && items.length === 0) {
+  if (error && displayedItems.length === 0) {
     return (
       <AppShell>
         <PageHeader
@@ -239,14 +277,14 @@ function ChallengesPage() {
             </button>
           ))}
           <span className="ml-auto text-xs text-muted-foreground">
-            {loading ? "Loading…" : `${items.length} of ${total}`}
+            {loading ? "Loading…" : `${displayedItems.length} of ${total}`}
           </span>
         </div>
 
         {/* Grid view */}
         {view === "grid" && (
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((c) => (
+            {displayedItems.map((c) => (
               <ChallengeCard key={c.id || c.slug} c={c} />
             ))}
           </div>
@@ -275,7 +313,7 @@ function ChallengesPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((c) => (
+                {displayedItems.map((c) => (
                   <tr
                     key={c.id || c.slug}
                     role="link"
@@ -313,7 +351,7 @@ function ChallengesPage() {
         )}
 
         {/* Empty state */}
-        {!loading && items.length === 0 && (
+        {!loading && displayedItems.length === 0 && (
           <div className="mt-10 rounded-xl border border-dashed border-border p-10 text-center">
             <Badge variant="outline" className="mx-auto">
               No matches
