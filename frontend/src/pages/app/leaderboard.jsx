@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
+import { Link, useNavigate } from "react-router-dom";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -153,34 +154,36 @@ const PodiumCard = ({ userData, spot, visible }) => {
       </div>
 
       {/* Card */}
-      <Card
-        className={`w-full ${isFirst ? "p-5 md:p-5" : "p-4 md:p-4"} text-center transition-all duration-300 group-hover:-translate-y-1 shadow-xl ring-1 border bg-zinc-950/70 ${ringColor}`}
-      >
-        <Avatar className={`${avatarSize} mx-auto border-2 ${avatarBorder} shadow-lg`}>
-          <AvatarImage src={userData.avatar} />
-          <AvatarFallback className={`${isFirst ? "bg-yellow-950 text-yellow-300" : "bg-zinc-800 text-zinc-200"} font-bold ${isFirst ? "text-base" : "text-sm"}`}>
-            {userData.username.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <p className={`mt-3 truncate font-extrabold text-white ${isFirst ? "text-base" : "text-sm md:text-sm"}`}>
-          @{userData.username}
-        </p>
-        <p className={`text-xs mt-0.5 font-semibold ${isFirst ? "text-yellow-400" : "text-muted-foreground"}`}>
-          Rating {userData.rating}
-        </p>
-        <div
-          className={`mt-3 inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-mono border
-            ${isFirst
-              ? "bg-yellow-950/20 border-yellow-500/25 text-yellow-400"
-              : isSecond
-                ? "bg-zinc-900 border-zinc-700 text-zinc-300"
-                : "bg-zinc-900 border-zinc-700 text-zinc-400"
-            }`}
+      <Link to={`/app/profile/${userData.username}`} className="w-full flex">
+        <Card
+          className={`w-full cursor-pointer hover:bg-zinc-900/10 active:scale-[0.98] ${isFirst ? "p-5 md:p-5" : "p-4 md:p-4"} text-center transition-all duration-300 group-hover:-translate-y-1 shadow-xl ring-1 border bg-zinc-950/70 ${ringColor}`}
         >
-          {isFirst && <Sparkles className="h-3 w-3 text-yellow-500" />}
-          {userData.xp.toLocaleString()} XP
-        </div>
-      </Card>
+          <Avatar className={`${avatarSize} mx-auto border-2 ${avatarBorder} shadow-lg`}>
+            <AvatarImage src={userData.avatar} />
+            <AvatarFallback className={`${isFirst ? "bg-yellow-950 text-yellow-300" : "bg-zinc-800 text-zinc-200"} font-bold ${isFirst ? "text-base" : "text-sm"}`}>
+              {userData.username.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <p className={`mt-3 truncate font-extrabold text-white ${isFirst ? "text-base" : "text-sm md:text-sm"}`}>
+            @{userData.username}
+          </p>
+          <p className={`text-xs mt-0.5 font-semibold ${isFirst ? "text-yellow-400" : "text-muted-foreground"}`}>
+            Rating {userData.rating}
+          </p>
+          <div
+            className={`mt-3 inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-[10px] font-mono border
+              ${isFirst
+                ? "bg-yellow-950/20 border-yellow-500/25 text-yellow-400"
+                : isSecond
+                  ? "bg-zinc-900 border-zinc-700 text-zinc-300"
+                  : "bg-zinc-900 border-zinc-700 text-zinc-400"
+              }`}
+          >
+            {isFirst && <Sparkles className="h-3 w-3 text-yellow-500" />}
+            {userData.xp.toLocaleString()} XP
+          </div>
+        </Card>
+      </Link>
 
       {/* Podium Base */}
       <div
@@ -196,6 +199,7 @@ const PodiumCard = ({ userData, spot, visible }) => {
 
 /* ─── Main Component ──────────────────────────────────────── */
 function Leaderboard() {
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.user);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -470,7 +474,8 @@ function Leaderboard() {
                           return (
                             <tr
                               key={row.username}
-                              className={`border-t border-border hover:bg-zinc-900/40 transition-colors ${isSelf ? "bg-[#FF6500]/5 border-l-2 border-l-[#FF6500]" : ""}`}
+                              onClick={() => navigate(`/app/profile/${row.username}`)}
+                              className={`border-t border-border hover:bg-zinc-900/40 cursor-pointer transition-colors ${isSelf ? "bg-[#FF6500]/5 border-l-2 border-l-[#FF6500]" : ""}`}
                             >
                               <td className="px-5 py-4 text-center">
                                 <span className={`inline-flex items-center justify-center font-mono font-bold text-sm w-7 h-7 rounded-full ${
@@ -537,7 +542,8 @@ function Leaderboard() {
                       return (
                         <li
                           key={row.username}
-                          className={`flex items-center gap-3 p-4 hover:bg-zinc-900/20 ${isSelf ? "bg-[#FF6500]/5 border-l-2 border-l-[#FF6500]" : ""}`}
+                          onClick={() => navigate(`/app/profile/${row.username}`)}
+                          className={`flex items-center gap-3 p-4 hover:bg-zinc-900/20 cursor-pointer transition-colors ${isSelf ? "bg-[#FF6500]/5 border-l-2 border-l-[#FF6500]" : ""}`}
                         >
                           <span className={`w-8 font-mono text-center font-bold text-xs ${
                             row.rank === 1 ? "text-yellow-500" :

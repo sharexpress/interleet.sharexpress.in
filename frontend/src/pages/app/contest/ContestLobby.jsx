@@ -309,7 +309,8 @@ function ContestLobby() {
                 return (
                   <div
                     key={p.user_id}
-                    className="flex items-center justify-between p-3 rounded-lg border border-zinc-850 bg-zinc-900/40"
+                    onClick={() => navigate(`/app/profile/${p.username}`)}
+                    className="flex items-center justify-between p-3 rounded-lg border border-zinc-850 bg-zinc-900/40 cursor-pointer hover:bg-zinc-850/50 transition-colors"
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="h-7 w-7 rounded-full bg-zinc-850 border border-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-300 uppercase shrink-0">
