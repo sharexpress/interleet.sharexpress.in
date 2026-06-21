@@ -7,16 +7,22 @@ FROM node:20-alpine
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
     NODE_ENV=production
 
-# Install TypeScript globally (pinned version for reproducibility)
-RUN npm install -g typescript@5.4.5 --prefer-offline 2>/dev/null || \
-    npm install -g typescript@5 && \
+# Install typescript and ts-node globally so they are in the PATH
+RUN npm install -g typescript ts-node && \
+    npm cache clean --force
+
+# Install types and dependencies in the root /node_modules
+WORKDIR /
+RUN npm install @types/node lodash @types/lodash axios redis ws @types/ws uuid @types/uuid && \
     npm cache clean --force
 
 # Create a non-root judge user
 RUN addgroup -S judge && adduser -S -G judge -H -s /bin/false judge
 
-WORKDIR /workspace
+# Ensure judge user has permissions for /node_modules
+RUN chown -R judge:judge /node_modules
 
+WORKDIR /workspace
 RUN chown judge:judge /workspace
 
 USER judge
