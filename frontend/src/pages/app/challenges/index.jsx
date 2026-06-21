@@ -51,52 +51,61 @@ function ChallengesPage() {
   // Displayed items state to support local filtering or backend results
   const [displayedItems, setDisplayedItems] = useState([]);
 
-  // Sync displayed items with Redux items when Redux items change or on initial load
-  useEffect(() => {
-    setDisplayedItems(items);
-  }, [items]);
+  const [debouncedQ, setDebouncedQ] = useState("");
 
+  // Debounce the query input state
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQ(q);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [q]);
+
+  // Sync displayed items locally based on query matching
   useEffect(() => {
     const term = q.trim().toLowerCase();
-
-    // 1. If query is empty, fetch standard list from API (with filters)
     if (!term) {
-      dispatch(
-        FetchChallenges({
-          ...(domain !== "all" && { domain }),
-          ...(diff !== "all" && { difficulty: diff }),
-          sort,
-        })
-      );
+      setDisplayedItems(items);
       return;
     }
 
-    // 2. Check if matching challenges are already available locally in frontend
     const localMatches = items.filter((c) => {
       const haystack = `${c.title} ${(c.tags || []).join(" ")} ${c.summary || ""}`.toLowerCase();
       return haystack.includes(term);
     });
 
     if (localMatches.length > 0) {
-      // Direct hit on frontend: return local matches instantly and prevent API call
       setDisplayedItems(localMatches);
-      return;
+    } else {
+      // Clear displayed items to show a loading state while fetching from backend
+      setDisplayedItems([]);
+    }
+  }, [items, q]);
+
+  // Fetch challenges from backend only when parameters or debounced query changes
+  useEffect(() => {
+    const term = debouncedQ.trim().toLowerCase();
+
+    // Prevent API request if matching items are already loaded locally
+    if (term) {
+      const localMatches = items.filter((c) => {
+        const haystack = `${c.title} ${(c.tags || []).join(" ")} ${c.summary || ""}`.toLowerCase();
+        return haystack.includes(term);
+      });
+      if (localMatches.length > 0) {
+        return;
+      }
     }
 
-    // 3. Not available in frontend: use debounce to fetch from backend (fewer API calls)
-    const handler = setTimeout(() => {
-      dispatch(
-        FetchChallenges({
-          q: term,
-          ...(domain !== "all" && { domain }),
-          ...(diff !== "all" && { difficulty: diff }),
-          sort,
-        })
-      );
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(handler);
-  }, [dispatch, q, domain, diff, sort, items]);
+    dispatch(
+      FetchChallenges({
+        ...(term && { q: term }),
+        ...(domain !== "all" && { domain }),
+        ...(diff !== "all" && { difficulty: diff }),
+        sort,
+      })
+    );
+  }, [dispatch, debouncedQ, domain, diff, sort]);
 
   const openChallenge = (c) => {
     if (c.is_premium && !user?.is_premium) {
