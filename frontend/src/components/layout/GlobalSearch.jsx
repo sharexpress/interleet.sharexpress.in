@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { challenges as localSystemDesignChallenges } from "@/lib/simulator/challenges";
 import { challenges as mockCodingChallenges, leaderboard as mockLeaderboard } from "@/lib/mock";
+import { API } from "@/api/api";
 
 // Static pages configuration for fast client-side navigation search
 const PLATFORM_PAGES = [
@@ -51,6 +52,7 @@ export function GlobalSearch() {
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [dbUsers, setDbUsers] = useState([]);
 
   // Load recent searches on mount
   useEffect(() => {
@@ -101,7 +103,28 @@ export function GlobalSearch() {
     }
   }, [isOpen]);
 
-  // Client-side search filters with safety checks (No Backend Calls)
+  // Debounced backend query for matching actual database users
+  useEffect(() => {
+    if (!query.trim()) {
+      setDbUsers([]);
+      return;
+    }
+
+    const handler = setTimeout(async () => {
+      try {
+        const response = await API.get(`/api/leaderboard?q=${encodeURIComponent(query)}&limit=10`);
+        if (response.data && response.data.items) {
+          setDbUsers(response.data.items);
+        }
+      } catch (error) {
+        console.error("Failed to query users from backend", error);
+      }
+    }, 250);
+
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  // Client-side search filters with safety checks
   const filteredPages = useMemo(() => {
     if (!query.trim()) return [];
     const term = query.toLowerCase();
@@ -132,13 +155,20 @@ export function GlobalSearch() {
 
   const filteredUsers = useMemo(() => {
     if (!query.trim()) return [];
+    
+    // Use backend matched users if loaded
+    if (dbUsers.length > 0) {
+      return dbUsers;
+    }
+
+    // Fallback to client-side matches if empty
     const term = query.toLowerCase();
     return (mockLeaderboard || []).filter(
       (u) =>
         u.username?.toLowerCase().includes(term) ||
         (u.badges && u.badges.some((b) => b?.toLowerCase().includes(term)))
     );
-  }, [query]);
+  }, [query, dbUsers]);
 
   // Flattened results array for keyboard navigation
   const flatItems = useMemo(() => {
