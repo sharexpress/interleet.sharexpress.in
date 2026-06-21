@@ -34,6 +34,7 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
   const [internalOpen, setInternalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sandboxOrder, setSandboxOrder] = useState(null);
+  const [plan, setPlan] = useState("monthly"); // "monthly" or "yearly"
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen;
@@ -42,8 +43,9 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
     setLoading(true);
     setSandboxOrder(null);
     try {
+      const amount = plan === "monthly" ? 14900 : 89900;
       // 1. Create order on backend
-      const response = await API.post("/api/payment/create-order");
+      const response = await API.post("/api/payment/create-order", { amount });
       const orderData = response.data;
 
       if (!orderData.success) {
@@ -74,7 +76,7 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
         amount: orderData.amount,
         currency: orderData.currency,
         name: "Interleet Premium",
-        description: "Monthly subscription plan (Unlock all features)",
+        description: plan === "monthly" ? "Monthly subscription plan (Unlock all features)" : "Yearly subscription plan (Save ~50%)",
         order_id: orderData.order_id,
         handler: async function (paymentRes) {
           setLoading(true);
@@ -182,7 +184,7 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
             </p>
             <div className="border border-dashed border-zinc-800 bg-zinc-900/60 p-3 rounded text-left font-mono text-[11px] text-zinc-500 space-y-1">
               <div>Order ID: {sandboxOrder.order_id}</div>
-              <div>Amount: ₹49 (INR)</div>
+              <div>Amount: ₹{sandboxOrder.amount / 100} (INR)</div>
               <div>Currency: INR</div>
             </div>
             <div className="flex gap-2">
@@ -210,16 +212,41 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
           </div>
         ) : (
           <div className="space-y-4 my-2">
-            {/* Price Badge */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/70 border border-zinc-800/80">
-              <div>
-                <div className="text-xs text-zinc-500 font-mono tracking-wider uppercase">Pro Membership</div>
-                <div className="text-sm font-semibold text-zinc-300">Monthly Billing</div>
-              </div>
-              <div className="text-right">
-                <span className="text-3xl font-extrabold text-white">₹49</span>
-                <span className="text-xs text-zinc-500 ml-1">/ month</span>
-              </div>
+            {/* Plan Selector */}
+            <div className="grid grid-cols-2 gap-3 p-1 rounded-xl bg-zinc-900/50 border border-zinc-800/60">
+              <button
+                type="button"
+                className={`flex flex-col items-center justify-center p-3.5 rounded-lg border transition-all ${
+                  plan === "monthly"
+                    ? "bg-[#FF6500]/10 border-[#FF6500] text-white"
+                    : "border-transparent hover:bg-zinc-900 text-zinc-400"
+                }`}
+                onClick={() => setPlan("monthly")}
+              >
+                <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Monthly</span>
+                <div className="flex items-baseline mt-1">
+                  <span className="text-xl font-bold text-white">₹149</span>
+                  <span className="text-[10px] text-zinc-500 ml-0.5">/ mo</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                className={`relative flex flex-col items-center justify-center p-3.5 rounded-lg border transition-all ${
+                  plan === "yearly"
+                    ? "bg-[#FF6500]/10 border-[#FF6500] text-white"
+                    : "border-transparent hover:bg-zinc-900 text-zinc-400"
+                }`}
+                onClick={() => setPlan("yearly")}
+              >
+                <span className="absolute -top-2.5 right-2 bg-gradient-to-r from-orange-500 to-amber-500 text-black font-extrabold text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow">
+                  Save 50%
+                </span>
+                <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Yearly</span>
+                <div className="flex items-baseline mt-1">
+                  <span className="text-xl font-bold text-white">₹899</span>
+                  <span className="text-[10px] text-zinc-500 ml-0.5">/ yr</span>
+                </div>
+              </button>
             </div>
 
             {/* Benefits list */}

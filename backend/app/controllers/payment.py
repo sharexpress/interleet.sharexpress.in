@@ -13,10 +13,10 @@ RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")
 
 class PaymentController:
     @staticmethod
-    async def create_order(user_id: str, amount_paise: int = 4900):
-        # Validate amount >= 100 paise
-        if amount_paise < 100:
-            raise HTTPException(status_code=400, detail="Amount must be at least 100 paise (1 INR).")
+    async def create_order(user_id: str, amount_paise: int = 14900):
+        # Validate amount must be strictly 14900 paise (149 INR) or 89900 paise (899 INR)
+        if amount_paise not in (14900, 89900):
+            raise HTTPException(status_code=400, detail="Invalid subscription plan amount.")
 
         # 1. Determine if real Razorpay keys are configured
         is_mock_mode = not RAZORPAY_KEY_ID or not RAZORPAY_KEY_SECRET or RAZORPAY_KEY_ID.startswith("rzp_test_mock")
@@ -163,7 +163,11 @@ class PaymentController:
         )
 
         # Activate premium subscription in database
-        ends_at = now + timedelta(days=30)
+        amount = order.get("amount", 14900)
+        if amount == 89900:
+            ends_at = now + timedelta(days=365)
+        else:
+            ends_at = now + timedelta(days=30)
 
         updates = {
             "is_premium": True,
