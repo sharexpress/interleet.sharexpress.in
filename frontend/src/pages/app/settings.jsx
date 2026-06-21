@@ -14,6 +14,7 @@ import { RegisterFace, GetCurrentUser } from "@/redux/slices/userSlice";
 import { API } from "@/api/api";
 
 const nav = [
+  { key: "profile", label: "Profile" },
   { key: "account", label: "Account" },
   { key: "security", label: "Security" },
   { key: "privacy", label: "Privacy" },
@@ -55,17 +56,22 @@ function Settings() {
                 {n.label}
               </button>
             ))}
-            <a
-              href="#"
-              className="mt-1 flex items-center gap-1.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            <button
+              onClick={() => setActive("profile")}
+              className={`mt-1 flex w-full items-center gap-1.5 rounded-md px-3 py-2 text-sm transition-colors ${
+                active === "profile"
+                  ? "text-foreground bg-secondary/50 font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
             >
               Profile Settings <ExternalLink className="h-3 w-3" />
-            </a>
+            </button>
           </nav>
         </aside>
 
         {/* Content */}
         <div className="px-4 py-8 md:px-12 md:py-10">
+          {active === "profile" && <ProfileSection />}
           {active === "account" && <AccountSection />}
           {active === "security" && <SecuritySection />}
           {active === "privacy" && <Placeholder title="Privacy" />}
@@ -667,4 +673,85 @@ function Placeholder({ title }) {
     </div>
   );
 }
+
+function ProfileSection() {
+  const { user } = useSelector((state) => state.user);
+  const dispatch = useDispatch();
+
+  const [location, setLocation] = useState(user?.location || "");
+  const [githubUsername, setGithubUsername] = useState(user?.github_username || "");
+  const [website, setWebsite] = useState(user?.website || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await API.put("/api/profile", {
+        location: location.trim(),
+        github_username: githubUsername.trim(),
+        website: website.trim(),
+      });
+      if (res.data && res.data.success) {
+        toast.success("Profile updated successfully!");
+        dispatch(GetCurrentUser());
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to update profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-white">Profile Settings</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Update your profile details displayed to other users on the leaderboard and contest lobbies.
+        </p>
+      </div>
+
+      <form onSubmit={handleSave} className="space-y-4 rounded-xl border border-border bg-card p-6">
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-zinc-300 block">Location</label>
+          <input
+            type="text"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="e.g. London, UK or SF"
+            className="w-full h-10 rounded-md border border-border bg-secondary/30 px-3 text-sm text-foreground focus:border-primary focus:outline-none transition-colors"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-zinc-300 block">GitHub Username</label>
+          <input
+            type="text"
+            value={githubUsername}
+            onChange={(e) => setGithubUsername(e.target.value)}
+            placeholder="e.g. octocat"
+            className="w-full h-10 rounded-md border border-border bg-secondary/30 px-3 text-sm text-foreground focus:border-primary focus:outline-none transition-colors"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-zinc-300 block">Website or Portfolio URL</label>
+          <input
+            type="text"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder="e.g. devportfolio.com"
+            className="w-full h-10 rounded-md border border-border bg-secondary/30 px-3 text-sm text-foreground focus:border-primary focus:outline-none transition-colors"
+          />
+        </div>
+
+        <Button type="submit" disabled={saving} className="w-full h-10 text-sm font-medium mt-2">
+          {saving ? "Saving changes..." : "Save Profile Details"}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
 export default Settings;

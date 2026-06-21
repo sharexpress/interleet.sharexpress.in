@@ -92,3 +92,9 @@ async def save_system_design_canvas(payload: dict = Body(...), user=Depends(User
 @router.get("/candidates")
 async def candidates():
     return await PlatformController.candidates()
+
+
+@router.put("/profile")
+async def update_profile(payload: dict = Body(...), user=Depends(UserMiddleware.me)):
+    return await PlatformController.update_profile(payload, user)
+

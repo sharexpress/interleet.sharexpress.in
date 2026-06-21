@@ -39,6 +39,8 @@ class UserModel(BaseModel):
 
     country: Optional[str] = None
 
+    location: Optional[str] = None
+
     website: Optional[str] = None
 
     github_username: Optional[str] = None

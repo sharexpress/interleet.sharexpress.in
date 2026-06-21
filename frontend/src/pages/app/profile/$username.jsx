@@ -200,25 +200,45 @@ function ProfilePage() {
               </Badge>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                {user.location}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <Github className="h-3.5 w-3.5" />
-                {user.username}
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <LinkIcon className="h-3.5 w-3.5" />
-                {user.username}.dev
-              </span>
+              {user.location && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {user.location}
+                </span>
+              )}
+              {user.github_username && (
+                <span className="inline-flex items-center gap-1">
+                  <Github className="h-3.5 w-3.5" />
+                  <a
+                    href={`https://github.com/${user.github_username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors"
+                  >
+                    {user.github_username}
+                  </a>
+                </span>
+              )}
+              {user.website && (
+                <span className="inline-flex items-center gap-1">
+                  <LinkIcon className="h-3.5 w-3.5" />
+                  <a
+                    href={user.website.startsWith("http") ? user.website : `https://${user.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-primary transition-colors"
+                  >
+                    {user.website.replace(/^https?:\/\/(www\.)?/, "")}
+                  </a>
+                </span>
+              )}
             </div>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm">Share</Button>
             {actual_user?.username === user.username ? (
               <Button size="sm" asChild>
-                <Link to="/app/settings">Edit Profile</Link>
+                <Link to="/app/settings?tab=profile">Edit Profile</Link>
               </Button>
             ) : (
               <Button size="sm">Follow</Button>

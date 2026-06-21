@@ -344,7 +344,9 @@ class PlatformController:
             "username": user_doc.get("username"),
             "email": user_doc.get("email"),
             "avatar": user_doc.get("avatar"),
-            "location": user_doc.get("location", "Berlin, DE"),
+            "location": user_doc.get("location"),
+            "github_username": user_doc.get("github_username"),
+            "website": user_doc.get("website"),
             "rating": rating,
             "rank": rank,
             "xp": xp,
@@ -732,7 +734,9 @@ class PlatformController:
                 "username": user_doc.get("username"),
                 "email": user_doc.get("email"),
                 "avatar": user_doc.get("avatar"),
-                "location": user_doc.get("location", "Berlin, DE"),
+                "location": user_doc.get("location"),
+                "github_username": user_doc.get("github_username"),
+                "website": user_doc.get("website"),
                 "rating": rating,
                 "rank": rank,
                 "xp": xp,
@@ -958,3 +962,30 @@ class PlatformController:
         )
         
         return {"success": True, "evaluation": evaluation_data}
+
+    @staticmethod
+    async def update_profile(payload: dict, requesting_user: dict):
+        user_info = requesting_user.get("user")
+        if not user_info:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        
+        user_id = user_info.get("user_id")
+        
+        allowed_updates = {}
+        if "location" in payload:
+            allowed_updates["location"] = payload["location"]
+        if "github_username" in payload:
+            allowed_updates["github_username"] = payload["github_username"]
+        if "website" in payload:
+            allowed_updates["website"] = payload["website"]
+            
+        if not allowed_updates:
+            return {"success": True, "message": "No fields to update"}
+            
+        await db.users.update_one(
+            {"user_id": user_id},
+            {"$set": allowed_updates}
+        )
+        
+        return {"success": True, "message": "Profile updated successfully"}
+
