@@ -127,7 +127,6 @@ class DockerSandbox:
                 stdout=True,
                 stderr=True,
                 remove=False,
-                user="nobody",
             )
 
             try:
@@ -200,7 +199,6 @@ class DockerSandbox:
                 stdout=True,
                 stderr=True,
                 remove=False,
-                user="nobody",
                 tmpfs={"/tmp": "size=32m,noexec,nosuid"},
             )
 

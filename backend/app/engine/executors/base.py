@@ -220,7 +220,7 @@ class BaseExecutor(ABC):
         base = Path(os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces"))
         base.mkdir(parents=True, exist_ok=True)
         tmp_dir = Path(tempfile.mkdtemp(dir=base, prefix="exec_"))
-        tmp_dir.chmod(0o755)
+        tmp_dir.chmod(0o777)
         return tmp_dir
 
     async def _write_code(self, workspace: Path, code: str) -> None:
