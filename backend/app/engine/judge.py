@@ -152,6 +152,52 @@ class JudgeEngine:
         if matched:
             return True
 
+        # --- Dynamic Structured Comparison Fallback (JSON / Python Literals) ---
+        from typing import Any
+        def parse_structure(s: str) -> Any:
+            s_stripped = s.strip()
+            if not s_stripped:
+                return s_stripped
+
+            # Try JSON loads
+            try:
+                import json
+                return json.loads(s_stripped)
+            except Exception:
+                pass
+
+            # Try ast.literal_eval
+            try:
+                import ast
+                return ast.literal_eval(s_stripped)
+            except Exception:
+                pass
+
+            # Handle common single-value mismatches
+            s_lower = s_stripped.lower()
+            if s_lower == "true":
+                return True
+            if s_lower == "false":
+                return False
+            if s_lower in ("null", "none"):
+                return None
+
+            return s_stripped
+
+        try:
+            parsed_act = parse_structure(act_clean)
+            parsed_exp = parse_structure(exp_clean)
+
+            # Check if they are complex types or non-str matches
+            is_structured = (
+                isinstance(parsed_act, (dict, list, bool, int, float, type(None)))
+                or isinstance(parsed_exp, (dict, list, bool, int, float, type(None)))
+            )
+            if is_structured and parsed_act == parsed_exp:
+                return True
+        except Exception:
+            pass
+
         # --- Forgiving Fallback comparison if strict fails ---
         import re
         def clean_and_normalize(s: str) -> str:
