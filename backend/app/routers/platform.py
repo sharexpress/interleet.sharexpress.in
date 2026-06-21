@@ -46,8 +46,21 @@ async def my_profile(user=Depends(UserMiddleware.me)):
 
 
 @router.get("/profile/{username}")
-async def profile(username: str):
-    return await PlatformController.profile(username=username)
+async def profile(username: str, user_auth=Depends(UserMiddleware.me)):
+    requesting_user_id = user_auth["user"]["user_id"]
+    return await PlatformController.profile(username=username, requesting_user_id=requesting_user_id)
+
+
+@router.post("/profile/{username}/follow")
+async def follow_user(username: str, user_auth=Depends(UserMiddleware.me)):
+    requesting_user_id = user_auth["user"]["user_id"]
+    return await PlatformController.follow_user(username=username, requesting_user_id=requesting_user_id)
+
+
+@router.post("/profile/{username}/unfollow")
+async def unfollow_user(username: str, user_auth=Depends(UserMiddleware.me)):
+    requesting_user_id = user_auth["user"]["user_id"]
+    return await PlatformController.unfollow_user(username=username, requesting_user_id=requesting_user_id)
 
 
 @router.get("/profile/{username}/ai-evaluation")

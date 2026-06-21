@@ -549,7 +549,7 @@ class PlatformController:
         }
 
     @staticmethod
-    async def profile(username: str | None = None):
+    async def profile(username: str | None = None, requesting_user_id: str | None = None):
         user_doc = None
         if username:
             user_doc = await db.users.find_one({"username": username})
@@ -745,10 +745,59 @@ class PlatformController:
                 "domains": domain_proficiencies,
                 "badges": badges,
                 "heatmap": heatmap_map,
+                "following_count": len(user_doc.get("following", [])),
+                "followers_count": len(user_doc.get("followers", [])),
+                "is_following": requesting_user_id in user_doc.get("followers", []) if requesting_user_id else False,
             },
             "challenges": solved_challenges_list,
             "interviews_history": interview_history
         }
+
+    @staticmethod
+    async def follow_user(username: str, requesting_user_id: str):
+        # 1. Retrieve the target user
+        target_user = await db.users.find_one({"username": username})
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Target user not found.")
+
+        target_user_id = target_user["user_id"]
+
+        # 2. Check if trying to follow self
+        if target_user_id == requesting_user_id:
+            raise HTTPException(status_code=400, detail="You cannot follow yourself.")
+
+        # 3. Add to followers and following collections atomically
+        await db.users.update_one(
+            {"user_id": target_user_id},
+            {"$addToSet": {"followers": requesting_user_id}}
+        )
+        await db.users.update_one(
+            {"user_id": requesting_user_id},
+            {"$addToSet": {"following": target_user_id}}
+        )
+
+        return {"success": True, "message": f"Successfully followed @{username}"}
+
+    @staticmethod
+    async def unfollow_user(username: str, requesting_user_id: str):
+        # 1. Retrieve the target user
+        target_user = await db.users.find_one({"username": username})
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Target user not found.")
+
+        target_user_id = target_user["user_id"]
+
+        # 2. Remove from followers and following collections atomically
+        await db.users.update_one(
+            {"user_id": target_user_id},
+            {"$pull": {"followers": requesting_user_id}}
+        )
+        await db.users.update_one(
+            {"user_id": requesting_user_id},
+            {"$pull": {"following": target_user_id}}
+        )
+
+        return {"success": True, "message": f"Successfully unfollowed @{username}"}
 
     @staticmethod
     async def activity():

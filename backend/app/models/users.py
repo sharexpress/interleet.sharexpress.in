@@ -123,6 +123,10 @@ class UserModel(BaseModel):
 
     solved_problems: List[str] = []
 
+    following: List[str] = []
+
+    followers: List[str] = []
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     updated_at: datetime = Field(default_factory=datetime.utcnow)

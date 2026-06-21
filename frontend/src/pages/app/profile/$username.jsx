@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,6 +36,35 @@ function ProfilePage() {
   const [aiEvaluation, setAiEvaluation] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
+
+  const [followLoading, setFollowLoading] = useState(false);
+
+  const handleFollowToggle = async () => {
+    if (!profileData || !profileData.user) return;
+    const { user } = profileData;
+    setFollowLoading(true);
+    const action = user.is_following ? "unfollow" : "follow";
+    try {
+      const response = await API.post(`/api/profile/${user.username}/${action}`);
+      if (response.data.success) {
+        setProfileData((prev) => ({
+          ...prev,
+          user: {
+            ...prev.user,
+            is_following: !user.is_following,
+            followers_count: user.is_following
+              ? Math.max(0, (user.followers_count || 0) - 1)
+              : (user.followers_count || 0) + 1,
+          },
+        }));
+        toast.success(response.data.message || `Successfully ${action}ed user.`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || `Failed to ${action} user.`);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -198,6 +228,14 @@ function ProfilePage() {
               <Badge className={`font-mono text-[10px] border ${division.color}`}>
                 {division.name}
               </Badge>
+              <div className="flex items-center gap-3 ml-2 text-xs text-muted-foreground">
+                <span>
+                  <strong className="text-white font-semibold">{user.following_count || 0}</strong> following
+                </span>
+                <span>
+                  <strong className="text-white font-semibold">{user.followers_count || 0}</strong> followers
+                </span>
+              </div>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               {user.location && (
@@ -241,7 +279,20 @@ function ProfilePage() {
                 <Link to="/app/settings?tab=profile">Edit Profile</Link>
               </Button>
             ) : (
-              <Button size="sm">Follow</Button>
+              <Button
+                size="sm"
+                onClick={handleFollowToggle}
+                disabled={followLoading}
+                className={user.is_following ? "bg-zinc-800 hover:bg-zinc-700 text-white" : "bg-[#FF6500] hover:bg-[#E05900] text-white"}
+              >
+                {followLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                ) : user.is_following ? (
+                  "Unfollow"
+                ) : (
+                  "Follow"
+                )}
+              </Button>
             )}
           </div>
         </div>
