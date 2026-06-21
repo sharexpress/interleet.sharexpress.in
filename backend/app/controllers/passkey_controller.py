@@ -153,7 +153,6 @@ class PasskeyController:
                 {
                     "$set": {
                         "passkey_registered": True,
-                        "face_registered": True, # Also marks face as registered for seamless auth integration
                         "updated_at": datetime.utcnow(),
                     }
                 },

@@ -35,11 +35,7 @@ import ContestResults from "@/pages/app/contest/ContestResults";
 import AdminPage from "@/pages/admin";
 import NotFoundPage from "@/pages/NotFound";
 
-// Face ID Pages
-import RegisterFacePage from "@/pages/register-face";
-import LoginFacePage from "@/pages/login-face";
-import FaceEnrollmentPage from "@/pages/face-enrollment";
-import FaceVerificationPage from "@/pages/face-verification";
+
 
 export const router = createBrowserRouter([
   // ── Fully public (no auth needed, no redirect) ───────────────────────────
@@ -63,7 +59,7 @@ export const router = createBrowserRouter([
       { path: "/login", element: <LoginPage /> },
       { path: "/signup", element: <LoginPage /> },
       { path: "/forgot", element: <ForgotPage /> },
-      { path: "/login-face", element: <LoginFacePage /> },
+
     ],
   },
 
@@ -94,9 +90,7 @@ export const router = createBrowserRouter([
       { path: "/app/contest/editor/:code", element: <ContestWorkspace /> },
       { path: "/app/contest/results/:code", element: <ContestResults /> },
       { path: "/app/store", element: <StorePage /> },
-      { path: "/register-face", element: <RegisterFacePage /> },
-      { path: "/face-enrollment", element: <FaceEnrollmentPage /> },
-      { path: "/face-verification", element: <FaceVerificationPage /> },
+
     ],
   },
 

@@ -76,7 +76,7 @@ class TestPasskeySecurity(unittest.IsolatedAsyncioTestCase):
         pc.db.webauthn_credentials.update_one.assert_called_once()
         pc.db.users.update_one.assert_called_once_with(
             {"user_id": "user123"},
-            {"$set": {"passkey_registered": True, "face_registered": True, "updated_at": unittest.mock.ANY}}
+            {"$set": {"passkey_registered": True, "updated_at": unittest.mock.ANY}}
         )
         self.assertNotIn("registration_challenge", request.session)
 

@@ -27,7 +27,6 @@ from app.routers.user import router as user_router
 from app.routers.resume import router as resume_router
 from app.routers.interview import router as interview_router
 from app.routers.challenges import router as challenge_router
-from app.routers.face import router as face_router
 from app.routers.passkey import router as passkey_router
 from app.routers.execution import router as execution_router
 from app.routers.platform import router as platform_router
@@ -149,7 +148,6 @@ app.include_router(user_router)
 app.include_router(resume_router)
 app.include_router(interview_router)
 app.include_router(challenge_router)
-app.include_router(face_router)
 app.include_router(passkey_router)
 app.include_router(execution_router)  # Legacy: /api/execution/* (backward compat)
 app.include_router(platform_router)
