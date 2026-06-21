@@ -1021,12 +1021,16 @@ class PlatformController:
         user_id = user_info.get("user_id")
         
         allowed_updates = {}
-        if "location" in payload:
-            allowed_updates["location"] = payload["location"]
-        if "github_username" in payload:
-            allowed_updates["github_username"] = payload["github_username"]
-        if "website" in payload:
-            allowed_updates["website"] = payload["website"]
+        fields = [
+            "location", "github_username", "website", 
+            "full_name", "avatar", "bio", "country", 
+            "linkedin_url", "portfolio_url"
+        ]
+        for field in fields:
+            if field in payload:
+                # Store empty strings or strip strings
+                val = payload[field]
+                allowed_updates[field] = val.strip() if isinstance(val, str) else val
             
         if not allowed_updates:
             return {"success": True, "message": "No fields to update"}
@@ -1037,4 +1041,5 @@ class PlatformController:
         )
         
         return {"success": True, "message": "Profile updated successfully"}
+
 
