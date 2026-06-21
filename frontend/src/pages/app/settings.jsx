@@ -540,7 +540,7 @@ function NotificationsSection() {
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     fetchNotifications();
   }, []);
 
