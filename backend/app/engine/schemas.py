@@ -157,7 +157,7 @@ class ExecutionResult(BaseModel):
     score: float = 0.0
 
     # Per-category scoring breakdown (anti-overfitting)
-    category_scores: Optional[dict[str, dict]] = None
+    category_scores: Optional[CategoryScoringResult] = None
 
     error: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
