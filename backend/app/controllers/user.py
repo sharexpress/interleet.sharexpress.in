@@ -157,7 +157,12 @@ class UserController:
     @staticmethod
     async def google_login(request: Request):
         try:
-            redirect_uri = f"{BACKEND_URL}/auth/google/callback"
+            host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+            if host:
+                redirect_uri = f"{proto}://{host}/auth/google/callback"
+            else:
+                redirect_uri = f"{BACKEND_URL}/auth/google/callback"
             return await oauth.google.authorize_redirect(
                 request,
                 redirect_uri,
@@ -176,7 +181,13 @@ class UserController:
     @staticmethod
     async def google_callback(request: Request):
         try:
-            token = await oauth.google.authorize_access_token(request)
+            host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+            if host:
+                redirect_uri = f"{proto}://{host}/auth/google/callback"
+            else:
+                redirect_uri = f"{BACKEND_URL}/auth/google/callback"
+            token = await oauth.google.authorize_access_token(request, redirect_uri=redirect_uri)
             user_info = token.get("userinfo")
             if not user_info:
                 raise HTTPException(
@@ -267,7 +278,12 @@ class UserController:
     @staticmethod
     async def github_login(request: Request):
         try:
-            redirect_uri = f"{BACKEND_URL}/auth/github/callback"
+            host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+            if host:
+                redirect_uri = f"{proto}://{host}/auth/github/callback"
+            else:
+                redirect_uri = f"{BACKEND_URL}/auth/github/callback"
             return await oauth.github.authorize_redirect(request, redirect_uri)
         except Exception:
             logger.exception("GitHub login failed")
@@ -278,7 +294,13 @@ class UserController:
     @staticmethod
     async def github_callback(request: Request):
         try:
-            token = await oauth.github.authorize_access_token(request)
+            host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+            if host:
+                redirect_uri = f"{proto}://{host}/auth/github/callback"
+            else:
+                redirect_uri = f"{BACKEND_URL}/auth/github/callback"
+            token = await oauth.github.authorize_access_token(request, redirect_uri=redirect_uri)
 
             response = await oauth.github.get("user", token=token)
             github_user = response.json()

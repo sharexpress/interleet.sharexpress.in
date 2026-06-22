@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import logging
 import os
+
+PRESERVED_PORT = int(os.environ.get("SERVER_PORT", 8000))
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -17,7 +19,13 @@ from fastapi.staticfiles import StaticFiles
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from starlette.middleware.sessions import SessionMiddleware
 
+# Preserve SERVER_PORT if set by process manager (PM2/Docker)
+_preserved_port = os.environ.get("SERVER_PORT")
+
 load_dotenv(override=True)
+
+if _preserved_port is not None:
+    os.environ["SERVER_PORT"] = _preserved_port
 
 from app.core.config import SESSION_SECRET_KEY
 from app.core.db import get_db
@@ -133,6 +141,7 @@ async def root(db: AsyncIOMotorDatabase = Depends(get_db)):
         "version": "2.0.0",
         "status": "ok",
         "collections": len(collections),
+        "port": PRESERVED_PORT,
     }
 
 
