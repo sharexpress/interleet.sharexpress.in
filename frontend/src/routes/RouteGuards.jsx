@@ -58,9 +58,9 @@ export function ProtectedRoute() {
   if (!onboardingCompleted) return <Navigate to="/onboarding" replace />;
 
   const isPremiumUser = user?.is_premium || user?.role === "admin";
-  const isStorePage = location.pathname === "/app/store";
 
-  if (!isPremiumUser && !isStorePage) {
+  // Gate AI Mock Interviews under premium subscription
+  if (location.pathname.startsWith("/app/interviews") && !isPremiumUser) {
     return <Navigate to="/app/store" replace />;
   }
 
