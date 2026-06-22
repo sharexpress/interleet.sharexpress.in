@@ -39,8 +39,18 @@ sshpass -p 'santusht' ssh -o StrictHostKeyChecking=no santusht@192.168.29.104 'b
     cd frontend
     npm run build
     
-    echo "🔄 Restarting backend process (PM2)..."
-    pm2 restart interleet --update-env
+    echo "⚙️ Updating Nginx configuration..."
+    echo "santusht" | sudo -S cp /home/santusht/desktop/projects/interleet/nginx/interleet-backend.conf /etc/nginx/sites-available/interleet-backend
+    echo "santusht" | sudo -S nginx -t
+    echo "santusht" | sudo -S systemctl reload nginx
+    
+    echo "🔄 Starting load-balanced backend processes (PM2)..."
+    # Delete the legacy single process if it exists to release port 8000
+    pm2 delete interleet || true
+    
+    # Start or reload the 4 backend instances defined in the ecosystem config
+    cd backend
+    pm2 startOrReload ecosystem.config.cjs --update-env
     
     echo "🎉 Remote deployment successfully completed!"
 ENDSSH
