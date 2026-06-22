@@ -158,8 +158,8 @@ class UserController:
     async def google_login(request: Request):
         try:
             host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
             if host:
+                proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
                 redirect_uri = f"{proto}://{host}/auth/google/callback"
             else:
                 redirect_uri = f"{BACKEND_URL}/auth/google/callback"
@@ -182,8 +182,8 @@ class UserController:
     async def google_callback(request: Request):
         try:
             host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
             if host:
+                proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
                 redirect_uri = f"{proto}://{host}/auth/google/callback"
             else:
                 redirect_uri = f"{BACKEND_URL}/auth/google/callback"
@@ -279,8 +279,8 @@ class UserController:
     async def github_login(request: Request):
         try:
             host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
             if host:
+                proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
                 redirect_uri = f"{proto}://{host}/auth/github/callback"
             else:
                 redirect_uri = f"{BACKEND_URL}/auth/github/callback"
@@ -295,8 +295,8 @@ class UserController:
     async def github_callback(request: Request):
         try:
             host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-            proto = request.headers.get("x-forwarded-proto") or request.url.scheme
             if host:
+                proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
                 redirect_uri = f"{proto}://{host}/auth/github/callback"
             else:
                 redirect_uri = f"{BACKEND_URL}/auth/github/callback"
