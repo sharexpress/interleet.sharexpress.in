@@ -111,3 +111,9 @@ async def candidates():
 async def update_profile(payload: dict = Body(...), user=Depends(UserMiddleware.me)):
     return await PlatformController.update_profile(payload, user)
 
+
+@router.get("/public/stats")
+async def public_stats():
+    """Public platform stats for the landing page — no auth required."""
+    return await PlatformController.public_stats()
+

@@ -1046,4 +1046,95 @@ class PlatformController:
         
         return {"success": True, "message": "Profile updated successfully"}
 
+    @staticmethod
+    async def public_stats():
+        """Public stats for the landing page — no auth required."""
+        # 1. Aggregate counts
+        total_challenges = await db.problems.count_documents({})
+        total_users = await db.users.count_documents({})
+        total_interviews = await db.interview_reports.count_documents({})
+        total_submissions = await db.submissions.count_documents({})
+        total_contests = await db.contests.count_documents({})
+
+        # 2. Per-domain challenge counts
+        domain_list = ["Frontend", "Backend", "DevOps", "APIs", "Databases", "Fullstack", "System Design"]
+        domains = []
+        for d in domain_list:
+            count = await db.problems.count_documents({"domain": d})
+            if count > 0:
+                domains.append({"name": d, "challenge_count": count})
+
+        # 3. Top 5 users by rating/activity (lightweight — no N+1 queries)
+        all_users = await db.users.find(
+            {},
+            {"user_id": 1, "username": 1, "full_name": 1, "avatar": 1, "overall_rating": 1, "delta": 1, "_id": 0}
+        ).to_list(length=100)
+
+        # Sort by overall_rating descending, then assign ranks
+        all_users.sort(key=lambda u: u.get("overall_rating", 0), reverse=True)
+        top_users = []
+        for idx, u in enumerate(all_users[:5]):
+            top_users.append({
+                "rank": idx + 1,
+                "username": u.get("username", "developer"),
+                "rating": u.get("overall_rating", 0),
+                "avatar": u.get("avatar"),
+                "delta": u.get("delta", 0),
+            })
+
+        # 4. Showcase user (highest rated) for dashboard preview
+        showcase_user = None
+        if all_users:
+            top = all_users[0]
+            uid = top.get("user_id")
+            solved_count = await db.submissions.count_documents({"user_id": uid, "status": "accepted"})
+            streak = 0
+            user_full = await db.users.find_one({"user_id": uid})
+            if user_full:
+                streak = user_full.get("streak_count", 0)
+
+            # Domain strengths for showcase
+            problems_cursor = db.problems.find({})
+            all_problems = await problems_cursor.to_list(length=500)
+
+            accepted_subs = await db.submissions.find({"user_id": uid, "status": "accepted"}).to_list(length=500)
+            solved_slugs = {s["problem_slug"] for s in accepted_subs if s.get("problem_slug")}
+
+            domain_strengths = []
+            for d in ["Backend", "APIs", "System Design", "Frontend", "DevOps", "Databases"]:
+                total_in_d = sum(1 for p in all_problems if p.get("domain") == d)
+                solved_in_d = sum(1 for p in all_problems if p.get("domain") == d and p.get("slug") in solved_slugs)
+                if total_in_d > 0:
+                    score = min(100, int((solved_in_d / total_in_d) * 100))
+                    if solved_in_d > 0:
+                        score = min(100, max(score, 30 + solved_in_d * 20))
+                    else:
+                        score = 10
+                else:
+                    score = 10
+                domain_strengths.append({"name": d, "score": score})
+
+            # Sort by score, take top 3
+            domain_strengths.sort(key=lambda x: x["score"], reverse=True)
+
+            showcase_user = {
+                "name": top.get("full_name", top.get("username", "Engineer")),
+                "rating": top.get("overall_rating", 0),
+                "xp": solved_count * 200,
+                "rank": 1,
+                "streak": streak,
+                "solved": solved_count,
+                "domain_strengths": domain_strengths[:3],
+            }
+
+        return {
+            "total_challenges": total_challenges,
+            "total_users": total_users,
+            "total_interviews": total_interviews,
+            "total_submissions": total_submissions,
+            "total_contests": total_contests,
+            "domains": domains,
+            "top_users": top_users,
+            "showcase_user": showcase_user,
+        }
 

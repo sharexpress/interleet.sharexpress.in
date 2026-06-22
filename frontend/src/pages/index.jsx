@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MarketingNav, MarketingFooter } from "@/components/marketing/Marketing";
+import { API } from "@/api/api";
 import {
   ArrowRight,
   Bot,
@@ -23,20 +25,48 @@ import {
   Activity } from
 "lucide-react";
 
+/* ─── Domain icon map ─────────────────────────────────────────── */
+const domainIcons = {
+  Frontend: Code2,
+  Backend: Terminal,
+  DevOps: Cloud,
+  APIs: Layers,
+  Databases: Database,
+  Fullstack: Cpu,
+  "System Design": Network,
+};
 
+const domainDescriptions = {
+  Frontend: "Performance, accessibility, state, design systems.",
+  Backend: "Concurrency, queues, services, business logic.",
+  DevOps: "CI/CD, containers, observability, infra-as-code.",
+  APIs: "REST, gRPC, GraphQL, contracts, versioning.",
+  Databases: "Modeling, indexing, replication, query tuning.",
+  Fullstack: "End-to-end applications, full-stack architecture.",
+  "System Design": "Distributed systems, caching, scale, tradeoffs.",
+};
 
+/* ─── Root component ──────────────────────────────────────────── */
 function Landing() {
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    API.get("/api/public/stats")
+      .then((res) => setStats(res.data))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <MarketingNav />
       <Hero />
-      <StatsStrip />
+      <StatsStrip stats={stats} />
       <ProblemStatement />
       <Features />
       <InterviewShowcase />
       <SystemDesignShowcase />
-      <Domains />
-      <CompetitiveEcosystem />
+      <Domains stats={stats} />
+      <CompetitiveEcosystem stats={stats} />
       <RecruiterSection />
       <Testimonials />
       <CTA />
@@ -104,6 +134,37 @@ function Hero() {
 }
 
 function DashboardPreview() {
+  const { isAuthenticated, user } = useSelector((state) => state.user || {});
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    API.get("/api/public/stats")
+      .then((res) => setStats(res.data))
+      .catch(() => {});
+  }, []);
+
+  // Use authenticated user's data if logged in, otherwise showcase user from API
+  const showcase = stats?.showcase_user;
+  const displayName = isAuthenticated
+    ? (user?.full_name?.split(" ")[0] || "Engineer")
+    : (showcase?.name?.split(" ")[0] || "Alex");
+  const rating = isAuthenticated
+    ? (user?.overall_rating || 0)
+    : (showcase?.rating || 0);
+  const xp = showcase?.xp || 0;
+  const rank = showcase?.rank || 1;
+  const streak = isAuthenticated
+    ? (user?.streak_count || 0)
+    : (showcase?.streak || 0);
+  const domainStrengths = showcase?.domain_strengths || [
+    { name: "Backend", score: 10 },
+    { name: "APIs", score: 10 },
+    { name: "System Design", score: 10 },
+  ];
+
+  // Generate activity bars from showcase data or defaults
+  const activityBars = [40, 65, 35, 80, 55, 90, 70];
+
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-black/40">
       {/* Window chrome */}
@@ -115,7 +176,7 @@ function DashboardPreview() {
         </div>
         <div className="mx-auto flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1 font-mono text-[11px] text-muted-foreground">
           <Globe2 className="h-3 w-3" />
-          app.interleet.dev/dashboard
+          interleet.sharexpress.in/dashboard
         </div>
       </div>
       <div className="grid gap-0 md:grid-cols-[180px_1fr]">
@@ -144,18 +205,18 @@ function DashboardPreview() {
         <div className="p-4 md:p-6">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs text-muted-foreground">Welcome back, Alex</p>
+              <p className="text-xs text-muted-foreground">Welcome back, {displayName}</p>
               <p className="text-base font-semibold">Your engineering arena</p>
             </div>
-            <Badge variant="outline" className="font-mono text-[10px]">RATING 2,184</Badge>
+            <Badge variant="outline" className="font-mono text-[10px]">RATING {rating.toLocaleString()}</Badge>
           </div>
 
           <div className="mt-4 grid gap-3 md:grid-cols-4">
             {[
-            { k: "XP", v: "48.2k", c: "text-primary" },
-            { k: "Rank", v: "#327", c: "text-chart-2" },
-            { k: "Streak", v: "28d", c: "text-chart-3" },
-            { k: "Accuracy", v: "86%", c: "text-chart-4" }].
+            { k: "XP", v: xp > 1000 ? `${(xp / 1000).toFixed(1)}k` : String(xp), c: "text-primary" },
+            { k: "Rank", v: `#${rank}`, c: "text-chart-2" },
+            { k: "Streak", v: `${streak}d`, c: "text-chart-3" },
+            { k: "Solved", v: String(showcase?.solved || 0), c: "text-chart-4" }].
             map((m) =>
             <div key={m.k} className="rounded-lg border border-border bg-background/40 p-3">
                 <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -173,7 +234,7 @@ function DashboardPreview() {
                 <p className="font-mono text-[10px] text-muted-foreground">7d</p>
               </div>
               <div className="flex h-20 items-end gap-1.5">
-                {[40, 65, 35, 80, 55, 90, 70].map((h, i) =>
+                {activityBars.map((h, i) =>
                 <div key={i} className="flex-1 rounded-sm bg-gradient-to-t from-primary/60 to-primary/20" style={{ height: `${h}%` }} />
                 )}
               </div>
@@ -181,18 +242,14 @@ function DashboardPreview() {
             <div className="rounded-lg border border-border bg-background/40 p-3">
               <p className="mb-2 text-xs font-medium">Domain strength</p>
               <div className="space-y-1.5">
-                {[
-                ["Backend", 91],
-                ["APIs", 84],
-                ["System Design", 80]].
-                map(([n, v]) =>
-                <div key={n}>
+                {domainStrengths.slice(0, 3).map(({ name, score }) =>
+                <div key={name}>
                     <div className="mb-0.5 flex justify-between text-[11px]">
-                      <span className="text-muted-foreground">{n}</span>
-                      <span className="font-mono">{v}%</span>
+                      <span className="text-muted-foreground">{name}</span>
+                      <span className="font-mono">{score}%</span>
                     </div>
                     <div className="h-1 rounded-full bg-muted">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${v}%` }} />
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${score}%` }} />
                     </div>
                   </div>
                 )}
@@ -205,17 +262,25 @@ function DashboardPreview() {
 
 }
 
-function StatsStrip() {
-  const stats = [
-  { n: "12k+", l: "engineering challenges" },
-  { n: "180k", l: "developers practicing" },
-  { n: "94%", l: "report interview confidence ↑" },
-  { n: "320+", l: "hiring teams" }];
+function StatsStrip({ stats }) {
+  const data = stats
+    ? [
+        { n: String(stats.total_challenges), l: "engineering challenges" },
+        { n: String(stats.total_users), l: "developers practicing" },
+        { n: String(stats.total_interviews), l: "AI interviews completed" },
+        { n: String(stats.total_submissions), l: "code submissions" },
+      ]
+    : [
+        { n: "—", l: "engineering challenges" },
+        { n: "—", l: "developers practicing" },
+        { n: "—", l: "AI interviews completed" },
+        { n: "—", l: "code submissions" },
+      ];
 
   return (
     <section className="border-b border-border bg-card/30">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 py-10 md:grid-cols-4 md:px-8">
-        {stats.map((s) =>
+        {data.map((s) =>
         <div key={s.l}>
             <p className="text-2xl font-semibold tracking-tight md:text-3xl">{s.n}</p>
             <p className="mt-1 text-xs text-muted-foreground md:text-sm">{s.l}</p>
@@ -435,14 +500,26 @@ function SystemDesignShowcase() {
 
 }
 
-function Domains() {
-  const items = [
-  { i: Code2, t: "Frontend", d: "Performance, accessibility, state, design systems." },
-  { i: Terminal, t: "Backend", d: "Concurrency, queues, services, business logic." },
-  { i: Cloud, t: "DevOps", d: "CI/CD, containers, observability, infra-as-code." },
-  { i: Layers, t: "APIs", d: "REST, gRPC, GraphQL, contracts, versioning." },
-  { i: Database, t: "Databases", d: "Modeling, indexing, replication, query tuning." },
-  { i: Network, t: "System Design", d: "Distributed systems, caching, scale, tradeoffs." }];
+function Domains({ stats }) {
+  // Build domain items from real data if available
+  const items = stats?.domains?.length
+    ? stats.domains.map((d) => {
+        const Icon = domainIcons[d.name] || Code2;
+        return {
+          i: Icon,
+          t: d.name,
+          d: domainDescriptions[d.name] || "",
+          count: d.challenge_count,
+        };
+      })
+    : [
+        { i: Code2, t: "Frontend", d: domainDescriptions.Frontend, count: null },
+        { i: Terminal, t: "Backend", d: domainDescriptions.Backend, count: null },
+        { i: Cloud, t: "DevOps", d: domainDescriptions.DevOps, count: null },
+        { i: Layers, t: "APIs", d: domainDescriptions.APIs, count: null },
+        { i: Database, t: "Databases", d: domainDescriptions.Databases, count: null },
+        { i: Network, t: "System Design", d: domainDescriptions["System Design"], count: null },
+      ];
 
   return (
     <section className="border-b border-border">
@@ -452,17 +529,26 @@ function Domains() {
             Practice domains
           </p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
-            Six tracks. One stack of skills.
+            {stats?.domains?.length
+              ? `${stats.domains.length} tracks. One stack of skills.`
+              : "Six tracks. One stack of skills."}
           </h2>
         </div>
         <div className="mt-10 grid gap-3 md:grid-cols-3">
-          {items.map(({ i: Icon, t, d }) =>
+          {items.map(({ i: Icon, t, d, count }) =>
           <Card key={t} className="border-border bg-card p-5 transition-colors hover:border-primary/40">
               <div className="flex items-center gap-3">
                 <span className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background">
                   <Icon className="h-4 w-4 text-primary" />
                 </span>
-                <h3 className="text-base font-semibold">{t}</h3>
+                <div>
+                  <h3 className="text-base font-semibold">{t}</h3>
+                  {count !== null && (
+                    <p className="font-mono text-[10px] text-muted-foreground">
+                      {count} challenge{count !== 1 ? "s" : ""}
+                    </p>
+                  )}
+                </div>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{d}</p>
             </Card>
@@ -473,7 +559,9 @@ function Domains() {
 
 }
 
-function CompetitiveEcosystem() {
+function CompetitiveEcosystem({ stats }) {
+  const topUsers = stats?.top_users || [];
+
   return (
     <section className="border-b border-border bg-card/30">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-20 md:grid-cols-2 md:px-8">
@@ -501,26 +589,38 @@ function CompetitiveEcosystem() {
                 </tr>
               </thead>
               <tbody>
-                {[
-                ["1", "amelia.dev", "2843", "+24"],
-                ["2", "kenji_w", "2790", "+12"],
-                ["3", "priya.s", "2755", "-3"],
-                ["4", "lucasf", "2710", "+8"],
-                ["5", "noor.k", "2682", "+5"]].
-                map(([r, u, rt, d]) =>
-                <tr key={r} className="border-t border-border">
-                    <td className="px-3 py-2 font-mono text-muted-foreground">{r}</td>
-                    <td className="px-3 py-2 font-medium">@{u}</td>
-                    <td className="px-3 py-2 font-mono">{rt}</td>
-                    <td
-                    className={`px-3 py-2 text-right font-mono ${
-                    d.startsWith("-") ? "text-destructive" : "text-success"}`
-                    }>
-                    
-                      {d}
-                    </td>
-                  </tr>
-                )}
+                {topUsers.length > 0
+                  ? topUsers.map((u) => (
+                      <tr key={u.rank} className="border-t border-border">
+                        <td className="px-3 py-2 font-mono text-muted-foreground">{u.rank}</td>
+                        <td className="px-3 py-2 font-medium">
+                          <Link to={`/app/profile/${u.username}`} className="hover:text-primary transition-colors">
+                            @{u.username}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-2 font-mono">{u.rating}</td>
+                        <td
+                          className={`px-3 py-2 text-right font-mono ${
+                            u.delta < 0 ? "text-destructive" : "text-success"
+                          }`}>
+                          {u.delta >= 0 ? `+${u.delta}` : String(u.delta)}
+                        </td>
+                      </tr>
+                    ))
+                  : [1, 2, 3, 4, 5].map((r) => (
+                      <tr key={r} className="border-t border-border">
+                        <td className="px-3 py-2 font-mono text-muted-foreground">{r}</td>
+                        <td className="px-3 py-2">
+                          <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="h-3 w-10 animate-pulse rounded bg-muted" />
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="ml-auto h-3 w-6 animate-pulse rounded bg-muted" />
+                        </td>
+                      </tr>
+                    ))}
               </tbody>
             </table>
           </div>
