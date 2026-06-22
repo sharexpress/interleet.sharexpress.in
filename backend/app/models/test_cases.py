@@ -11,6 +11,8 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from app.engine.enums import TestCaseCategory
+
 
 class TestCaseModel(BaseModel):
     """
@@ -25,10 +27,14 @@ class TestCaseModel(BaseModel):
     stdin: str = ""
     expected_output: str = ""
 
-    # Configuration
+    # Classification
+    category: TestCaseCategory = TestCaseCategory.SAMPLE
     hidden: bool = False  # If True, output is redacted from API responses
     weight: float = 1.0   # Relative weight for scoring (default = equal weight)
     name: Optional[str] = None  # Display name, e.g., "Edge case: empty list"
+
+    # Comparison
+    comparison_mode: Optional[str] = None  # Per-testcase comparison override
 
     # Per-testcase limits (overrides problem-level limits if set)
     time_limit: Optional[float] = None     # seconds

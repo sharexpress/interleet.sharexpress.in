@@ -47,3 +47,19 @@ async def login_verify(
 ):
     """Verify signature and authenticate user using WebAuthn/Passkey."""
     return await PasskeyController.login_verify(payload, request, response)
+
+@router.get("")
+async def list_passkeys(
+    current_user: dict = Depends(User_Middleware.me),
+):
+    """List registered WebAuthn passkeys for the current authenticated user."""
+    return await PasskeyController.list_passkeys(current_user)
+
+@router.delete("/{credential_id}")
+async def delete_passkey(
+    credential_id: str,
+    current_user: dict = Depends(User_Middleware.me),
+):
+    """Delete/Revoke a registered WebAuthn passkey."""
+    return await PasskeyController.delete_passkey(credential_id, current_user)
+

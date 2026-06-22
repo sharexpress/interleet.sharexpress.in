@@ -7,6 +7,8 @@ class PasskeyRegisterOptionsRequest(BaseModel):
 class PasskeyRegisterVerifyRequest(BaseModel):
     email: Optional[str] = Field(None, description="Email for passkey registration if not authenticated")
     credential: Dict[str, Any] = Field(..., description="WebAuthn registration credential from navigator.credentials.create")
+    label: Optional[str] = Field(None, description="Custom label for the passkey")
+
 
 class PasskeyLoginOptionsRequest(BaseModel):
     email: str = Field(..., description="Email of the user logging in")

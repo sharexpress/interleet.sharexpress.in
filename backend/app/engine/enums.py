@@ -51,3 +51,11 @@ class ComparisonMode(str, Enum):
     TOKEN = "token"
     SEMANTIC = "semantic"      # Smart structured comparison (JSON/Python literals)
     UNORDERED = "unordered"    # Order-independent comparison (sets, dicts)
+
+
+class TestCaseCategory(str, Enum):
+    SAMPLE = "sample"           # Visible examples shown to candidates
+    FUNCTIONAL = "functional"   # Hidden normal/functional tests
+    EDGE_CASE = "edge_case"     # Hidden edge-case tests
+    ADVERSARIAL = "adversarial" # Hidden adversarial tests (anti-cheat)
+    RANDOMIZED = "randomized"   # Hidden randomized tests (anti-memorization)

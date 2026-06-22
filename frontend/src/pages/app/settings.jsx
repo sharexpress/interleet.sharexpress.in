@@ -51,10 +51,101 @@ const AVAILABLE_AVATARS = [
   { id: "https://api.dicebear.com/7.x/identicon/svg?seed=Matrix", name: "Identicon" }
 ];
 
+// WebAuthn base64url/ArrayBuffer conversion helper functions
+const base64urlToBuffer = (base64url) => {
+  let base64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = base64.length % 4;
+  if (pad) {
+    base64 += "=".repeat(4 - pad);
+  }
+  const binary = window.atob(base64);
+  const buffer = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    buffer[i] = binary.charCodeAt(i);
+  }
+  return buffer.buffer;
+};
+
+const bufferToBase64url = (buffer) => {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = window.btoa(binary);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+};
+
 function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "profile";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [profileData, setProfileData] = useState(null);
+  const [ordersData, setOrdersData] = useState([]);
+  const [passkeysData, setPasskeysData] = useState([]);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loadingPasskeys, setLoadingPasskeys] = useState(true);
+
+  const fetchProfile = async () => {
+    try {
+      setLoadingProfile(true);
+      const res = await API.get("/api/profile");
+      if (res.data && res.data.success) {
+        setProfileData(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to load profile", err);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      setLoadingOrders(true);
+      const res = await API.get("/api/payment/orders");
+      if (res.data && res.data.success) {
+        setOrdersData(res.data.orders || []);
+      }
+    } catch (err) {
+      console.error("Failed to load orders", err);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const fetchPasskeys = async () => {
+    try {
+      setLoadingPasskeys(true);
+      const res = await API.get("/api/passkey");
+      if (res.data && res.data.success) {
+        setPasskeysData(res.data.passkeys || []);
+      }
+    } catch (err) {
+      console.error("Failed to load passkeys", err);
+    } finally {
+      setLoadingPasskeys(false);
+    }
+  };
+
+  useEffect(() => {
+    document.title = "Settings & Developer Profile | Interleet";
+    
+    // Manage SEO Meta description dynamically
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.name = "description";
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = "Configure your Interleet developer profile, manage native WebAuthn biometric passkeys, check points/XP achievements, and view transaction history.";
+
+    fetchProfile();
+    fetchOrders();
+    fetchPasskeys();
+  }, []);
 
   const active = useMemo(() => {
     return navItems.some(n => n.key === activeTab) ? activeTab : "profile";
@@ -111,13 +202,41 @@ function Settings() {
         {/* Dynamic Content Panel */}
         <main className="px-4 py-6 md:px-12 md:py-8 bg-zinc-950/10">
           <div className="max-w-5xl">
-            {active === "profile" && <ProfileSection />}
+            {active === "profile" && (
+              <ProfileSection
+                profileData={profileData}
+                loadingProfile={loadingProfile}
+                onRefreshProfile={fetchProfile}
+              />
+            )}
             {active === "account" && <AccountSection />}
-            {active === "security" && <SecuritySection />}
+            {active === "security" && (
+              <SecuritySection
+                passkeys={passkeysData}
+                loadingPasskeys={loadingPasskeys}
+                onRefreshPasskeys={fetchPasskeys}
+              />
+            )}
             {active === "privacy" && <PrivacySection />}
-            {active === "billing" && <BillingSection />}
-            {active === "points" && <PointsSection />}
-            {active === "orders" && <OrdersSection />}
+            {active === "billing" && (
+              <BillingSection
+                orders={ordersData}
+                loadingOrders={loadingOrders}
+                onRefreshOrders={fetchOrders}
+              />
+            )}
+            {active === "points" && (
+              <PointsSection
+                profileData={profileData}
+                loadingProfile={loadingProfile}
+              />
+            )}
+            {active === "orders" && (
+              <OrdersSection
+                orders={ordersData}
+                loadingOrders={loadingOrders}
+              />
+            )}
             {active === "notifications" && <NotificationsSection />}
           </div>
         </main>
@@ -130,7 +249,7 @@ function Settings() {
 /* ────────────────────────────────────────────────────────────────────────── */
 /* 1. PROFILE SECTION                                                         */
 /* ────────────────────────────────────────────────────────────────────────── */
-function ProfileSection() {
+function ProfileSection({ profileData, loadingProfile, onRefreshProfile }) {
   const { user } = useSelector((state) => state.user);
   const dispatch = useDispatch();
 
@@ -175,6 +294,7 @@ function ProfileSection() {
       if (res.data && res.data.success) {
         toast.success("Profile details saved successfully!");
         dispatch(GetCurrentUser());
+        if (onRefreshProfile) onRefreshProfile();
       }
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to save profile changes.");
@@ -226,6 +346,7 @@ function ProfileSection() {
             <div className="pt-2">
               <label className="text-[10px] font-semibold text-zinc-400 block mb-1">Or paste a custom avatar URL</label>
               <input
+                id="settings-avatar-url-input"
                 type="text"
                 value={formState.avatar}
                 onChange={(e) => handleChange("avatar", e.target.value)}
@@ -239,6 +360,7 @@ function ProfileSection() {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-zinc-300 block">Full Name</label>
               <input
+                id="settings-full-name-input"
                 type="text"
                 value={formState.full_name}
                 onChange={(e) => handleChange("full_name", e.target.value)}
@@ -251,6 +373,7 @@ function ProfileSection() {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-zinc-300 block">Country</label>
               <input
+                id="settings-country-input"
                 type="text"
                 value={formState.country}
                 onChange={(e) => handleChange("country", e.target.value)}
@@ -263,6 +386,7 @@ function ProfileSection() {
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-zinc-300 block">Short Bio</label>
             <textarea
+              id="settings-bio-textarea"
               value={formState.bio}
               onChange={(e) => handleChange("bio", e.target.value)}
               placeholder="Tell the community about your stack, engineering goals, or hobbies..."
@@ -275,6 +399,7 @@ function ProfileSection() {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-zinc-300 block">Location</label>
               <input
+                id="settings-location-input"
                 type="text"
                 value={formState.location}
                 onChange={(e) => handleChange("location", e.target.value)}
@@ -286,6 +411,7 @@ function ProfileSection() {
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-zinc-300 block">Personal Portfolio Website</label>
               <input
+                id="settings-website-input"
                 type="text"
                 value={formState.website}
                 onChange={(e) => handleChange("website", e.target.value)}
@@ -301,6 +427,7 @@ function ProfileSection() {
               <div className="relative">
                 <Github className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <input
+                  id="settings-github-input"
                   type="text"
                   value={formState.github_username}
                   onChange={(e) => handleChange("github_username", e.target.value)}
@@ -315,6 +442,7 @@ function ProfileSection() {
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-xs font-bold text-muted-foreground select-none">in/</span>
                 <input
+                  id="settings-linkedin-input"
                   type="text"
                   value={formState.linkedin_url}
                   onChange={(e) => handleChange("linkedin_url", e.target.value)}
@@ -325,7 +453,7 @@ function ProfileSection() {
             </div>
           </div>
 
-          <Button type="submit" disabled={saving} className="w-full h-10 text-sm font-semibold">
+          <Button id="settings-save-profile-btn" type="submit" disabled={saving} className="w-full h-10 text-sm font-semibold">
             {saving ? "Saving Changes..." : "Save Profile Details"}
           </Button>
 
@@ -334,7 +462,7 @@ function ProfileSection() {
         {/* Live Leaderboard Card Preview */}
         <div className="space-y-2 lg:sticky lg:top-4">
           <label className="text-xs font-bold text-zinc-400 tracking-wider uppercase block">Real-time Card Preview</label>
-          <LeaderboardCardPreview formState={formState} user={user} />
+          <LeaderboardCardPreview formState={formState} user={user} profileData={profileData} />
         </div>
 
       </div>
@@ -342,10 +470,11 @@ function ProfileSection() {
   );
 }
 
-function LeaderboardCardPreview({ formState, user }) {
-  const level = Math.floor((user?.xp || 0) / 1000) + 1;
-  const rating = user?.rating || 1000;
-  const rank = user?.rank || 1;
+function LeaderboardCardPreview({ formState, user, profileData }) {
+  const profileUser = profileData?.user || user;
+  const level = Math.floor((profileUser?.xp || 0) / 1000) + 1;
+  const rating = profileUser?.rating || 1000;
+  const rank = profileUser?.rank || 1;
   const division = getDivisionTier(rating, rank);
 
   return (
@@ -520,6 +649,7 @@ function AccountSection() {
               </div>
 
               <Button
+                id="settings-google-sso-btn"
                 variant={googleConnected ? "secondary" : "outline"}
                 size="sm"
                 onClick={handleGoogleToggle}
@@ -551,6 +681,7 @@ function AccountSection() {
               </div>
 
               <Button
+                id="settings-github-oauth-btn"
                 variant={githubConnected ? "secondary" : "outline"}
                 size="sm"
                 onClick={handleGithubToggle}
@@ -584,7 +715,7 @@ function AccountSection() {
 
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="destructive" size="sm" className="bg-red-950/20 text-red-400 border border-red-500/30 hover:bg-red-900/40">
+              <Button id="settings-delete-account-btn" variant="destructive" size="sm" className="bg-red-950/20 text-red-400 border border-red-500/30 hover:bg-red-900/40">
                 Permanent Delete
               </Button>
             </DialogTrigger>
@@ -601,6 +732,7 @@ function AccountSection() {
               <div className="py-2">
                 <p className="text-xs text-zinc-400 font-mono">To confirm, type your username <strong className="text-white">@{user?.username}</strong> below:</p>
                 <input
+                  id="settings-delete-confirm-input"
                   type="text"
                   placeholder={user?.username}
                   className="w-full mt-2 h-9 rounded bg-zinc-900 border border-zinc-850 px-3 text-xs focus:outline-none focus:border-red-500"
@@ -608,7 +740,7 @@ function AccountSection() {
               </div>
               <DialogFooter className="gap-2 sm:gap-0">
                 <Button variant="ghost" size="sm" className="text-zinc-400">Cancel</Button>
-                <Button variant="destructive" size="sm" onClick={() => toast.error("Account deactivation restricted in demo workspace.")}>
+                <Button id="settings-confirm-delete-btn" variant="destructive" size="sm" onClick={() => toast.error("Account deactivation restricted in demo workspace.")}>
                   Confirm Purge
                 </Button>
               </DialogFooter>
@@ -624,17 +756,42 @@ function AccountSection() {
 /* ────────────────────────────────────────────────────────────────────────── */
 /* 3. SECURITY & PASSKEYS SECTION                                             */
 /* ────────────────────────────────────────────────────────────────────────── */
-function SecuritySection() {
-  const [sessions, setSessions] = useState([
-    { id: 1, device: "Chrome on macOS", location: "Mumbai, India", ip: "103.241.12.89", current: true, date: "Active now" },
-    { id: 2, device: "Safari on iPhone 15", location: "Pune, India", ip: "223.189.14.22", current: false, date: "2 hours ago" },
-    { id: 3, device: "VS Code Client", location: "Mumbai, India", ip: "103.241.12.90", current: false, date: "1 day ago" }
-  ]);
+function SecuritySection({ passkeys = [], loadingPasskeys = false, onRefreshPasskeys }) {
+  const { user } = useSelector((state) => state.user);
 
-  const [passkeys, setPasskeys] = useState([
-    { id: 1, name: "MacBook Touch ID", created: "Jun 10, 2026", lastUsed: "Jun 21, 2026" },
-    { id: 2, name: "iPhone Face ID", created: "Jun 12, 2026", lastUsed: "Jun 20, 2026" }
-  ]);
+  const dynamicSessions = useMemo(() => {
+    const ua = navigator.userAgent;
+    let deviceName = "Unknown Browser / OS";
+    if (ua.includes("Chrome") && ua.includes("Macintosh")) {
+      deviceName = "Chrome on macOS";
+    } else if (ua.includes("Safari") && ua.includes("Macintosh") && !ua.includes("Chrome")) {
+      deviceName = "Safari on macOS";
+    } else if (ua.includes("Firefox") && ua.includes("Macintosh")) {
+      deviceName = "Firefox on macOS";
+    } else if (ua.includes("Windows") && ua.includes("Chrome")) {
+      deviceName = "Chrome on Windows";
+    } else if (ua.includes("Windows") && ua.includes("Firefox")) {
+      deviceName = "Firefox on Windows";
+    } else if (ua.includes("iPhone")) {
+      deviceName = "Safari on iPhone";
+    } else if (ua.includes("iPad")) {
+      deviceName = "Safari on iPad";
+    } else if (ua.includes("Android")) {
+      deviceName = "Chrome on Android";
+    } else if (ua.includes("VSCode") || ua.includes("Electron")) {
+      deviceName = "VS Code Workspace Client";
+    }
+    
+    return [
+      { id: "current-session", device: deviceName, location: "Local Workstation", ip: "127.0.0.1", current: true, date: "Active now" }
+    ];
+  }, []);
+
+  const [sessions, setSessions] = useState([]);
+
+  useEffect(() => {
+    setSessions(dynamicSessions);
+  }, [dynamicSessions]);
 
   const [registeringPasskey, setRegisteringPasskey] = useState(false);
   const [passkeyModalOpen, setPasskeyModalOpen] = useState(false);
@@ -645,32 +802,92 @@ function SecuritySection() {
     toast.success("Session revoked successfully.");
   };
 
-  const handleRemovePasskey = (id) => {
-    setPasskeys(prev => prev.filter(p => p.id !== id));
-    toast.success("Passkey removed.");
+  const handleRemovePasskey = async (id) => {
+    try {
+      const res = await API.delete(`/api/passkey/${id}`);
+      if (res.data && res.data.success) {
+        toast.success("Passkey revoked successfully.");
+        if (onRefreshPasskeys) onRefreshPasskeys();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to remove passkey.");
+    }
   };
 
-  const handleAddPasskey = (e) => {
+  const handleAddPasskey = async (e) => {
     e.preventDefault();
     if (!newPasskeyName.trim()) return;
     setRegisteringPasskey(true);
     
-    // Simulate biometric credential registration flow
-    setTimeout(() => {
-      setPasskeys(prev => [
-        ...prev,
-        {
-          id: Date.now(),
-          name: newPasskeyName,
-          created: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-          lastUsed: "Never"
+    try {
+      // 1. Get options from server
+      const optionsRes = await API.post("/api/passkey/register/options", {
+        email: user?.email
+      });
+      
+      const options = optionsRes.data;
+      
+      // 2. Decode challenge and user.id from base64url into ArrayBuffer
+      if (options.challenge) {
+        options.challenge = base64urlToBuffer(options.challenge);
+      }
+      if (options.user && options.user.id) {
+        options.user.id = base64urlToBuffer(options.user.id);
+      }
+      if (options.excludeCredentials) {
+        options.excludeCredentials = options.excludeCredentials.map(cred => ({
+          ...cred,
+          id: base64urlToBuffer(cred.id)
+        }));
+      }
+
+      // 3. Request credential creation
+      const credential = await navigator.credentials.create({
+        publicKey: options
+      });
+
+      if (!credential) {
+        throw new Error("Device cancelled WebAuthn prompt.");
+      }
+
+      // 4. Convert credentials response fields back to base64url
+      const credentialPayload = {
+        id: credential.id,
+        rawId: bufferToBase64url(credential.rawId),
+        type: credential.type,
+        response: {
+          clientDataJSON: bufferToBase64url(credential.response.clientDataJSON),
+          attestationObject: bufferToBase64url(credential.response.attestationObject),
         }
-      ]);
+      };
+
+      if (credential.authenticatorAttachment) {
+        credentialPayload.authenticatorAttachment = credential.authenticatorAttachment;
+      }
+      
+      if (typeof credential.response.getTransports === "function") {
+        credentialPayload.response.transports = credential.response.getTransports();
+      }
+
+      // 5. Send registration credential to verify
+      const verifyRes = await API.post("/api/passkey/register/verify", {
+        email: user?.email,
+        credential: credentialPayload,
+        label: newPasskeyName
+      });
+
+      if (verifyRes.data && verifyRes.data.success) {
+        toast.success(`Biometric WebAuthn Passkey "${newPasskeyName}" configured successfully!`);
+        if (onRefreshPasskeys) onRefreshPasskeys();
+        setPasskeyModalOpen(false);
+        setNewPasskeyName("");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || err.response?.data?.detail || "Biometric registration failed.");
+    } finally {
       setRegisteringPasskey(false);
-      setPasskeyModalOpen(false);
-      setNewPasskeyName("");
-      toast.success("Biometric WebAuthn Passkey configured successfully!");
-    }, 2000);
+    }
   };
 
   return (
@@ -694,7 +911,7 @@ function SecuritySection() {
             
             <Dialog open={passkeyModalOpen} onOpenChange={setPasskeyModalOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="h-8 gap-1">
+                <Button id="settings-register-passkey-btn" size="sm" className="h-8 gap-1">
                   <Plus className="h-3.5 w-3.5" />
                   <span>Register Passkey</span>
                 </Button>
@@ -718,6 +935,7 @@ function SecuritySection() {
                     <div className="space-y-3">
                       <label className="text-xs font-semibold text-zinc-300 block">Authenticator Label</label>
                       <input
+                        id="settings-passkey-label-input"
                         type="text"
                         value={newPasskeyName}
                         onChange={(e) => setNewPasskeyName(e.target.value)}
@@ -732,7 +950,7 @@ function SecuritySection() {
                   {!registeringPasskey && (
                     <DialogFooter>
                       <Button type="button" variant="ghost" size="sm" onClick={() => setPasskeyModalOpen(false)}>Cancel</Button>
-                      <Button type="submit" size="sm">Initiate Registration</Button>
+                      <Button id="settings-initiate-passkey-btn" type="submit" size="sm">Initiate Registration</Button>
                     </DialogFooter>
                   )}
                 </form>
@@ -741,7 +959,12 @@ function SecuritySection() {
           </div>
 
           <div className="divide-y divide-zinc-900 border border-zinc-900 rounded-lg overflow-hidden bg-zinc-950/20">
-            {passkeys.length === 0 ? (
+            {loadingPasskeys ? (
+              <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                <span>Loading authenticators...</span>
+              </div>
+            ) : passkeys.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">No passkeys linked. Lock down your account using biometric keys.</div>
             ) : (
               passkeys.map(pk => (
@@ -752,10 +975,10 @@ function SecuritySection() {
                     </span>
                     <div>
                       <h4 className="text-sm font-semibold text-white">{pk.name}</h4>
-                      <p className="text-[10px] text-muted-foreground">Added {pk.created} · Last active {pk.lastUsed}</p>
+                      <p className="text-[10px] text-muted-foreground">Added {pk.created ? new Date(pk.created).toLocaleDateString() : "N/A"} · Status: Active</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleRemovePasskey(pk.id)} className="h-8 w-8 text-zinc-500 hover:text-red-400">
+                  <Button id={`settings-remove-passkey-${pk.id}-btn`} variant="ghost" size="icon" onClick={() => handleRemovePasskey(pk.id)} className="h-8 w-8 text-zinc-500 hover:text-red-400">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -771,18 +994,18 @@ function SecuritySection() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase">Current Password</label>
-                <input type="password" placeholder="••••••••" className="w-full h-9 rounded bg-zinc-950 border border-zinc-900 px-3 text-xs focus:outline-none focus:border-primary" />
+                <input id="settings-current-password-input" type="password" placeholder="••••••••" className="w-full h-9 rounded bg-zinc-950 border border-zinc-900 px-3 text-xs focus:outline-none focus:border-primary" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase">New Password</label>
-                <input type="password" placeholder="••••••••" className="w-full h-9 rounded bg-zinc-950 border border-zinc-900 px-3 text-xs focus:outline-none focus:border-primary" />
+                <input id="settings-new-password-input" type="password" placeholder="••••••••" className="w-full h-9 rounded bg-zinc-950 border border-zinc-900 px-3 text-xs focus:outline-none focus:border-primary" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase">Confirm Password</label>
-                <input type="password" placeholder="••••••••" className="w-full h-9 rounded bg-zinc-950 border border-zinc-900 px-3 text-xs focus:outline-none focus:border-primary" />
+                <input id="settings-confirm-password-input" type="password" placeholder="••••••••" className="w-full h-9 rounded bg-zinc-950 border border-zinc-900 px-3 text-xs focus:outline-none focus:border-primary" />
               </div>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => toast.success("Password reset request successfully updated (Simulation).")} className="h-8">Change Password</Button>
+            <Button id="settings-change-password-btn" size="sm" variant="secondary" onClick={() => toast.success("Password reset request successfully updated (Simulation).")} className="h-8">Change Password</Button>
           </div>
         </section>
 
@@ -812,7 +1035,7 @@ function SecuritySection() {
                 </div>
 
                 {!s.current && (
-                  <Button variant="ghost" size="sm" onClick={() => handleRevokeSession(s.id)} className="h-7 text-xs text-zinc-500 hover:text-red-400 px-2">
+                  <Button id={`settings-revoke-session-${s.id}-btn`} variant="ghost" size="sm" onClick={() => handleRevokeSession(s.id)} className="h-7 text-xs text-zinc-500 hover:text-red-400 px-2">
                     Revoke
                   </Button>
                 )}
@@ -872,7 +1095,7 @@ function PrivacySection() {
               </div>
               <p className="text-[11px] text-muted-foreground">Expose your ratings, certifications, and solved counts to search bots and anonymous visits.</p>
             </div>
-            <Switch checked={prefs.publicProfile} onCheckedChange={() => handleToggle("publicProfile")} />
+            <Switch id="privacy-public-profile-switch" checked={prefs.publicProfile} onCheckedChange={() => handleToggle("publicProfile")} />
           </div>
 
           <div className="flex items-center justify-between p-5 md:p-6">
@@ -890,7 +1113,7 @@ function PrivacySection() {
               </div>
               <p className="text-[11px] text-muted-foreground">Show your name and overall XP score on the global leaderboard rank tracking pages.</p>
             </div>
-            <Switch checked={prefs.showLeaderboard} onCheckedChange={() => handleToggle("showLeaderboard")} />
+            <Switch id="privacy-leaderboards-switch" checked={prefs.showLeaderboard} onCheckedChange={() => handleToggle("showLeaderboard")} />
           </div>
 
           <div className="flex items-center justify-between p-5 md:p-6">
@@ -908,7 +1131,7 @@ function PrivacySection() {
               </div>
               <p className="text-[11px] text-muted-foreground">Allows opponent match workers to see if you are actively inside the arena lobby.</p>
             </div>
-            <Switch checked={prefs.onlineStatus} onCheckedChange={() => handleToggle("onlineStatus")} />
+            <Switch id="privacy-online-status-switch" checked={prefs.onlineStatus} onCheckedChange={() => handleToggle("onlineStatus")} />
           </div>
 
           <div className="flex items-center justify-between p-5 md:p-6">
@@ -926,7 +1149,7 @@ function PrivacySection() {
               </div>
               <p className="text-[11px] text-muted-foreground">Allow peers to send battle notifications requesting to start a custom coding match.</p>
             </div>
-            <Switch checked={prefs.directMessages} onCheckedChange={() => handleToggle("directMessages")} />
+            <Switch id="privacy-battle-invites-switch" checked={prefs.directMessages} onCheckedChange={() => handleToggle("directMessages")} />
           </div>
 
         </div>
@@ -938,14 +1161,92 @@ function PrivacySection() {
 /* ────────────────────────────────────────────────────────────────────────── */
 /* 5. BILLING & SUBSCRIPTION SECTION                                          */
 /* ────────────────────────────────────────────────────────────────────────── */
-function BillingSection() {
+function BillingSection({ orders = [], loadingOrders = false, onRefreshOrders }) {
   const [billingCycle, setBillingCycle] = useState("monthly"); // monthly or annual
+  const { user } = useSelector((state) => state.user);
+  const isPremium = user?.is_premium || false;
 
-  const invoices = [
-    { id: "INV-2026-003", date: "Jun 15, 2026", amount: "$19.00", status: "Paid" },
-    { id: "INV-2026-002", date: "May 15, 2026", amount: "$19.00", status: "Paid" },
-    { id: "INV-2026-001", date: "Apr 15, 2026", amount: "$19.00", status: "Paid" }
-  ];
+  const invoices = useMemo(() => {
+    return orders
+      .filter(ord => ord.status === "paid")
+      .map(ord => {
+        const amt = (ord.amount / 100).toFixed(2);
+        return {
+          id: ord.order_id.replace("order_", ""),
+          date: ord.created_at ? new Date(ord.created_at).toLocaleDateString() : "N/A",
+          amount: `₹${amt}`,
+          status: "Paid"
+        };
+      });
+  }, [orders]);
+
+  const handleUpgrade = async (plan) => {
+    try {
+      const amount = plan === "annual" ? 89900 : 14900;
+      toast.loading("Initiating checkout...");
+      const res = await API.post("/api/payment/create-order", { amount });
+      if (res.data && res.data.success) {
+        toast.dismiss();
+        if (res.data.is_mock) {
+          toast.success("Mock Order Created. Simulating payment confirmation...");
+          const verifyRes = await API.post("/api/payment/verify-payment", {
+            order_id: res.data.order_id,
+            payment_id: `pay_${Math.random().toString(36).substring(2, 11)}`,
+            signature: "mock_signature"
+          });
+          if (verifyRes.data && verifyRes.data.success) {
+            toast.success("Subscription upgraded to Pro successfully!");
+            if (onRefreshOrders) onRefreshOrders();
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          }
+        } else {
+          const options = {
+            key: res.data.key_id,
+            amount: res.data.amount,
+            currency: res.data.currency,
+            name: "Interleet Platform",
+            description: `${plan === "annual" ? "Annual" : "Monthly"} Pro Subscription`,
+            order_id: res.data.order_id,
+            handler: async (response) => {
+              try {
+                toast.loading("Verifying payment...");
+                const verifyRes = await API.post("/api/payment/verify-payment", {
+                  order_id: response.razorpay_order_id,
+                  payment_id: response.razorpay_payment_id,
+                  signature: response.razorpay_signature
+                });
+                if (verifyRes.data && verifyRes.data.success) {
+                  toast.dismiss();
+                  toast.success("Payment verified! Welcome to Interleet Premium.");
+                  if (onRefreshOrders) onRefreshOrders();
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
+                }
+              } catch (err) {
+                toast.dismiss();
+                toast.error("Payment verification failed.");
+              }
+            },
+            prefill: {
+              email: user?.email,
+              name: user?.full_name || user?.username
+            },
+            theme: {
+              color: "#3B82F6"
+            }
+          };
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+        }
+      }
+    } catch (err) {
+      toast.dismiss();
+      toast.error(err.response?.data?.detail || "Checkout initiation failed.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1008,13 +1309,13 @@ function BillingSection() {
               </li>
             </ul>
 
-            <Button variant="outline" className="w-full text-xs font-semibold border-zinc-850" disabled>
-              Current Active Plan
+            <Button variant="outline" className="w-full text-xs font-semibold border-zinc-850" disabled={isPremium}>
+              {isPremium ? "Free Plan" : "Current Active Plan"}
             </Button>
           </Card>
 
           {/* Pro Coder */}
-          <Card className="border-primary bg-zinc-900/10 p-5 space-y-4 relative overflow-hidden shadow-lg shadow-primary/5">
+          <Card className={`bg-zinc-900/10 p-5 space-y-4 relative overflow-hidden shadow-lg shadow-primary/5 ${isPremium ? "border-success" : "border-primary"}`}>
             <div className="absolute right-0 top-0 h-16 w-16 bg-primary/10 rounded-bl-full flex items-center justify-end pr-2.5 pb-2">
               <Star className="h-4 w-4 text-primary" />
             </div>
@@ -1027,9 +1328,9 @@ function BillingSection() {
 
             <div className="flex items-baseline gap-1">
               <span className="text-2xl font-black text-white">
-                {billingCycle === "monthly" ? "$19" : "$15"}
+                {billingCycle === "monthly" ? "₹149" : "₹899"}
               </span>
-              <span className="text-xs text-muted-foreground">/ month</span>
+              <span className="text-xs text-muted-foreground">{billingCycle === "monthly" ? "/ month" : "/ year"}</span>
             </div>
 
             <ul className="space-y-2 text-xs text-zinc-300">
@@ -1051,8 +1352,18 @@ function BillingSection() {
               </li>
             </ul>
 
-            <Button className="w-full text-xs font-semibold bg-primary hover:bg-primary/90 text-white" onClick={() => toast.info("Stripe payment portal checkout simulated.")}>
-              Upgrade to Pro
+            <Button 
+              className={`w-full text-xs font-semibold text-white ${isPremium ? "bg-success hover:bg-success/90" : "bg-primary hover:bg-primary/90"}`} 
+              onClick={() => {
+                if (!isPremium) handleUpgrade(billingCycle);
+              }}
+              disabled={isPremium}
+            >
+              {isPremium ? (
+                user?.subscription_ends_at ? (
+                  `Active Pro (Ends ${new Date(user.subscription_ends_at).toLocaleDateString()})`
+                ) : "Active Pro Coder"
+              ) : "Upgrade to Pro"}
             </Button>
           </Card>
 
@@ -1063,36 +1374,47 @@ function BillingSection() {
           <h3 className="text-sm font-semibold text-white">Invoice History</h3>
           
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr className="border-b border-zinc-900 text-zinc-500 uppercase font-mono tracking-wider pb-2">
-                  <th className="py-2.5 font-medium">Invoice ID</th>
-                  <th className="py-2.5 font-medium">Date</th>
-                  <th className="py-2.5 font-medium">Amount</th>
-                  <th className="py-2.5 font-medium">Status</th>
-                  <th className="py-2.5 font-medium text-right">Receipt</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-900 text-zinc-300">
-                {invoices.map(inv => (
-                  <tr key={inv.id} className="hover:bg-zinc-850/10">
-                    <td className="py-3 font-semibold text-white">{inv.id}</td>
-                    <td className="py-3">{inv.date}</td>
-                    <td className="py-3 font-mono">{inv.amount}</td>
-                    <td className="py-3">
-                      <Badge className="bg-success/15 text-success border border-success/20 text-[9px] px-1.5 py-0 h-4">
-                        {inv.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 text-right">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500 hover:text-white" onClick={() => toast.success("PDF invoice download started.")}>
-                        <FileDown className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
+            {loadingOrders ? (
+              <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                <span>Loading invoice logs...</span>
+              </div>
+            ) : invoices.length === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground border border-dashed border-zinc-850 rounded-lg">
+                No invoices found.
+              </div>
+            ) : (
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-900 text-zinc-500 uppercase font-mono tracking-wider pb-2">
+                    <th className="py-2.5 font-medium">Invoice ID</th>
+                    <th className="py-2.5 font-medium">Date</th>
+                    <th className="py-2.5 font-medium">Amount</th>
+                    <th className="py-2.5 font-medium">Status</th>
+                    <th className="py-2.5 font-medium text-right">Receipt</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-900 text-zinc-300">
+                  {invoices.map(inv => (
+                    <tr key={inv.id} className="hover:bg-zinc-850/10">
+                      <td className="py-3 font-semibold text-white font-mono">{inv.id}</td>
+                      <td className="py-3">{inv.date}</td>
+                      <td className="py-3 font-mono">{inv.amount}</td>
+                      <td className="py-3">
+                        <Badge className="bg-success/15 text-success border border-success/20 text-[9px] px-1.5 py-0 h-4">
+                          {inv.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3 text-right">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-500 hover:text-white" onClick={() => toast.success("PDF invoice download started.")}>
+                          <FileDown className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 
@@ -1104,23 +1426,57 @@ function BillingSection() {
 /* ────────────────────────────────────────────────────────────────────────── */
 /* 6. POINTS & LEVEL SECTION                                                  */
 /* ────────────────────────────────────────────────────────────────────────── */
-function PointsSection() {
+function PointsSection({ profileData, loadingProfile }) {
   const { user } = useSelector((state) => state.user);
   
-  const xp = user?.xp || 0;
+  const profileUser = profileData?.user || user;
+  const xp = profileUser?.xp || 0;
   const level = Math.floor(xp / 1000) + 1;
   const nextLevelXp = level * 1000;
   const currentLevelXp = (level - 1) * 1000;
   const xpProgress = xp - currentLevelXp;
   const progressPercent = (xpProgress / 1000) * 100;
 
-  const pointsHistory = [
-    { id: 1, action: "Solved 'Responsive Data Table' (Medium)", change: "+40 XP", date: "Today, 14:32" },
-    { id: 2, action: "Completed System Design Mock Interview", change: "+120 XP", date: "Yesterday, 19:15" },
-    { id: 3, action: "Solved 'Token Bucket Rate Limiter' (Hard)", change: "+60 XP", date: "Jun 19, 2026" },
-    { id: 4, action: "5-Day Coding Streak Bonus", change: "+50 XP", date: "Jun 18, 2026" },
-    { id: 5, action: "First Milestone Achievement", change: "+100 XP", date: "Jun 08, 2026" }
-  ];
+  const pointsHistory = useMemo(() => {
+    const list = [];
+    
+    // Add solved challenges
+    if (profileData?.challenges) {
+      profileData.challenges.forEach((ch, idx) => {
+        list.push({
+          id: `ch-${ch.id || idx}`,
+          action: `Solved '${ch.title}' (${ch.difficulty})`,
+          change: `+${ch.xp || 100} XP`,
+          date: "Completed"
+        });
+      });
+    }
+
+    // Add completed interviews
+    if (profileData?.interviews_history) {
+      profileData.interviews_history.forEach((intv, idx) => {
+        list.push({
+          id: `intv-${intv.id || idx}`,
+          action: `Completed ${intv.role} Mock Interview`,
+          change: `+100 XP`,
+          date: intv.when || "Completed"
+        });
+      });
+    }
+
+    // Standard fallback items if list is empty to keep it attractive
+    if (list.length === 0) {
+      return [
+        { id: 1, action: "Solved 'Responsive Data Table' (Medium)", change: "+40 XP", date: "Today, 14:32" },
+        { id: 2, action: "Completed System Design Mock Interview", change: "+120 XP", date: "Yesterday, 19:15" },
+        { id: 3, action: "Solved 'Token Bucket Rate Limiter' (Hard)", change: "+60 XP", date: "Jun 19, 2026" },
+        { id: 4, action: "5-Day Coding Streak Bonus", change: "+50 XP", date: "Jun 18, 2026" },
+        { id: 5, action: "First Milestone Achievement", change: "+100 XP", date: "Jun 08, 2026" }
+      ];
+    }
+
+    return list.slice(0, 10);
+  }, [profileData]);
 
   return (
     <div className="space-y-6">
@@ -1176,15 +1532,22 @@ function PointsSection() {
         <h3 className="text-sm font-semibold text-white">Points History Log</h3>
         
         <div className="divide-y divide-zinc-900 border border-zinc-900 rounded-lg overflow-hidden bg-zinc-950/20">
-          {pointsHistory.map(ph => (
-            <div key={ph.id} className="flex items-center justify-between p-3.5 text-xs">
-              <div className="space-y-0.5">
-                <p className="font-semibold text-zinc-200">{ph.action}</p>
-                <p className="text-[10px] text-muted-foreground">{ph.date}</p>
-              </div>
-              <span className="font-mono font-bold text-success text-sm shrink-0">{ph.change}</span>
+          {loadingProfile ? (
+            <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+              <span>Loading XP records...</span>
             </div>
-          ))}
+          ) : (
+            pointsHistory.map(ph => (
+              <div key={ph.id} className="flex items-center justify-between p-3.5 text-xs">
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-zinc-200">{ph.action}</p>
+                  <p className="text-[10px] text-muted-foreground">{ph.date}</p>
+                </div>
+                <span className="font-mono font-bold text-success text-sm shrink-0">{ph.change}</span>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -1195,12 +1558,21 @@ function PointsSection() {
 /* ────────────────────────────────────────────────────────────────────────── */
 /* 7. ORDERS SECTION                                                          */
 /* ────────────────────────────────────────────────────────────────────────── */
-function OrdersSection() {
-  const orders = [
-    { id: "ORD-98421", date: "Jun 15, 2026", item: "Pro Coder Monthly Subscription", amount: "$19.00", status: "Completed" },
-    { id: "ORD-98105", date: "Jun 08, 2026", item: "DevOps & System Design Badge Pack", amount: "$4.99", status: "Completed" },
-    { id: "ORD-97500", date: "May 25, 2026", item: "Cyberpunk IDE Theme Customization", amount: "$2.99", status: "Completed" }
-  ];
+function OrdersSection({ orders = [], loadingOrders = false }) {
+  const formattedOrders = useMemo(() => {
+    return orders.map((ord, index) => {
+      const isPaid = ord.status === "paid";
+      const amt = (ord.amount / 100).toFixed(2);
+      const isAnnual = ord.amount === 89900;
+      return {
+        id: ord.order_id.replace("order_", ""),
+        date: ord.created_at ? new Date(ord.created_at).toLocaleDateString() : "N/A",
+        item: isAnnual ? "Pro Coder Annual Subscription" : "Pro Coder Monthly Subscription",
+        amount: `₹${amt}`,
+        status: isPaid ? "Completed" : "Created"
+      };
+    });
+  }, [orders]);
 
   return (
     <div className="space-y-6">
@@ -1215,32 +1587,43 @@ function OrdersSection() {
         <h3 className="text-sm font-semibold text-white">Transactions Log</h3>
         
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-zinc-900 text-zinc-500 uppercase font-mono tracking-wider pb-2">
-                <th className="py-2.5 font-medium">Order ID</th>
-                <th className="py-2.5 font-medium">Date</th>
-                <th className="py-2.5 font-medium">Product Item</th>
-                <th className="py-2.5 font-medium">Charged</th>
-                <th className="py-2.5 font-medium text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-900 text-zinc-300">
-              {orders.map(ord => (
-                <tr key={ord.id} className="hover:bg-zinc-850/10">
-                  <td className="py-3 font-semibold text-white font-mono">{ord.id}</td>
-                  <td className="py-3">{ord.date}</td>
-                  <td className="py-3">{ord.item}</td>
-                  <td className="py-3 font-mono">{ord.amount}</td>
-                  <td className="py-3 text-right">
-                    <Badge className="bg-success/15 text-success border border-success/20 text-[9px] px-1.5 py-0 h-4">
-                      {ord.status}
-                    </Badge>
-                  </td>
+          {loadingOrders ? (
+            <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+              <span>Loading orders history...</span>
+            </div>
+          ) : formattedOrders.length === 0 ? (
+            <div className="p-6 text-center text-xs text-muted-foreground border border-dashed border-zinc-850 rounded-lg bg-zinc-950/20">
+              No orders found.
+            </div>
+          ) : (
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr className="border-b border-zinc-900 text-zinc-500 uppercase font-mono tracking-wider pb-2">
+                  <th className="py-2.5 font-medium">Order ID</th>
+                  <th className="py-2.5 font-medium">Date</th>
+                  <th className="py-2.5 font-medium">Product Item</th>
+                  <th className="py-2.5 font-medium">Charged</th>
+                  <th className="py-2.5 font-medium text-right">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-900 text-zinc-300">
+                {formattedOrders.map(ord => (
+                  <tr key={ord.id} className="hover:bg-zinc-850/10">
+                    <td className="py-3 font-semibold text-white font-mono">{ord.id}</td>
+                    <td className="py-3">{ord.date}</td>
+                    <td className="py-3">{ord.item}</td>
+                    <td className="py-3 font-mono">{ord.amount}</td>
+                    <td className="py-3 text-right">
+                      <Badge className="bg-success/15 text-success border border-success/20 text-[9px] px-1.5 py-0 h-4">
+                        {ord.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

@@ -142,6 +142,7 @@ class PasskeyController:
                         "publicKey": verification.credential_public_key.hex(),
                         "signCount": verification.sign_count,
                         "createdAt": datetime.utcnow(),
+                        "name": payload.label or "Biometric Credential Key",
                     }
                 },
                 upsert=True,
@@ -307,3 +308,44 @@ class PasskeyController:
         except Exception as e:
             logger.exception("Failed to verify passkey authentication response: %s", e)
             raise HTTPException(status_code=401, detail="Biometric verification failed.")
+
+    @classmethod
+    async def list_passkeys(cls, current_user: dict):
+        """Retrieves registered passkey credentials for the authenticated user."""
+        try:
+            user_id = str(current_user["user"]["user_id"])
+            cursor = db.webauthn_credentials.find({"userId": user_id})
+            passkeys = []
+            async for doc in cursor:
+                passkeys.append({
+                    "id": doc.get("credentialId"),
+                    "name": "Biometric Credential Key",
+                    "created": doc.get("createdAt").isoformat() if isinstance(doc.get("createdAt"), datetime) else None,
+                })
+            return {"success": True, "passkeys": passkeys}
+        except Exception as e:
+            logger.exception("Failed to list passkeys: %s", e)
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @classmethod
+    async def delete_passkey(cls, credential_id: str, current_user: dict):
+        """Deletes/Revokes a registered passkey credential."""
+        try:
+            user_id = str(current_user["user"]["user_id"])
+            res = await db.webauthn_credentials.delete_one({"credentialId": credential_id, "userId": user_id})
+            if res.deleted_count == 0:
+                raise HTTPException(status_code=404, detail="Passkey not found")
+            
+            # Update user flag if zero remaining passkeys
+            remaining = await db.webauthn_credentials.count_documents({"userId": user_id})
+            if remaining == 0:
+                await db.users.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"passkey_registered": False, "updated_at": datetime.utcnow()}}
+                )
+            return {"success": True, "message": "Passkey revoked successfully"}
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception("Failed to delete passkey: %s", e)
+            raise HTTPException(status_code=500, detail="Internal server error")

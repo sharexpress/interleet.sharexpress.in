@@ -60,6 +60,7 @@ class JudgeEngine:
             testcase_id=testcase.id,
             name=testcase.name,
             hidden=testcase.hidden,
+            category=testcase.category.value if testcase.category else None,
             stdout="" if testcase.hidden else sandbox_result.stdout,
             expected_output="" if testcase.hidden else testcase.expected_output,
             stderr=sandbox_result.stderr,
@@ -144,6 +145,46 @@ class JudgeEngine:
             max_time_ms=max_time,
             max_memory_mb=max_mem,
         )
+
+    # ─── Category-aware scoring (anti-overfitting) ──────────────────────────
+
+    @staticmethod
+    def score_by_category(results: list[TestCaseResult]) -> dict:
+        """
+        Group results by test case category and return per-category pass rates.
+        Used for anti-overfitting detection: a submission is only truly ACCEPTED
+        if ALL categories pass, not just sample tests.
+
+        Returns:
+            {
+                "all_categories_pass": bool,
+                "category_scores": {
+                    "sample": {"passed": 2, "total": 2},
+                    "functional": {"passed": 5, "total": 5},
+                    ...
+                }
+            }
+        """
+        from collections import defaultdict
+
+        categories: dict[str, list[TestCaseResult]] = defaultdict(list)
+        for r in results:
+            cat = r.category or "functional"
+            categories[cat].append(r)
+
+        category_scores = {}
+        all_pass = True
+        for cat, cat_results in categories.items():
+            passed = sum(1 for r in cat_results if r.passed)
+            total = len(cat_results)
+            category_scores[cat] = {"passed": passed, "total": total}
+            if passed < total:
+                all_pass = False
+
+        return {
+            "all_categories_pass": all_pass,
+            "category_scores": category_scores,
+        }
 
     # ─── Core Comparison Pipeline ──────────────────────────────────────────
 

@@ -29,6 +29,7 @@ class TestCase(BaseModel):
     expected_output: str = ""
     hidden: bool = False
     weight: int = 1
+    category: str = "sample"  # sample | functional | edge_case | adversarial | randomized
 
 
 class StarterCode(BaseModel):
@@ -82,6 +83,13 @@ class ChallengeModel(BaseModel):
     is_published: bool = True
     is_featured: bool = False
     is_archived: bool = False
+
+    # ── Validation Framework ─────────────────────────────────────────
+    is_validated: bool = False
+    validation_report: Optional[Dict[str, Any]] = None  # Last quality gate result
+    reference_solution_id: Optional[str] = None          # Pointer to reference_solutions collection
+    test_generator_code: Optional[str] = None            # Python generator source code
+    test_generator_language: str = "python"
 
     created_by: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

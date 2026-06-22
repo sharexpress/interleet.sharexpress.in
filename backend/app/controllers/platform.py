@@ -748,6 +748,10 @@ class PlatformController:
                 "following_count": len(user_doc.get("following", [])),
                 "followers_count": len(user_doc.get("followers", [])),
                 "is_following": requesting_user_id in user_doc.get("followers", []) if requesting_user_id else False,
+                "bio": user_doc.get("bio", ""),
+                "country": user_doc.get("country", ""),
+                "linkedin_url": user_doc.get("linkedin_url", ""),
+                "portfolio_url": user_doc.get("portfolio_url", ""),
             },
             "challenges": solved_challenges_list,
             "interviews_history": interview_history

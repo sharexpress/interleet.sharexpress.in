@@ -35,3 +35,11 @@ async def verify_payment(
         payment_id=payment_id,
         signature=signature
     )
+
+@router.get("/orders")
+async def get_orders(
+    user_auth=Depends(UserMiddleware.me)
+):
+    user_id = user_auth["user"]["user_id"]
+    return await PaymentController.get_orders(user_id)
+

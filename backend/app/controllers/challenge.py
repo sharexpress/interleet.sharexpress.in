@@ -287,6 +287,50 @@ class ChallengeController:
             raise HTTPException(status_code=404, detail="Challenge not found")
 
         new_val = not doc.get("is_published", True)
+
+        # ── Enforce quality gate when PUBLISHING ─────────────────────────
+        if new_val is True:
+            from app.engine.validation.quality_gate import QualityGate
+
+            gate = QualityGate()
+            report = await gate.evaluate(slug)
+
+            if not report.passed:
+                report_dict = report.dict() if hasattr(report, "dict") else report.model_dump()
+
+                # Store the failed report for debugging
+                await db.validation_reports.insert_one(report_dict)
+                await db.problems.update_one(
+                    {"slug": slug},
+                    {"$set": {
+                        "is_validated": False,
+                        "validation_report": report_dict,
+                        "updated_at": datetime.utcnow(),
+                    }},
+                )
+
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "message": "Challenge does not meet quality requirements for publishing",
+                        "coverage_score": report.coverage_score,
+                        "mutation_resistance": report.mutation_resistance,
+                        "edge_case_coverage": report.edge_case_coverage,
+                        "blocking_reasons": report.blocking_reasons,
+                    },
+                )
+
+            # Store passing report
+            report_dict = report.dict() if hasattr(report, "dict") else report.model_dump()
+            await db.validation_reports.insert_one(report_dict)
+            await db.problems.update_one(
+                {"slug": slug},
+                {"$set": {
+                    "is_validated": True,
+                    "validation_report": report_dict,
+                }},
+            )
+
         await db.problems.update_one(
             {"slug": slug},
             {"$set": {"is_published": new_val, "updated_at": datetime.utcnow()}},

@@ -191,3 +191,19 @@ class PaymentController:
             "is_premium": True,
             "subscription_ends_at": ends_at.isoformat()
         }
+
+    @staticmethod
+    async def get_orders(user_id: str):
+        """Fetch transaction order history for the user from MongoDB."""
+        cursor = db.orders.find({"user_id": user_id}).sort("created_at", -1)
+        orders_list = []
+        async for doc in cursor:
+            doc.pop("_id", None)
+            created_at = doc.get("created_at")
+            if isinstance(created_at, datetime):
+                doc["created_at"] = created_at.isoformat()
+            paid_at = doc.get("paid_at")
+            if isinstance(paid_at, datetime):
+                doc["paid_at"] = paid_at.isoformat()
+            orders_list.append(doc)
+        return {"success": True, "orders": orders_list}

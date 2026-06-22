@@ -150,6 +150,9 @@ class ExecutionWorker:
 
             scoring = JudgeEngine.score(testcase_results)
 
+            # Category-aware scoring for anti-overfitting detection
+            category_scores = JudgeEngine.score_by_category(testcase_results)
+
             # Build first testcase stdout/stderr for non-submission runs
             first_result = testcase_results[0] if testcase_results else None
             stdout = first_result.stdout if first_result else ""
@@ -171,6 +174,7 @@ class ExecutionWorker:
                 passed_testcases=scoring.passed,
                 total_testcases=scoring.total,
                 score=scoring.score,
+                category_scores=category_scores,
                 completed_at=datetime.utcnow(),
             )
 

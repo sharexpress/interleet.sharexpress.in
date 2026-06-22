@@ -15,6 +15,7 @@ from app.engine.enums import (
     ComparisonMode,
     ExecutionStatus,
     Language,
+    TestCaseCategory,
     Verdict,
     WebSocketEventType,
 )
@@ -102,6 +103,7 @@ class TestCaseSchema(BaseModel):
     expected_output: str = ""
     hidden: bool = False
     weight: float = 1.0
+    category: Optional[TestCaseCategory] = None  # Test case classification
     time_limit: Optional[float] = None   # per-testcase override
     memory_limit: Optional[int] = None   # per-testcase override
     name: Optional[str] = None
@@ -116,6 +118,7 @@ class TestCaseResult(BaseModel):
     hidden: bool = False
     passed: bool = False
     verdict: Verdict = Verdict.INTERNAL_ERROR
+    category: Optional[str] = None  # Test case category for per-category scoring
     # Hidden testcases redact actual vs expected
     stdout: str = ""
     expected_output: str = ""
@@ -152,6 +155,9 @@ class ExecutionResult(BaseModel):
     passed_testcases: int = 0
     total_testcases: int = 0
     score: float = 0.0
+
+    # Per-category scoring breakdown (anti-overfitting)
+    category_scores: Optional[dict[str, dict]] = None
 
     error: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -219,3 +225,9 @@ class ScoringResult(BaseModel):
     total: int
     max_time_ms: float = 0.0
     max_memory_mb: float = 0.0
+
+
+class CategoryScoringResult(BaseModel):
+    """Per-category scoring breakdown for anti-overfitting detection."""
+    all_categories_pass: bool = False
+    category_scores: dict[str, dict] = {}  # {category: {passed: int, total: int}}
