@@ -71,31 +71,35 @@ jobs:
   # Job 3: Automated Deployment via SSH
   # ─────────────────────────────────────────────────────────────────────────────
   deploy:
-    name: Deploy to Self-Hosted Server
+    name: Deploy to Production
     needs: [frontend-check, backend-check]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Sync Project Files
-        run: |
-          echo "Syncing repository files to the projects folder..."
-          rsync -av --exclude='.git' --exclude='.github' --exclude='node_modules' --exclude='.venv' ./ /home/santusht/desktop/projects/interleet/
-
-      - name: Build Frontend
-        run: |
-          echo "Building frontend assets..."
-          cd /home/santusht/desktop/projects/interleet/frontend
-          npm install
-          npm run build
-
-      - name: Restart Backend (PM2)
-        run: |
-          echo "Restarting PM2 backend application..."
-          pm2 restart interleet --update-env
-
-      - name: Print Status
-        run: |
-          echo "🎉 Remote deployment successfully completed locally on the server!"
+      - name: Trigger Remote Deployment Script
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          password: ${{ secrets.PRODUCTION_PASSWORD }}
+          port: ${{ secrets.PRODUCTION_PORT || 22 }}
+          script: |
+            echo "🏁 SSH session started on production server..."
+            set -e
+            
+            cd /home/santusht/desktop/projects/interleet
+            
+            echo "📥 Fetching latest commits..."
+            git stash
+            git pull origin main
+            git stash pop || true
+            
+            echo "🏗️ Building frontend in production..."
+            cd frontend
+            npm install
+            npm run build
+            
+            echo "🔄 Restarting backend process under PM2..."
+            pm2 restart interleet --update-env
+            
+            echo "Deployment successfully complete!"
