@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { useSelector } from "react-redux";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const links = [
 { href: "#features", label: "Features" },
@@ -13,6 +15,19 @@ const links = [
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false);
+  const { isAuthenticated, user } = useSelector((state) => state.user || {});
+
+  const initials = user?.full_name
+    ? user.full_name
+      .split(" ")
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase()
+    : "??";
+
+  const firstName = user?.full_name?.split(" ")[0] || "Profile";
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 md:px-8">
@@ -29,12 +44,36 @@ export function MarketingNav() {
           )}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/login">Sign in</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link to="/signup">Get started</Link>
-          </Button>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-4">
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/app/dashboard">Dashboard</Link>
+              </Button>
+              <Link to={`/app/profile/${user?.username}`} className="flex items-center gap-2 rounded-md p-1 pr-2 hover:bg-accent">
+                <Avatar className="h-7 w-7 border border-border">
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={firstName}
+                      className="h-full w-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <AvatarFallback className="bg-accent text-[11px]">{initials}</AvatarFallback>
+                  )}
+                </Avatar>
+                <span className="hidden text-sm font-medium md:inline">{firstName}</span>
+              </Link>
+            </div>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/login">Sign in</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/signup">Get started</Link>
+              </Button>
+            </>
+          )}
         </div>
         <button
           className="md:hidden"
@@ -57,14 +96,27 @@ export function MarketingNav() {
                 {l.label}
               </a>
           )}
-            <div className="mt-2 flex gap-2">
-              <Button asChild variant="outline" size="sm" className="flex-1">
-                <Link to="/login">Sign in</Link>
-              </Button>
-              <Button asChild size="sm" className="flex-1">
-                <Link to="/signup">Get started</Link>
-              </Button>
-            </div>
+            {isAuthenticated ? (
+              <div className="mt-2 flex flex-col gap-2">
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link to="/app/dashboard" onClick={() => setOpen(false)}>Dashboard</Link>
+                </Button>
+                <Button asChild size="sm" className="w-full">
+                  <Link to={`/app/profile/${user?.username}`} onClick={() => setOpen(false)}>
+                    View Profile ({firstName})
+                  </Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-2 flex gap-2">
+                <Button asChild variant="outline" size="sm" className="flex-1">
+                  <Link to="/login">Sign in</Link>
+                </Button>
+                <Button asChild size="sm" className="flex-1">
+                  <Link to="/signup">Get started</Link>
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       }

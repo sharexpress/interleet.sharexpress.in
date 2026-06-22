@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -644,6 +645,8 @@ function Testimonials() {
 }
 
 function CTA() {
+  const isAuthenticated = useSelector((state) => state.user?.isAuthenticated);
+
   return (
     <section className="border-b border-border">
       <div className="mx-auto max-w-5xl px-4 py-20 text-center md:px-8">
@@ -654,12 +657,20 @@ function CTA() {
           Jump into a challenge or run a mock interview right now. No setup, no install.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Button asChild size="lg">
-            <Link to="/signup">Create your account</Link>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <Link to="/app/dashboard">Explore the platform</Link>
-          </Button>
+          {isAuthenticated ? (
+            <Button asChild size="lg">
+              <Link to="/app/dashboard">Go to Dashboard</Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild size="lg">
+                <Link to="/signup">Create your account</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link to="/app/dashboard">Explore the platform</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </section>);
