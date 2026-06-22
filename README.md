@@ -15,6 +15,7 @@ A comprehensive **AI-powered interview preparation and coding challenge platform
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
 - [Architecture Overview](#-architecture-overview)
+- [MNC Scalability & Good Practices](#-mnc-scalability--good-practices)
 - [Project Structure](#-project-structure)
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
@@ -161,6 +162,33 @@ Uvicorn              → ASGI web server
 5. **Answer Evaluation**: LLM evaluates answers and generates feedback
 6. **Report Generation**: Comprehensive report created upon completion
 7. **State Persistence**: Interview state saved to Redis with MongoDB backup
+
+---
+
+## 📈 MNC Scalability & Good Practices
+
+Designed with production-grade reliability, secure isolation, and decoupled components, InterLeet is architected to align with the core software engineering principles practiced at large-scale technology enterprises (FAANG/MNCs).
+
+### 🚀 1. Architectural Scalability & System Design
+
+To handle heavy, concurrent user actions without degradation, the backend employs three primary design patterns:
+* **Decoupled Sandbox Isolation (Untrusted Code Execution):** Executing arbitrary user code poses critical security and performance risks. InterLeet isolates execution into ephemeral, resource-constrained **Docker Sandboxes** running as non-root users. The main API thread never compiles or runs code; instead, it delegates tasks, protecting the host system from memory exhaustion (OOM), infinite loops (timeout limits), and malicious system calls.
+* **Asynchronous Task Processing:** Heavily CPU-bound tasks—such as AST parsing for mutation testing and sandbox execution—are processed asynchronously. This prevents thread starvation at the ASGI (Uvicorn) web server level, ensuring the API remains highly responsive for other active users.
+* **Distributed Caching & Real-Time Persistence (Redis + MongoDB):** 
+  * **Redis** acts as a ultra-low-latency state cache for real-time WebSocket interview sessions, OTP management, and rate-limiting.
+  * **MongoDB (Motor Driver)** handles non-blocking async writes for persistent data (user statistics, submissions, interview reports), preventing database lockups under high write volume.
+
+### 🛡️ 2. Production-Grade Good Practices & Code Quality
+
+Large-scale engineering demands automated quality control. The project implements advanced testing and security safeguards:
+* **Automated Challenge Validation Framework (Quality Gate):** Before any coding challenge is published, it must pass a strict three-layer validation pipeline:
+  * **AST-Based Mutation Testing:** Programmatically synthesizes mutant solutions (e.g. replacing constants, removing statements, hardcoding outputs) to verify if the test suite successfully fails them (preventing weak test cases).
+  * **Differential Testing:** Automatically tests user submissions against pre-verified reference solutions in parallel.
+  * **Coverage Analysis:** Traces statement and branch coverage inside the sandboxes to ensure test inputs cover all logical execution paths.
+* **Zero-Trust Security & Modern Auth:** 
+  * **WebAuthn (Passkeys):** Integrated hardware-bound passwordless authentication (biometrics/FIDO2 keys), mitigating phishing and credential stuffing attacks.
+  * **JWT Session Protection:** Stateless authentication tokens with strict signature validation, enabling seamless scaling across stateless load-balanced backend instances.
+* **Decoupled UI State Management:** The frontend uses **Redux Toolkit** to strictly decouple API state from components. Page transitions are snappy, client-side caching prevents redundant network requests, and visual performance remains optimal.
 
 ---
 
