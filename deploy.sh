@@ -30,10 +30,9 @@ sshpass -p 'santusht' ssh -o StrictHostKeyChecking=no santusht@192.168.29.104 'b
     echo "⬇️ Pulling latest changes from Git..."
     cd /home/santusht/desktop/projects/interleet
     
-    # Stash any local changes on the server (like package.json updates)
-    git stash
-    git pull origin main
-    git stash pop || true
+    # Fetch and hard reset to match the rewritten remote history
+    git fetch origin
+    git reset --hard origin/main
     
     echo "🏗️ Building frontend assets..."
     cd frontend
