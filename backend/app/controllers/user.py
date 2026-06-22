@@ -166,7 +166,7 @@ class UserController:
             return await oauth.google.authorize_redirect(
                 request,
                 redirect_uri,
-                prompt="select_account consent",
+                prompt="select_account",
                 access_type="offline",
             )
 

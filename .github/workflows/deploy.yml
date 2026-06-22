@@ -100,6 +100,6 @@ jobs:
             npm run build
             
             echo "🔄 Restarting backend process under PM2..."
-            pm2 restart interleet --update-env
+            pm2 startOrReload backend/ecosystem.config.cjs --update-env
             
             echo "Deployment successfully complete!"
