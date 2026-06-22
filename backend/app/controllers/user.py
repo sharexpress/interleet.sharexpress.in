@@ -185,8 +185,10 @@ class UserController:
             if host:
                 proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
                 redirect_uri = f"{proto}://{host}/auth/google/callback"
+                frontend_url = "http://localhost:5173" if ("localhost" in host or "127.0.0.1" in host) else FRONTEND_URL
             else:
                 redirect_uri = f"{BACKEND_URL}/auth/google/callback"
+                frontend_url = FRONTEND_URL
             token = await oauth.google.authorize_access_token(request, redirect_uri=redirect_uri)
             user_info = token.get("userinfo")
             if not user_info:
@@ -242,7 +244,7 @@ class UserController:
                     "last_login": datetime.utcnow(),
                 }
                 await db.users.insert_one(new_user)
-                response = RedirectResponse(url=f"{FRONTEND_URL}/onboarding")
+                response = RedirectResponse(url=f"{frontend_url}/onboarding")
                 generate_token(user_id, response)
                 return response
 
@@ -262,10 +264,10 @@ class UserController:
                 },
             )
 
-            redirect_url = f"{FRONTEND_URL}/app/dashboard"
+            redirect_url = f"{frontend_url}/app/dashboard"
 
             if not existing_user.get("onboarding_completed"):
-                redirect_url = f"{FRONTEND_URL}/onboarding"
+                redirect_url = f"{frontend_url}/onboarding"
             response = RedirectResponse(url=redirect_url)
             generate_token(existing_user["user_id"], response)
             return response
@@ -298,8 +300,10 @@ class UserController:
             if host:
                 proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
                 redirect_uri = f"{proto}://{host}/auth/github/callback"
+                frontend_url = "http://localhost:5173" if ("localhost" in host or "127.0.0.1" in host) else FRONTEND_URL
             else:
                 redirect_uri = f"{BACKEND_URL}/auth/github/callback"
+                frontend_url = FRONTEND_URL
             token = await oauth.github.authorize_access_token(request, redirect_uri=redirect_uri)
 
             response = await oauth.github.get("user", token=token)
@@ -353,7 +357,7 @@ class UserController:
                 }
                 await db.users.insert_one(new_user)
                 redirect_response = RedirectResponse(
-                    url=f"{FRONTEND_URL}/onboarding"
+                    url=f"{frontend_url}/onboarding"
                 )
                 generate_token(user_id, redirect_response)
                 return redirect_response
@@ -375,10 +379,10 @@ class UserController:
                     }
                 },
             )
-            redirect_url = f"{FRONTEND_URL}/app/dashboard"
+            redirect_url = f"{frontend_url}/app/dashboard"
 
             if not existing_user.get("onboarding_completed"):
-                redirect_url = f"{FRONTEND_URL}/onboarding"
+                redirect_url = f"{frontend_url}/onboarding"
 
             response = RedirectResponse(url=redirect_url)
 
