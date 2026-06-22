@@ -6,6 +6,24 @@ from app.models.users import UserModel as User
 from app.models.users import OTPverify as OTP
 from app.core.db import get_db
 from app.core.config import PROJECT_ENVIRONMENT, FRONTEND_URL, BACKEND_URL
+
+def _is_local_dev(request):
+    """Check if the request is coming from local development."""
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    return "localhost" in host or "127.0.0.1" in host
+
+def _get_redirect_uri(request, path):
+    """Build OAuth redirect URI. Uses BACKEND_URL in production, host header for local dev."""
+    if _is_local_dev(request):
+        host = request.headers.get("host", "localhost:8000")
+        return f"http://{host}{path}"
+    return f"{BACKEND_URL}{path}"
+
+def _get_frontend_url(request):
+    """Get frontend URL. Uses localhost in dev, FRONTEND_URL in production."""
+    if _is_local_dev(request):
+        return "http://localhost:5173"
+    return FRONTEND_URL
 from app.utils.OTP import (
     sendOTP,
     VerifyOTPbyUtils,
@@ -157,12 +175,8 @@ class UserController:
     @staticmethod
     async def google_login(request: Request):
         try:
-            host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-            if host:
-                proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
-                redirect_uri = f"{proto}://{host}/auth/google/callback"
-            else:
-                redirect_uri = f"{BACKEND_URL}/auth/google/callback"
+            redirect_uri = _get_redirect_uri(request, "/auth/google/callback")
+            logger.info(f"Google login redirect_uri: {redirect_uri}")
             return await oauth.google.authorize_redirect(
                 request,
                 redirect_uri,
@@ -181,14 +195,9 @@ class UserController:
     @staticmethod
     async def google_callback(request: Request):
         try:
-            host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-            if host:
-                proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
-                redirect_uri = f"{proto}://{host}/auth/google/callback"
-                frontend_url = "http://localhost:5173" if ("localhost" in host or "127.0.0.1" in host) else FRONTEND_URL
-            else:
-                redirect_uri = f"{BACKEND_URL}/auth/google/callback"
-                frontend_url = FRONTEND_URL
+            redirect_uri = _get_redirect_uri(request, "/auth/google/callback")
+            frontend_url = _get_frontend_url(request)
+            logger.info(f"Google callback redirect_uri: {redirect_uri}, frontend_url: {frontend_url}")
             token = await oauth.google.authorize_access_token(request, redirect_uri=redirect_uri)
             user_info = token.get("userinfo")
             if not user_info:
@@ -280,12 +289,8 @@ class UserController:
     @staticmethod
     async def github_login(request: Request):
         try:
-            host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-            if host:
-                proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
-                redirect_uri = f"{proto}://{host}/auth/github/callback"
-            else:
-                redirect_uri = f"{BACKEND_URL}/auth/github/callback"
+            redirect_uri = _get_redirect_uri(request, "/auth/github/callback")
+            logger.info(f"GitHub login redirect_uri: {redirect_uri}")
             return await oauth.github.authorize_redirect(request, redirect_uri)
         except Exception:
             logger.exception("GitHub login failed")
@@ -296,14 +301,9 @@ class UserController:
     @staticmethod
     async def github_callback(request: Request):
         try:
-            host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-            if host:
-                proto = "http" if ("localhost" in host or "127.0.0.1" in host) else "https"
-                redirect_uri = f"{proto}://{host}/auth/github/callback"
-                frontend_url = "http://localhost:5173" if ("localhost" in host or "127.0.0.1" in host) else FRONTEND_URL
-            else:
-                redirect_uri = f"{BACKEND_URL}/auth/github/callback"
-                frontend_url = FRONTEND_URL
+            redirect_uri = _get_redirect_uri(request, "/auth/github/callback")
+            frontend_url = _get_frontend_url(request)
+            logger.info(f"GitHub callback redirect_uri: {redirect_uri}, frontend_url: {frontend_url}")
             token = await oauth.github.authorize_access_token(request, redirect_uri=redirect_uri)
 
             response = await oauth.github.get("user", token=token)
