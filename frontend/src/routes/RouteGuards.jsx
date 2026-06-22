@@ -1,5 +1,5 @@
 import { useSelector } from "react-redux";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 /**
  * PublicRoute
@@ -46,14 +46,23 @@ export function OnboardingRoute() {
  * Requires authed + onboarding complete.
  * - not authed                → /login
  * - authed + onboarding todo  → /onboarding
+ * - authed + not premium      → /app/store (unless already on /app/store)
  */
 export function ProtectedRoute() {
-  const { isAuthenticated, onboardingCompleted, initialized } = useSelector((state) => state.user);
+  const { isAuthenticated, onboardingCompleted, initialized, user } = useSelector((state) => state.user || {});
+  const location = useLocation();
 
   if (!initialized) return null;
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!onboardingCompleted) return <Navigate to="/onboarding" replace />;
+
+  const isPremiumUser = user?.is_premium || user?.role === "admin";
+  const isStorePage = location.pathname === "/app/store";
+
+  if (!isPremiumUser && !isStorePage) {
+    return <Navigate to="/app/store" replace />;
+  }
 
   return <Outlet />;
 }
