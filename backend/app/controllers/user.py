@@ -195,10 +195,9 @@ class UserController:
     @staticmethod
     async def google_callback(request: Request):
         try:
-            redirect_uri = _get_redirect_uri(request, "/auth/google/callback")
             frontend_url = _get_frontend_url(request)
-            logger.info(f"Google callback redirect_uri: {redirect_uri}, frontend_url: {frontend_url}")
-            token = await oauth.google.authorize_access_token(request, redirect_uri=redirect_uri)
+            logger.info(f"Google callback frontend_url: {frontend_url}")
+            token = await oauth.google.authorize_access_token(request)
             user_info = token.get("userinfo")
             if not user_info:
                 raise HTTPException(
@@ -301,10 +300,9 @@ class UserController:
     @staticmethod
     async def github_callback(request: Request):
         try:
-            redirect_uri = _get_redirect_uri(request, "/auth/github/callback")
             frontend_url = _get_frontend_url(request)
-            logger.info(f"GitHub callback redirect_uri: {redirect_uri}, frontend_url: {frontend_url}")
-            token = await oauth.github.authorize_access_token(request, redirect_uri=redirect_uri)
+            logger.info(f"GitHub callback frontend_url: {frontend_url}")
+            token = await oauth.github.authorize_access_token(request)
 
             response = await oauth.github.get("user", token=token)
             github_user = response.json()
