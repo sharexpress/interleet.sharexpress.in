@@ -44,6 +44,7 @@ import {
   Lock,
   Loader2,
   Trash2,
+  Plus,
 } from "lucide-react";
 
 // ─── Monaco CDN loader ────────────────────────────────────────────────────────
