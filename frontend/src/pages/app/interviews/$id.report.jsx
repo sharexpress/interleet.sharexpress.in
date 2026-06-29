@@ -166,18 +166,28 @@ function ReportPage() {
   // ── Map report fields ───────────────────────────────────────────────────────
   const role = report.role || "Interview";
   const difficulty = report.difficulty || "medium";
-  const overallScore = report.overall_score ?? report.score ?? 0;
+  const overallScore = Math.round((report.overall_score ?? report.score ?? (report.average_score ? (report.average_score * 10) : 0)));
 
   // Score cards: try common backend field names
   const rawScores = report.scores || {};
+  const matrix = report.performance_matrix || {};
   const scoreCards = [
-    { k: "Technical", v: rawScores.technical ?? rawScores.technical_knowledge ?? 0 },
-    { k: "Communication", v: rawScores.communication ?? rawScores.communication_skills ?? 0 },
-    { k: "Problem Solving", v: rawScores.problem_solving ?? rawScores.problem_solving_ability ?? 0 },
+    { 
+      k: "Technical", 
+      v: rawScores.technical ?? rawScores.technical_knowledge ?? (matrix.correctness ? (matrix.correctness * 10) : 0) 
+    },
+    { 
+      k: "Communication", 
+      v: rawScores.communication ?? rawScores.communication_skills ?? (matrix.communication ? (matrix.communication * 10) : 0) 
+    },
+    { 
+      k: "Problem Solving", 
+      v: rawScores.problem_solving ?? rawScores.problem_solving_ability ?? (matrix.reasoning ? (matrix.reasoning * 10) : 0) 
+    },
     { k: "Overall", v: overallScore },
   ].map((s) => ({ ...s, v: Math.round(s.v) }));
 
-  // Radar data: prefer topic_evaluations, fallback to scores keys
+  // Radar data: prefer topic_evaluations, fallback to topic_scores, then fallback to scores keys
   let radarData = [];
   if (Array.isArray(report.topic_evaluations) && report.topic_evaluations.length > 0) {
     radarData = report.topic_evaluations.map((t) => ({
@@ -187,6 +197,11 @@ function ReportPage() {
       summary: t.summary,
       topic: t.topic,
     }));
+  } else if (report.topic_scores && Object.keys(report.topic_scores).length > 0) {
+    radarData = Object.entries(report.topic_scores).map(([k, v]) => ({
+      axis: k.replace(/_/g, " "),
+      s: Math.min(Math.round((v ?? 5) * 10), 100),
+    }));
   } else if (Object.keys(rawScores).length > 0) {
     radarData = Object.entries(rawScores).map(([k, v]) => ({
       axis: k.replace(/_/g, " "),
@@ -195,8 +210,12 @@ function ReportPage() {
   }
 
   const strengths = report.strengths || [];
-  const improvements = report.improvements || report.areas_for_improvement || [];
-  const recommendations = report.recommendations || [];
+  const improvements = report.improvements || report.areas_for_improvement || report.concerns || [];
+  const recommendations = Array.isArray(report.recommendations) 
+    ? report.recommendations 
+    : (typeof report.recommendation === "string" && report.recommendation.trim() !== "") 
+      ? [report.recommendation] 
+      : [];
   const topicEvals = report.topic_evaluations || [];
 
   return (
