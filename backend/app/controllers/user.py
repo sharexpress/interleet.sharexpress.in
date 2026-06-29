@@ -59,6 +59,15 @@ class UserController:
         public_user.pop("password_hash", None)
         public_user.pop("password_salt", None)
 
+        badges_raw = public_user.get("badges", [])
+        badges = []
+        for b in badges_raw:
+            if isinstance(b, dict):
+                badges.append(b.get("badge_id") or b.get("id"))
+            else:
+                badges.append(b)
+        public_user["badges"] = badges
+
         return public_user
 
     @staticmethod

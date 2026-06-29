@@ -31,11 +31,19 @@ import ContestLobby from "@/pages/app/contest/ContestLobby";
 import ContestWorkspace from "@/pages/app/contest/ContestWorkspace";
 import ContestResults from "@/pages/app/contest/ContestResults";
 
+import { useSelector } from "react-redux";
+
 // Admin + misc
 import AdminPage from "@/pages/admin";
 import NotFoundPage from "@/pages/NotFound";
 
-
+function ProfileRedirect() {
+  const { user } = useSelector((state) => state.user);
+  if (user && user.username) {
+    return <Navigate to={`/app/profile/${user.username}`} replace />;
+  }
+  return <Navigate to="/app/dashboard" replace />;
+}
 
 export const router = createBrowserRouter([
   // ── Fully public (no auth needed, no redirect) ───────────────────────────
@@ -81,6 +89,7 @@ export const router = createBrowserRouter([
       { path: "/app/interviews/:id/report", element: <InterviewReportPage /> },
       { path: "/app/interviews/live", element: <InterviewLivePage /> },
       { path: "/app/leaderboard", element: <LeaderboardPage /> },
+      { path: "/app/profile", element: <ProfileRedirect /> },
       { path: "/app/profile/:username", element: <ProfilePage /> },
       { path: "/app/settings", element: <SettingsPage /> },
       { path: "/app/system-design", element: <SystemDesignPage /> },

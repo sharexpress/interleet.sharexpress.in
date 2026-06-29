@@ -625,6 +625,23 @@ function EditorPage() {
   const [code, setCode] = useState(() => getStarter(slug, "ts"));
   const [consoleResult, setResult] = useState(null);
   const [activeTab, setActiveTab] = useState("testcase");
+  const [customTestCases, setCustomTestCases] = useState([]);
+  const [selectedTestCaseIdx, setSelectedTestCaseIdx] = useState(0);
+
+  useEffect(() => {
+    if (c && c.test_cases) {
+      setCustomTestCases(
+        c.test_cases.filter(t => !t.hidden).map((t, idx) => ({
+          id: t.id || `tc-${idx}`,
+          stdin: t.stdin || "",
+          expected_output: t.expected_output || "",
+          name: t.name || `Case ${idx + 1}`,
+          isCustom: false
+        }))
+      );
+      setSelectedTestCaseIdx(0);
+    }
+  }, [c]);
 
   // Previous submission state
   const [prevSubmission, setPrevSubmission] = useState(null); // { found, is_accepted, code, language, score, verdict, created_at, total_attempts }
@@ -697,13 +714,12 @@ function EditorPage() {
     [slug],
   );
 
-  // Run — executes visible sample test cases only
+  // Run — executes custom test cases or visible sample test cases
   const handleRun = useCallback(() => {
     dispatch(resetExecution());
     setActiveTab("result");
-    const sampleTests = (c?.test_cases ?? []).filter((t) => !t.hidden);
-    dispatch(runCode({ code, language: lang, testCases: sampleTests }));
-  }, [code, lang, c, dispatch]);
+    dispatch(runCode({ code, language: lang, testCases: customTestCases }));
+  }, [code, lang, customTestCases, dispatch]);
 
   // Submit — runs against all test cases (including hidden) via backend DB
   const handleSubmit = useCallback(() => {
@@ -1113,32 +1129,92 @@ function EditorPage() {
                   </div>
                 </div>
 
-                <TabsContent value="testcase" className="m-0 max-h-64 overflow-auto p-3">
-                  {c.test_cases?.filter((t) => !t.hidden).length > 0 ? (
-                    <div className="grid gap-2 md:grid-cols-3">
-                      {c.test_cases
-                        .filter((t) => !t.hidden)
-                        .map((t) => (
-                          <div
-                            key={t.id}
-                            className="rounded-md border border-border bg-card/60 p-3 text-xs"
-                          >
-                            <p className="font-mono text-[11px] text-muted-foreground">{t.name}</p>
-                            {t.stdin && (
-                              <p className="mt-1.5 font-mono text-foreground">{t.stdin.trim()}</p>
-                            )}
-                            {t.expected_output && (
-                              <p className="mt-1 font-mono text-muted-foreground">
-                                → {t.expected_output.trim()}
-                              </p>
-                            )}
-                          </div>
-                        ))}
+                <TabsContent value="testcase" className="m-0 max-h-80 overflow-auto p-4 space-y-4">
+                  {/* Case buttons */}
+                  <div className="flex flex-wrap items-center gap-1.5 border-b border-zinc-800 pb-2">
+                    {customTestCases.map((tc, idx) => (
+                      <button
+                        key={tc.id}
+                        type="button"
+                        onClick={() => setSelectedTestCaseIdx(idx)}
+                        className={`rounded px-2.5 py-1 text-xs font-semibold border transition-all flex items-center gap-1.5 ${
+                          selectedTestCaseIdx === idx
+                            ? "bg-zinc-800 border-zinc-700 text-white"
+                            : "border-transparent text-muted-foreground hover:text-white"
+                        }`}
+                      >
+                        <span>{tc.name}</span>
+                        {tc.isCustom && (
+                          <X
+                            className="h-3 w-3 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const newCases = customTestCases.filter((_, i) => i !== idx);
+                              setCustomTestCases(newCases);
+                              setSelectedTestCaseIdx(Math.max(0, idx - 1));
+                            }}
+                          />
+                        )}
+                      </button>
+                    ))}
+                    {customTestCases.length < 8 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-muted-foreground hover:text-white text-xs gap-1 border border-dashed border-zinc-800"
+                        onClick={() => {
+                          const nextIdx = customTestCases.length + 1;
+                          const newCase = {
+                            id: `custom-tc-${Date.now()}`,
+                            stdin: "",
+                            expected_output: "",
+                            name: `Case ${nextIdx} (Custom)`,
+                            isCustom: true
+                          };
+                          setCustomTestCases([...customTestCases, newCase]);
+                          setSelectedTestCaseIdx(customTestCases.length);
+                        }}
+                      >
+                        <Plus className="h-3 w-3 animate-none shrink-0" />
+                        <span>Add Case</span>
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Input editing area */}
+                  {customTestCases[selectedTestCaseIdx] ? (
+                    <div className="space-y-3 font-sans text-xs">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Input (stdin)</label>
+                        <textarea
+                          value={customTestCases[selectedTestCaseIdx].stdin}
+                          onChange={(e) => {
+                            const newCases = [...customTestCases];
+                            newCases[selectedTestCaseIdx].stdin = e.target.value;
+                            setCustomTestCases(newCases);
+                          }}
+                          placeholder="Provide lines of inputs..."
+                          rows={4}
+                          className="w-full rounded-md border border-zinc-850 bg-zinc-950/40 p-2.5 font-mono text-[11px] text-white focus:outline-none focus:border-primary resize-y"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Expected Output (Optional)</label>
+                        <textarea
+                          value={customTestCases[selectedTestCaseIdx].expected_output}
+                          onChange={(e) => {
+                            const newCases = [...customTestCases];
+                            newCases[selectedTestCaseIdx].expected_output = e.target.value;
+                            setCustomTestCases(newCases);
+                          }}
+                          placeholder="Provide target output comparison..."
+                          rows={2}
+                          className="w-full rounded-md border border-zinc-850 bg-zinc-950/40 p-2.5 font-mono text-[11px] text-white focus:outline-none focus:border-primary resize-y"
+                        />
+                      </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground">
-                      No visible test cases for this challenge.
-                    </p>
+                    <p className="text-xs text-muted-foreground">Add a test case to edit inputs.</p>
                   )}
                 </TabsContent>
 

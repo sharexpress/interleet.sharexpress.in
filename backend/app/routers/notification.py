@@ -6,6 +6,7 @@ from uuid import uuid4
 from app.middleware.user import Middleware as UserMiddleware
 from app.core.db import get_db
 from app.models.notifications import NotificationModel
+from app.services.notification_service import NotificationService
 
 router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 db = get_db()
@@ -81,3 +82,35 @@ async def invite_user(
     await db.notifications.insert_one(doc)
 
     return {"success": True, "message": f"Invitation sent to @{target_username}"}
+
+
+@router.get("/unread-count")
+async def unread_count(user_auth=Depends(UserMiddleware.me)):
+    """Get count of unread notifications for the notification bell badge."""
+    user_id = str(user_auth["user"]["user_id"])
+    count = await NotificationService.get_unread_count(user_id)
+    return {"success": True, "count": count}
+
+
+@router.delete("/{notification_id}")
+async def delete_notification(notification_id: str, user_auth=Depends(UserMiddleware.me)):
+    """Delete a specific notification."""
+    user_id = str(user_auth["user"]["user_id"])
+    res = await db.notifications.delete_one(
+        {"id": notification_id, "user_id": user_id}
+    )
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return {"success": True, "message": "Notification deleted"}
+
+
+@router.post("/generate")
+async def generate_daily(user_auth=Depends(UserMiddleware.me)):
+    """Trigger daily notification generation for the current user."""
+    user_id = str(user_auth["user"]["user_id"])
+    notifications = await NotificationService.generate_daily_notifications(user_id)
+    return {
+        "success": True,
+        "generated": len(notifications),
+        "notifications": [{"title": n["title"], "message": n["message"]} for n in notifications],
+    }

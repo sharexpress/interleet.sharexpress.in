@@ -1,0 +1,55 @@
+"""
+Settings Router — /api/settings/*
+Production-ready user settings, billing, and XP management endpoints.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+
+from app.controllers.settings_controller import SettingsController
+from app.middleware.user import Middleware as UserMiddleware
+
+router = APIRouter(prefix="/api/settings", tags=["Settings"])
+
+
+@router.get("")
+async def get_settings(user_auth=Depends(UserMiddleware.me)):
+    """Get all user settings (notifications, privacy, preferences)."""
+    return await SettingsController.get_settings(user_auth["user"])
+
+
+@router.put("")
+async def update_settings(
+    payload: dict = Body(...),
+    user_auth=Depends(UserMiddleware.me),
+):
+    """Update user settings. Accepts partial updates per section."""
+    return await SettingsController.update_settings(user_auth["user"], payload)
+
+
+@router.get("/billing")
+async def get_billing(user_auth=Depends(UserMiddleware.me)):
+    """Get billing information and payment history."""
+    return await SettingsController.get_billing_info(user_auth["user"])
+
+
+@router.get("/xp-history")
+async def get_xp_history(
+    limit: int = Query(default=50, ge=1, le=200),
+    user_auth=Depends(UserMiddleware.me),
+):
+    """Get XP transaction history — every XP earn/spend event with audit trail."""
+    return await SettingsController.get_xp_history(user_auth["user"], limit=limit)
+
+
+@router.get("/sessions")
+async def get_sessions(user_auth=Depends(UserMiddleware.me)):
+    """Get active login sessions/devices."""
+    return await SettingsController.get_active_sessions(user_auth["user"])
+
+
+@router.delete("/account")
+async def delete_account(user_auth=Depends(UserMiddleware.me)):
+    """Soft-delete user account. Anonymizes PII and deactivates."""
+    return await SettingsController.delete_account(user_auth["user"])

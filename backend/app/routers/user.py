@@ -68,13 +68,10 @@ async def logout(response: Response, _: None = Depends(User_Middleware.me)):
 @router.get("/me")
 async def get_user(user: Dict = Depends(User_Middleware.me)):
     # Middleware returns { "success": True, "user": {...} }
-    # Return that directly — flat, lowercase, one level deep.
-    # Previous bug: return {"SUCCESS": True, "USER": user}
-    # which nested the entire middleware dict under "USER",
-    # so Redux saw payload.USER.user.user instead of payload.user
+    # Clean and serialize user details
     return {
         "success": True,
-        "user": user["user"],
+        "user": UserController._public_user(user["user"]),
     }
 
 

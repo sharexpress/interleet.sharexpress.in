@@ -55,22 +55,36 @@ class PlatformController:
             user_doc = await db.users.find_one({})
             
         if not user_doc:
-            # Fallback to static mock if no user exists in DB
+            # No fallback to mock — return zero/empty for production
             return {
-                "user": USER_PROFILE,
-                "activityWeekly": ACTIVITY_WEEKLY,
-                "recentActivity": RECENT_ACTIVITY,
-                "recommendedChallenges": CHALLENGES[:4],
-                "interviewTrend": [
-                    {"d": "W1", "s": 62},
-                    {"d": "W2", "s": 65},
-                    {"d": "W3", "s": 71},
-                    {"d": "W4", "s": 70},
-                    {"d": "W5", "s": 76},
-                    {"d": "W6", "s": 78},
-                    {"d": "W7", "s": 81},
-                    {"d": "W8", "s": 84},
-                ],
+                "user": {
+                    "name": "New User",
+                    "username": "",
+                    "email": "",
+                    "avatar": None,
+                    "location": "",
+                    "rating": 1000,
+                    "rank": 0,
+                    "xp": 0,
+                    "streak": 0,
+                    "solved": 0,
+                    "interviews": 0,
+                    "domains": [],
+                    "badges": [],
+                    "heatmap": {},
+                    "frontend_rating": 0,
+                    "backend_rating": 0,
+                    "fullstack_rating": 0,
+                    "devops_rating": 0,
+                    "overall_rating": 1000,
+                    "streak_count": 0,
+                },
+                "activityWeekly": [],
+                "recentActivity": [],
+                "recommendedChallenges": [],
+                "interviewTrend": [],
+                "badgeProgress": {"earned": [], "locked": [], "total": 0, "earned_count": 0},
+                "quests": [],
             }
 
         user_id = user_doc["user_id"]
@@ -137,19 +151,19 @@ class PlatformController:
                 rank = i + 1
                 break
                 
-        # Heatmap contributions
-        cutoff_date = datetime.utcnow() - timedelta(days=182)
+        # Heatmap contributions — 365 days for full-year LeetCode-style view
+        cutoff_date = datetime.utcnow() - timedelta(days=365)
         sub_activity_cursor = db.submissions.find({
             "user_id": user_id,
             "created_at": {"$gte": cutoff_date}
         })
-        sub_activities = await sub_activity_cursor.to_list(length=1000)
+        sub_activities = await sub_activity_cursor.to_list(length=2000)
         
         rep_activity_cursor = db.interview_reports.find({
             "user_id": user_id,
             "created_at": {"$gte": cutoff_date}
         })
-        rep_activities = await rep_activity_cursor.to_list(length=1000)
+        rep_activities = await rep_activity_cursor.to_list(length=500)
         
         heatmap_map = {}
         for act in sub_activities:
@@ -164,29 +178,20 @@ class PlatformController:
                 dt_str = dt_val.strftime("%Y-%m-%d")
                 heatmap_map[dt_str] = heatmap_map.get(dt_str, 0) + 1
 
-        # Badges
-        badges = []
-        if solved_count >= 1:
-            badges.append("First Milestone")
-        if len(rep_activities) >= 1:
-            badges.append("Interview Scholar")
-        if "build-a-rate-limiter" in solved_slugs:
-            badges.append("Concurrency Expert")
-        if "rest-versioning" in solved_slugs:
-            badges.append("API Architect")
-            
-        solved_domains = set()
-        for slug in solved_slugs:
-            if slug in problems_by_slug:
-                solved_domains.add(problems_by_slug[slug].get("domain"))
-        if "Backend" in solved_domains:
-            badges.append("Top 5% Backend")
-        if len(solved_domains) >= 3:
-            badges.append("Fullstack Wizard")
-        if solved_count >= 5:
-            badges.append("Algorithm Master")
+        # Badges — use the BadgeService for gamified badges
+        from app.services.badge_service import BadgeService
+        newly_awarded = await BadgeService.check_and_award_badges(user_id)
+        earned_badges = await BadgeService.get_earned_badges(user_id)
+        badge_progress = await BadgeService.get_badge_progress(user_id)
+        badges = [b.get("name", b.get("id")) for b in earned_badges]
         if not badges:
             badges = ["Novice Engineer"]
+
+        # Trigger notifications for newly-awarded badges
+        if newly_awarded:
+            from app.services.notification_service import NotificationService
+            for badge in newly_awarded:
+                await NotificationService.on_badge_earned(user_id, badge)
 
         # Interview reports history list
         interviews_cursor = db.interview_reports.find({"user_id": user_id}).sort("created_at", -1)
@@ -370,6 +375,7 @@ class PlatformController:
             "recentActivity": recent_activities[:5],
             "recommendedChallenges": recommended[:4],
             "interviewTrend": interview_trend,
+            "badgeProgress": badge_progress,
         }
 
     @staticmethod
@@ -559,12 +565,20 @@ class PlatformController:
             user_doc = await db.users.find_one({})
             
         if not user_doc:
-            # Fallback to static mock USER_PROFILE
+            # No fallback to mock — return empty for production
             return {
                 "success": True,
-                "user": USER_PROFILE,
-                "challenges": CHALLENGES[:3],
-                "interviews_history": INTERVIEW_HISTORY
+                "user": {
+                    "name": "Unknown", "username": username or "", "email": "",
+                    "avatar": None, "location": "", "rating": 1000, "rank": 0,
+                    "xp": 0, "solved": 0, "interviews": 0, "domains": [],
+                    "badges": [], "heatmap": {}, "following_count": 0,
+                    "followers_count": 0, "is_following": False, "bio": "",
+                    "country": "", "linkedin_url": "", "portfolio_url": "",
+                },
+                "challenges": [],
+                "interviews_history": [],
+                "badge_progress": {"earned": [], "locked": [], "total": 0, "earned_count": 0},
             }
 
         user_id = user_doc["user_id"]
@@ -634,20 +648,20 @@ class PlatformController:
                 rank = i + 1
                 break
                 
-        # 7. Heatmap: activity in the last 182 days
-        cutoff_date = datetime.utcnow() - timedelta(days=182)
+        # 7. Heatmap: activity in the last 365 days (LeetCode-style)
+        cutoff_date = datetime.utcnow() - timedelta(days=365)
         
         sub_activity_cursor = db.submissions.find({
             "user_id": user_id,
             "created_at": {"$gte": cutoff_date}
         })
-        sub_activities = await sub_activity_cursor.to_list(length=1000)
+        sub_activities = await sub_activity_cursor.to_list(length=2000)
         
         rep_activity_cursor = db.interview_reports.find({
             "user_id": user_id,
             "created_at": {"$gte": cutoff_date}
         })
-        rep_activities = await rep_activity_cursor.to_list(length=1000)
+        rep_activities = await rep_activity_cursor.to_list(length=500)
         
         heatmap_map = {}
         for act in sub_activities:
@@ -662,28 +676,12 @@ class PlatformController:
                 dt_str = dt_val.strftime("%Y-%m-%d")
                 heatmap_map[dt_str] = heatmap_map.get(dt_str, 0) + 1
         
-        # 8. Badges
-        badges = []
-        if solved_count >= 1:
-            badges.append("First Milestone")
-        if len(rep_activities) >= 1:
-            badges.append("Interview Scholar")
-        if "build-a-rate-limiter" in solved_slugs:
-            badges.append("Concurrency Expert")
-        if "rest-versioning" in solved_slugs:
-            badges.append("API Architect")
-            
-        solved_domains = set()
-        for slug in solved_slugs:
-            if slug in problems_by_slug:
-                solved_domains.add(problems_by_slug[slug].get("domain"))
-        if "Backend" in solved_domains:
-            badges.append("Top 5% Backend")
-        if len(solved_domains) >= 3:
-            badges.append("Fullstack Wizard")
-        if solved_count >= 5:
-            badges.append("Algorithm Master")
-            
+        # 8. Badges — use gamified BadgeService
+        from app.services.badge_service import BadgeService
+        await BadgeService.check_and_award_badges(user_id)
+        earned_badges = await BadgeService.get_earned_badges(user_id)
+        badge_progress = await BadgeService.get_badge_progress(user_id)
+        badges = [b.get("name", b.get("id")) for b in earned_badges]
         if not badges:
             badges = ["Novice Engineer"]
             
@@ -754,7 +752,8 @@ class PlatformController:
                 "portfolio_url": user_doc.get("portfolio_url", ""),
             },
             "challenges": solved_challenges_list,
-            "interviews_history": interview_history
+            "interviews_history": interview_history,
+            "badge_progress": badge_progress,
         }
 
     @staticmethod

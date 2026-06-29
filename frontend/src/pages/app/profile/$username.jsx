@@ -11,9 +11,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { 
   Award, MapPin, Github, Link as LinkIcon, ShieldCheck, 
-  Sparkles, Brain, RefreshCw, CheckCircle2, AlertCircle, PlayCircle, Loader2
+  Sparkles, Brain, RefreshCw, CheckCircle2, AlertCircle, PlayCircle, Loader2, Lock
 } from "lucide-react";
 import { API } from "@/api/api";
+import ContributionHeatmap from "@/components/domain/ContributionHeatmap";
 
 const getDivisionTier = (rating, rank) => {
   if (rank === 1) return { name: "Grandmaster Elite", color: "bg-purple-500/15 text-purple-400 border-purple-500/30" };
@@ -195,7 +196,7 @@ function ProfilePage() {
     );
   }
 
-  const { user, challenges, interviews_history } = profileData;
+  const { user, challenges, interviews_history, badge_progress: badgeProgress } = profileData;
   const level = Math.floor((user.xp || 0) / 1000) + 1;
   const xpInLevel = (user.xp || 0) % 1000;
   const progress = (xpInLevel / 1000) * 100;
@@ -214,6 +215,7 @@ function ProfilePage() {
 
   return (
     <AppShell>
+      {/* Banner */}
       {/* Banner */}
       <div className="relative border-b border-border">
         <div className="grid-bg absolute inset-0 opacity-30" />
@@ -357,73 +359,106 @@ function ProfilePage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="mt-4 grid gap-4 lg:grid-cols-3">
-            <Card className="border-border bg-card p-5 lg:col-span-2">
-              <h3 className="text-sm font-semibold text-white">Domain proficiency</h3>
-              <div className="mt-4 space-y-4">
-                {(user.domains || []).map((d) => (
-                  <div key={d.domain}>
-                    <div className="mb-1.5 flex justify-between text-xs">
-                      <span className="text-muted-foreground">{d.domain}</span>
-                      <span className="font-mono text-white">{d.score}/100</span>
+          <TabsContent value="overview" className="mt-4 space-y-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              {/* Domain proficiency */}
+              <Card className="border-border bg-card p-5 lg:col-span-2">
+                <h3 className="text-sm font-semibold text-white">Domain proficiency</h3>
+                <div className="mt-4 space-y-4">
+                  {(user.domains || []).map((d) => (
+                    <div key={d.domain}>
+                      <div className="mb-1.5 flex justify-between text-xs">
+                        <span className="text-muted-foreground">{d.domain}</span>
+                        <span className="font-mono text-white">{d.score}/100</span>
+                      </div>
+                      <Progress value={d.score} className="h-2 bg-zinc-850" />
                     </div>
-                    <Progress value={d.score} className="h-2 bg-zinc-850" />
-                  </div>
-                ))}
-              </div>
-            </Card>
-            <div className="space-y-4">
-              {/* Level Progress Card */}
-              <Card className="border-border bg-card p-5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-white">Arena Level</h3>
-                  <Badge className="bg-primary/15 text-primary border border-primary/30 font-mono text-[10px]">
-                    Level {level}
-                  </Badge>
-                </div>
-                <div className="mt-4">
-                  <div className="flex justify-between text-xs mb-1.5 font-mono">
-                    <span className="text-muted-foreground">{xpInLevel} / 1000 XP</span>
-                    <span className="text-primary font-bold">{progress.toFixed(0)}%</span>
-                  </div>
-                  <Progress value={progress} className="h-2 bg-zinc-850" />
-                  <p className="text-[10px] text-muted-foreground mt-2">
-                    {1000 - xpInLevel} XP needed for Level {level + 1}. Complete challenges to level up.
-                  </p>
+                  ))}
                 </div>
               </Card>
 
-              {/* Contribution Heatmap Card */}
-              <Card className="border-border bg-card p-5">
-                <h3 className="text-sm font-semibold text-white">Contribution heatmap</h3>
-                <div
-                  className="mt-4 grid grid-cols-26 gap-1"
-                  style={{ gridTemplateColumns: "repeat(26, minmax(0, 1fr))" }}
-                >
-                  {heatmapDays.map((dateStr, i) => {
-                    const count = user.heatmap?.[dateStr] || 0;
-                    const bucket = count >= 4 ? 4 : count;
-                    const cls = [
-                      "bg-zinc-800/40",
-                      "bg-primary/20",
-                      "bg-primary/45",
-                      "bg-primary/70",
-                      "bg-primary",
-                    ][bucket];
-                    return (
-                      <span 
-                        key={dateStr} 
-                        className={`h-2.5 w-2.5 rounded-sm ${cls} transition-all duration-300 hover:scale-125`} 
-                        title={`${dateStr}: ${count} activities`}
-                      />
-                    );
-                  })}
+              {/* Level Progress Card */}
+              <Card className="border-border bg-card p-5 lg:col-span-1 relative overflow-hidden group">
+                {/* Radial Glow */}
+                <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-primary/10 blur-3xl opacity-60 group-hover:opacity-100 transition-opacity" />
+
+                <div className="relative flex items-center justify-between border-b border-zinc-850 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white tracking-wide">Arena Level</h3>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">XP PROGRESSION</p>
+                  </div>
+                  <Badge className="bg-primary/10 text-primary border border-primary/20 font-mono text-[10px] uppercase">
+                    Tier {level}
+                  </Badge>
                 </div>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Last 6 months · {totalContributions} contributions
-                </p>
+
+                <div className="relative mt-6 flex flex-col items-center justify-center">
+                  {/* Circle SVG */}
+                  <div className="relative h-28 w-28 flex items-center justify-center">
+                    <svg className="absolute inset-0 h-full w-full -rotate-90">
+                      {/* Gray track */}
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r="44"
+                        className="stroke-zinc-850"
+                        strokeWidth="6"
+                        fill="transparent"
+                      />
+                      {/* Orange progress */}
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r="44"
+                        className="stroke-primary transition-all duration-1000 ease-out"
+                        strokeWidth="6"
+                        fill="transparent"
+                        strokeDasharray={2 * Math.PI * 44}
+                        strokeDashoffset={2 * Math.PI * 44 * (1 - progress / 100)}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    {/* Inner Content */}
+                    <div className="text-center z-10">
+                      <span className="text-2xl font-black text-white">{progress.toFixed(0)}%</span>
+                      <p className="text-[8px] text-muted-foreground font-mono uppercase tracking-wider mt-0.5">Progress</p>
+                    </div>
+                  </div>
+
+                  <p className="mt-5 text-center text-xs font-medium text-white font-mono">
+                    {xpInLevel} <span className="text-zinc-500">/ 1000 XP</span>
+                  </p>
+                </div>
+
+                {/* Sub Stats Grid */}
+                <div className="mt-6 grid grid-cols-2 gap-3 border-t border-zinc-850 pt-4 text-xs font-mono">
+                  <div className="bg-zinc-950/30 rounded p-2.5 border border-zinc-850/40">
+                    <span className="text-zinc-500 text-[9px] uppercase block">Total XP</span>
+                    <span className="font-bold text-white text-sm mt-0.5 block">{user.xp || 0}</span>
+                  </div>
+                  <div className="bg-zinc-950/30 rounded p-2.5 border border-zinc-850/40">
+                    <span className="text-zinc-500 text-[9px] uppercase block">Next Tier</span>
+                    <span className="font-bold text-primary text-sm mt-0.5 block">+{1000 - xpInLevel} XP</span>
+                  </div>
+                </div>
               </Card>
             </div>
+
+            {/* Contribution Heatmap Card (Full width) */}
+            <Card className="border-border bg-card p-5 relative overflow-hidden group">
+              <div className="absolute -left-12 -bottom-12 h-36 w-36 rounded-full bg-primary/5 blur-3xl opacity-40 group-hover:opacity-100 transition-opacity" />
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-zinc-850 pb-3 mb-5">
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-wide">Contribution heatmap</h3>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 font-mono uppercase tracking-wider">365-DAY ACTIVITY LEDGER</p>
+                </div>
+              </div>
+              <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-800">
+                <div className="min-w-[720px] pr-4 relative">
+                  <ContributionHeatmap heatmap={user.heatmap || {}} />
+                </div>
+              </div>
+            </Card>
           </TabsContent>
 
           <TabsContent value="challenges" className="mt-4">
@@ -501,15 +536,84 @@ function ProfilePage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="badges" className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-            {(user.badges || []).map((b) => (
-              <Card key={b} className="flex items-center gap-3 border-zinc-800 bg-card p-4 hover:border-zinc-700 transition-colors">
-                <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
-                  <Award className="h-4 w-4" />
-                </span>
-                <span className="text-sm text-white font-medium">{b}</span>
-              </Card>
-            ))}
+          <TabsContent value="badges" className="mt-4">
+            <div className="space-y-6">
+              {/* Earned Badges Grid */}
+              <div>
+                <h4 className="text-sm font-semibold text-white mb-3">Earned Achievements</h4>
+                {badgeProgress?.earned && badgeProgress.earned.length > 0 ? (
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                    {badgeProgress.earned.map((b) => {
+                      const glowColor = 
+                        b.rarity === "Legendary" ? "shadow-[0_0_15px_rgba(250,204,21,0.2)] border-yellow-500/40" :
+                        b.rarity === "Epic" ? "shadow-[0_0_15px_rgba(168,85,247,0.2)] border-purple-500/40" :
+                        b.rarity === "Rare" ? "shadow-[0_0_15px_rgba(59,130,246,0.2)] border-blue-500/40" :
+                        "border-zinc-800";
+                      
+                      const rarityBadge = 
+                        b.rarity === "Legendary" ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" :
+                        b.rarity === "Epic" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
+                        b.rarity === "Rare" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                        "bg-zinc-800/50 text-zinc-400 border-zinc-700/30";
+
+                      return (
+                        <Card key={b.id} className={`relative overflow-hidden flex flex-col justify-between border bg-card p-4 hover:border-zinc-700 transition-all duration-300 ${glowColor}`}>
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-2xl">{b.icon || "🏆"}</span>
+                              <Badge className={`text-[9px] font-mono border ${rarityBadge}`}>
+                                {b.rarity}
+                              </Badge>
+                            </div>
+                            <h5 className="text-sm text-white font-semibold mb-1">{b.name}</h5>
+                            <p className="text-xs text-muted-foreground mb-3">{b.description}</p>
+                          </div>
+                          <div className="text-[10px] text-primary font-mono mt-auto flex justify-between items-center border-t border-white/[0.04] pt-2">
+                            <span>+{b.xp_reward} XP</span>
+                            <span className="text-muted-foreground">Earned</span>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-8 border border-dashed border-zinc-800 rounded bg-zinc-950/20 text-center">
+                    <p className="text-xs text-muted-foreground">No badges earned yet. Solve challenges to earn your first milestone!</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Locked/Progress Badges Grid */}
+              {badgeProgress?.locked && badgeProgress.locked.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-white mb-3">Locked Achievements</h4>
+                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                    {badgeProgress.locked.map((b) => (
+                      <Card key={b.id} className="relative overflow-hidden flex flex-col justify-between border border-zinc-900 bg-card/45 p-4 opacity-75 hover:opacity-100 transition-opacity">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-2xl filter grayscale opacity-60">{b.icon || "🏆"}</span>
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
+                              <Lock className="w-3 h-3" />
+                              <span>{b.progress}%</span>
+                            </div>
+                          </div>
+                          <h5 className="text-sm text-zinc-400 font-semibold mb-1">{b.name}</h5>
+                          <p className="text-xs text-zinc-500 mb-3">{b.description}</p>
+                        </div>
+                        <div className="space-y-1.5 mt-auto pt-2 border-t border-white/[0.04]">
+                          <Progress value={b.progress} className="h-1 bg-zinc-850" />
+                          <div className="flex justify-between text-[9px] font-mono text-zinc-500">
+                            <span>+{b.xp_reward} XP</span>
+                            <span>Locked</span>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="ai-evaluation" className="mt-4">
