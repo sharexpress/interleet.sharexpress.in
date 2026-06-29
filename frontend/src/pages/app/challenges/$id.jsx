@@ -66,10 +66,32 @@ function ChallengeDetail() {
   if (loading && !c) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-32">
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <div className="h-8 w-8 animate-spin rounded-full border border-zinc-700 border-t-primary" />
-            <p className="text-sm">Loading challenge…</p>
+        <div className="border-b border-border bg-card/10 px-4 py-6 md:px-8 space-y-4 animate-pulse">
+          <div className="h-7 w-56 rounded bg-zinc-800/40" />
+          <div className="h-4.5 w-96 rounded bg-zinc-800/20" />
+        </div>
+        <div className="grid gap-6 px-4 py-6 md:grid-cols-3 md:px-8 animate-pulse">
+          <div className="space-y-4 md:col-span-2">
+            <div className="h-[320px] rounded-xl border border-border bg-card/30 p-6 space-y-4">
+              <div className="flex gap-2">
+                <div className="h-5 w-16 rounded bg-zinc-800/40" />
+                <div className="h-5 w-20 rounded bg-zinc-800/40" />
+                <div className="h-5 w-16 rounded bg-zinc-800/20" />
+              </div>
+              <div className="h-6 w-32 rounded bg-zinc-800/40 mt-6" />
+              <div className="space-y-2 pt-2">
+                <div className="h-3.5 w-full rounded bg-zinc-800/20" />
+                <div className="h-3.5 w-full rounded bg-zinc-800/20" />
+                <div className="h-3.5 w-5/6 rounded bg-zinc-800/20" />
+              </div>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="h-[220px] rounded-xl border border-border bg-card/30 p-6 space-y-3">
+              <div className="h-4.5 w-24 rounded bg-zinc-800/40" />
+              <div className="h-3 w-full rounded bg-zinc-800/20" />
+              <div className="h-3 w-2/3 rounded bg-zinc-800/20" />
+            </div>
           </div>
         </div>
       </AppShell>

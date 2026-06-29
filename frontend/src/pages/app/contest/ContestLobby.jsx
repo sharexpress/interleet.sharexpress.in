@@ -171,10 +171,27 @@ function ContestLobby() {
   if (!contest) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-32">
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <div className="h-8 w-8 animate-spin rounded-full border border-zinc-700 border-t-primary" />
-            <p className="text-sm">Loading lobby details...</p>
+        <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 space-y-6 animate-pulse">
+          {/* Header row skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="h-4 w-28 rounded bg-zinc-800/40" />
+            <div className="h-6 w-32 rounded bg-zinc-800/40" />
+          </div>
+          {/* Lobby layout skeleton */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left side (participants / settings) */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="h-[180px] rounded-xl border border-border bg-card/30 p-6 space-y-4">
+                <div className="h-5 w-48 rounded bg-zinc-800/40" />
+                <div className="h-4 w-96 rounded bg-zinc-800/20" />
+              </div>
+              <div className="h-[140px] rounded-xl border border-border bg-card/30 p-6 space-y-3">
+                <div className="h-4 w-32 rounded bg-zinc-800/40" />
+                <div className="h-3.5 w-64 rounded bg-zinc-800/20" />
+              </div>
+            </div>
+            {/* Right side (chat window) */}
+            <div className="h-[360px] rounded-xl border border-border bg-card/30 p-6 flex flex-col justify-between" />
           </div>
         </div>
       </AppShell>

@@ -40,10 +40,28 @@ function ContestResults() {
   if (loading) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-32">
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <div className="h-8 w-8 animate-spin rounded-full border border-zinc-700 border-t-primary" />
-            <p className="text-sm">Loading final results...</p>
+        <PageHeader
+          title="Contest Results"
+          description="Review final match standings, solve metrics, and compliance checks."
+          badge="Completed"
+        />
+        <div className="mx-auto max-w-5xl px-4 py-8 md:px-8 space-y-8 animate-pulse">
+          {/* Action header skeleton */}
+          <div className="flex justify-between items-center">
+            <div className="h-8 w-28 rounded bg-zinc-800/40" />
+            <div className="h-8 w-20 rounded bg-zinc-800/40" />
+          </div>
+          {/* Podium Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end justify-center py-6">
+            <div className="h-28 rounded-2xl border border-zinc-850 bg-card/20 p-5 flex flex-col items-center justify-between" />
+            <div className="h-36 rounded-2xl border border-primary/20 bg-card/30 p-5 flex flex-col items-center justify-between" />
+            <div className="h-28 rounded-2xl border border-zinc-850 bg-card/20 p-5 flex flex-col items-center justify-between" />
+          </div>
+          {/* Leaderboard list skeleton */}
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-14 rounded-xl border border-border bg-card/30 p-4 flex items-center justify-between" />
+            ))}
           </div>
         </div>
       </AppShell>

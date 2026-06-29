@@ -80,6 +80,41 @@ function Dashboard() {
 
   if (!user) return null;
 
+  if (loading) {
+    return (
+      <AppShell>
+        <PageHeader
+          title={`Welcome back, ${user.username}`}
+          description="Track your ratings, achievements, and mock interview readiness."
+        />
+        <div className="px-4 py-6 md:px-8 max-w-7xl mx-auto space-y-6 animate-pulse">
+          {/* Quick stats skeleton cards */}
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-24 rounded-xl border border-border bg-card/30 p-4 space-y-3">
+                <div className="h-3.5 w-16 rounded bg-zinc-800/40" />
+                <div className="h-6 w-24 rounded bg-zinc-800/20" />
+              </div>
+            ))}
+          </div>
+          {/* Main content grid skeleton */}
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* Left side skeletons */}
+            <div className="md:col-span-2 space-y-6">
+              <div className="h-[280px] rounded-xl border border-border bg-card/30 p-6 space-y-4" />
+              <div className="h-[220px] rounded-xl border border-border bg-card/30 p-6 space-y-4" />
+            </div>
+            {/* Right side skeletons */}
+            <div className="space-y-6">
+              <div className="h-[180px] rounded-xl border border-border bg-card/30 p-6 space-y-4" />
+              <div className="h-[320px] rounded-xl border border-border bg-card/30 p-6 space-y-4" />
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   // Real-time resolved data
   const activeUser = dashboardData?.user || user;
   const activeWeekly = dashboardData?.activityWeekly || activityWeekly;

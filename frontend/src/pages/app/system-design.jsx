@@ -1806,6 +1806,44 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
     "Distributed Systems"
   ];
 
+  if (loading) {
+    return (
+      <AppShell>
+        <PageHeader
+          title="System Design Simulator"
+          description="Design and simulate scalable distributed systems."
+        />
+        <div className="px-4 py-6 md:px-8 max-w-7xl mx-auto space-y-6 animate-pulse">
+          {/* Quick Stats Grid Skeleton */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div key={i} className="h-[74px] rounded-xl border border-border bg-card/30 p-4" />
+            ))}
+          </div>
+          {/* Tabs skeleton */}
+          <div className="h-10 w-64 border-b border-border" />
+          {/* Filters skeleton */}
+          <div className="h-16 w-full rounded-xl border border-border bg-card/40" />
+          {/* Category Filter Chips skeleton */}
+          <div className="flex flex-wrap gap-2">
+            <div className="h-7 w-24 rounded-full bg-zinc-800/40" />
+            <div className="h-7 w-20 rounded-full bg-zinc-800/40" />
+            <div className="h-7 w-28 rounded-full bg-zinc-800/40" />
+            <div className="h-7 w-20 rounded-full bg-zinc-800/40" />
+          </div>
+          {/* Featured Challenge skeleton */}
+          <div className="h-[140px] rounded-xl border border-border bg-card/30 p-6" />
+          {/* Content Grid skeleton */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-[160px] rounded-xl border border-border bg-card/30 p-5 flex flex-col justify-between" />
+            ))}
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <PageHeader

@@ -1054,9 +1054,9 @@ function SecuritySection({ passkeys = [], loadingPasskeys = false, onRefreshPass
 
           <div className="divide-y divide-zinc-900 border border-zinc-900 rounded-lg overflow-hidden bg-zinc-950/20">
             {loadingPasskeys ? (
-              <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-                <span>Loading authenticators...</span>
+              <div className="p-4 space-y-3 animate-pulse">
+                <div className="h-6 w-full rounded bg-zinc-800/20" />
+                <div className="h-6 w-5/6 rounded bg-zinc-800/20" />
               </div>
             ) : passkeys.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">No passkeys linked. Lock down your account using biometric keys.</div>
@@ -1109,7 +1109,12 @@ function SecuritySection({ passkeys = [], loadingPasskeys = false, onRefreshPass
           <p className="text-xs text-muted-foreground">List of clients currently holding session tokens. Revoking will terminate the access immediately.</p>
           
           <div className="divide-y divide-zinc-900 border border-zinc-900 rounded-lg overflow-hidden bg-zinc-950/20">
-            {sessions.map(s => (
+            {loadingSessions ? (
+              <div className="p-4 space-y-3 animate-pulse">
+                <div className="h-6 w-full rounded bg-zinc-800/20" />
+                <div className="h-6 w-5/6 rounded bg-zinc-800/20" />
+              </div>
+            ) : sessions.map(s => (
               <div key={s.id} className="flex items-center justify-between p-4">
                 <div className="flex items-center gap-3">
                   <span className="p-2 rounded bg-zinc-900 border border-zinc-850">
@@ -1146,9 +1151,13 @@ function SecuritySection({ passkeys = [], loadingPasskeys = false, onRefreshPass
 function PrivacySection({ settings, onUpdateSettings, loading }) {
   if (loading || !settings) {
     return (
-      <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-        <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-        <span>Loading privacy preferences...</span>
+      <div className="p-6 space-y-4 animate-pulse">
+        <div className="h-5 w-40 rounded bg-zinc-800/40" />
+        <div className="space-y-3">
+          <div className="h-10 w-full rounded border border-border bg-card/10" />
+          <div className="h-10 w-full rounded border border-border bg-card/10" />
+          <div className="h-10 w-full rounded border border-border bg-card/10" />
+        </div>
       </div>
     );
   }
@@ -1472,9 +1481,9 @@ function BillingSection({ billingInfo, loading, onRefreshBilling }) {
           
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-                <span>Loading invoice logs...</span>
+              <div className="p-4 space-y-3 animate-pulse">
+                <div className="h-6 w-full rounded bg-zinc-800/20" />
+                <div className="h-6 w-5/6 rounded bg-zinc-800/20" />
               </div>
             ) : invoices.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground border border-dashed border-zinc-850 rounded-lg">
@@ -1596,9 +1605,9 @@ function PointsSection({ xpData, loading }) {
         
         <div className="divide-y divide-zinc-900 border border-zinc-900 rounded-lg overflow-hidden bg-zinc-950/20">
           {loading ? (
-            <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-              <span>Loading XP records...</span>
+            <div className="p-4 space-y-3 animate-pulse">
+              <div className="h-6 w-full rounded bg-zinc-800/20" />
+              <div className="h-6 w-5/6 rounded bg-zinc-800/20" />
             </div>
           ) : pointsHistory.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground">No points history logged yet.</div>
@@ -1654,9 +1663,9 @@ function OrdersSection({ billingInfo, loading }) {
         
         <div className="overflow-x-auto">
           {loading ? (
-            <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-              <span>Loading orders history...</span>
+            <div className="p-4 space-y-3 animate-pulse">
+              <div className="h-6 w-full rounded bg-zinc-800/20" />
+              <div className="h-6 w-5/6 rounded bg-zinc-800/20" />
             </div>
           ) : formattedOrders.length === 0 ? (
             <div className="p-6 text-center text-xs text-muted-foreground border border-dashed border-zinc-850 rounded-lg bg-zinc-950/20">
@@ -1764,9 +1773,13 @@ function NotificationsSection({ settings, loading: loadingSettings, onUpdateSett
 
   if (loadingSettings || !settings) {
     return (
-      <div className="p-6 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-        <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-        <span>Loading preferences...</span>
+      <div className="p-6 space-y-4 animate-pulse">
+        <div className="h-5 w-40 rounded bg-zinc-800/40" />
+        <div className="space-y-3">
+          <div className="h-10 w-full rounded border border-border bg-card/10" />
+          <div className="h-10 w-full rounded border border-border bg-card/10" />
+          <div className="h-10 w-full rounded border border-border bg-card/10" />
+        </div>
       </div>
     );
   }

@@ -126,7 +126,13 @@ function InterviewsPage() {
           </div>
 
           {/* Conditional View Rendering */}
-          {view === "grid" ? (
+          {loadingRoles ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-pulse">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-[180px] rounded-xl border border-border bg-card/30 p-5 space-y-4" />
+              ))}
+            </div>
+          ) : view === "grid" ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {roles.map((r) => (
                 <Card key={r.t} className="group border-border bg-card p-5 transition-colors hover:border-primary/40">
@@ -264,7 +270,14 @@ function InterviewsPage() {
         <section>
           <h2 className="mb-3 text-sm font-semibold">Recent sessions</h2>
           <Card className="overflow-hidden border-border bg-card p-0">
-            <table className="w-full text-sm">
+            {loadingHistory ? (
+              <div className="p-6 space-y-3 animate-pulse">
+                <div className="h-5 w-full rounded bg-zinc-800/40" />
+                <div className="h-5 w-5/6 rounded bg-zinc-800/20" />
+                <div className="h-5 w-4/5 rounded bg-zinc-800/20" />
+              </div>
+            ) : (
+              <table className="w-full text-sm">
               <thead className="bg-background/60 text-left text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2 font-mono uppercase tracking-wider">Role</th>
@@ -295,6 +308,7 @@ function InterviewsPage() {
                 ))}
               </tbody>
             </table>
+            )}
           </Card>
         </section>
       </div>

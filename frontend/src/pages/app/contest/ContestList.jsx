@@ -155,9 +155,20 @@ function ContestList() {
               </div>
 
               {loading ? (
-                <div className="flex flex-col items-center justify-center py-20 border border-zinc-800/60 rounded-xl bg-zinc-900/10 gap-3">
-                  <div className="h-6 w-6 animate-spin rounded-full border border-zinc-700 border-t-primary" />
-                  <p className="text-sm text-zinc-500">Loading contests...</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-pulse">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-[160px] rounded-xl border border-zinc-850 bg-card/30 p-5 space-y-4 flex flex-col justify-between">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <div className="h-5 w-16 rounded bg-zinc-800/40" />
+                          <div className="h-4 w-12 rounded bg-zinc-800/20" />
+                        </div>
+                        <div className="h-4 w-3/4 rounded bg-zinc-800/40" />
+                        <div className="h-3.5 w-1/2 rounded bg-zinc-800/20" />
+                      </div>
+                      <div className="h-8 w-24 rounded bg-zinc-800/40 mt-3" />
+                    </div>
+                  ))}
                 </div>
               ) : activeContests.length === 0 ? (
                 <div className="text-center py-16 border border-zinc-800 border-dashed rounded-xl bg-zinc-900/10">

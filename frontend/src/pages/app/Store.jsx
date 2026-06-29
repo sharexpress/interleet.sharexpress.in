@@ -404,10 +404,21 @@ function StorePage() {
           </div>
 
           <TabsContent value="all" className="mt-0">
-            {loading ? (
-              <div className="py-24 text-center text-muted-foreground">
-                <Sparkles className="h-8 w-8 animate-spin mx-auto text-[#FF6500] mb-3" />
-                <p className="font-mono text-sm">Evaluating eligibility contracts...</p>
+             {loading ? (
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 animate-pulse">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="rounded-xl border border-border bg-card/30 p-5 space-y-4 h-[280px] flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <div className="h-32 w-full rounded-lg bg-zinc-800/40" />
+                      <div className="h-4 w-3/4 rounded bg-zinc-800/40" />
+                      <div className="h-3 w-1/2 rounded bg-zinc-800/25" />
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="h-5 w-16 rounded bg-zinc-800/40" />
+                      <div className="h-8 w-20 rounded bg-zinc-800/45" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : renderItemsGrid(items)}
           </TabsContent>
