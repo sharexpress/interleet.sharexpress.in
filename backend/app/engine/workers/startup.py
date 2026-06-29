@@ -20,7 +20,8 @@ _worker_tasks: list[asyncio.Task] = []
 # All language Docker images to pre-warm at startup
 _PREWARM_IMAGES = [
     "interleet-python:latest",
-    "interleet-node:latest",      # JavaScript + TypeScript
+    "interleet-node:latest",      # JavaScript
+    "interleet-typescript:latest", # TypeScript
     "interleet-cpp:latest",
     "interleet-go:latest",
     "interleet-rust:latest",
