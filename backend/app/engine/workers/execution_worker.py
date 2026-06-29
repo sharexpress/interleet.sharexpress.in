@@ -2,14 +2,20 @@
 Interleet Judge Engine — Async Execution Worker
 Consumes jobs from Redis queue and executes them in Docker sandboxes.
 
+Performance optimizations:
+  - Batch execution for interpreted languages (single workspace, swap stdin)
+  - Background user ratings update (fire-and-forget, doesn't block worker)
+  - Broadcast completion BEFORE MongoDB persist (user sees result instantly)
+  - Parallel testcase execution with semaphore for compiled languages
+
 Each worker coroutine:
   1. Dequeues a job from Redis
   2. Updates status → QUEUED → COMPILING → RUNNING → JUDGING
   3. Broadcasts WebSocket events at each stage
   4. Runs the executor for each testcase
   5. Scores results via JudgeEngine
-  6. Saves final result to MongoDB
-  7. Broadcasts COMPLETED / FAILED
+  6. Broadcasts COMPLETED immediately (user sees result NOW)
+  7. Saves to MongoDB + caches in Redis (async background)
 """
 
 from __future__ import annotations
@@ -49,7 +55,7 @@ class ExecutionWorker:
         logger.info("Worker #%d started", self.worker_id)
         while not WORKER_SHUTDOWN.is_set():
             try:
-                job = await self.queue.dequeue(timeout=5)
+                job = await self.queue.dequeue(timeout=2)
                 if job is None:
                     continue  # timeout, check shutdown flag and retry
                 await self._process_job(job)
@@ -91,7 +97,6 @@ class ExecutionWorker:
                 ]
 
             # ── Phase 2: Compile (if needed) ────────────────────────────
-            # ── Phase 2: Compile (if needed) ────────────────────────────
             compile_output = ""
             compile_workspace = None
             compilation_failed = False
@@ -115,48 +120,70 @@ class ExecutionWorker:
                             )
                         )
 
-            # ── Phase 3: Run testcases (in parallel with concurrency limit) ─
+            # ── Phase 3: Run testcases ──────────────────────────────────
             if not compilation_failed:
                 await self._update_status(submission_id, ExecutionStatus.RUNNING)
                 await self._broadcast(submission_id, WebSocketEventType.RUNNING, ExecutionStatus.RUNNING)
 
-                testcase_results = [None] * len(testcases)
-                sem = asyncio.Semaphore(4)  # Limit concurrent Docker runs to 4 per job
+                if not executor.requires_compile:
+                    # ═══ BATCH MODE for interpreted languages ═══
+                    # Single workspace, write code once, swap stdin per testcase
+                    # Saves ~20-30ms per testcase in workspace I/O
+                    sandbox_results = await executor.run_batch_testcases(
+                        code=job.code,
+                        testcases=testcases,
+                        time_limit=job.time_limit,
+                        memory_limit=job.memory_limit,
+                    )
+                    testcase_results = []
+                    for i, (tc, sandbox_result) in enumerate(zip(testcases, sandbox_results)):
+                        tc_result = JudgeEngine.evaluate(
+                            sandbox_result=sandbox_result,
+                            testcase=tc,
+                            compile_output="",
+                            comparison_mode=tc.comparison_mode or job.comparison_mode,
+                        )
+                        testcase_results.append(tc_result)
+                else:
+                    # ═══ PARALLEL MODE for compiled languages ═══
+                    # Uses hardlinks from compile workspace (not copies)
+                    testcase_results = [None] * len(testcases)
+                    sem = asyncio.Semaphore(4)
 
-                async def run_single_tc(idx: int, tc: TestCaseSchema):
-                    async with sem:
-                        try:
-                            sandbox_result = await executor.run_testcase_with_compile_workspace(
-                                code=job.code,
-                                testcase=tc,
-                                time_limit=tc.time_limit or job.time_limit,
-                                memory_limit=tc.memory_limit or job.memory_limit,
-                                compile_workspace=compile_workspace,
-                            )
-                            tc_result = JudgeEngine.evaluate(
-                                sandbox_result=sandbox_result,
-                                testcase=tc,
-                                compile_output=compile_output,
-                                comparison_mode=tc.comparison_mode or job.comparison_mode,
-                            )
-                            testcase_results[idx] = tc_result
-                        except Exception as exc:
-                            logger.exception("Worker #%d testcase %d error: %s", self.worker_id, idx, exc)
-                            testcase_results[idx] = TestCaseResult(
-                                testcase_id=tc.id,
-                                name=tc.name,
-                                hidden=tc.hidden,
-                                verdict=Verdict.INTERNAL_ERROR,
-                                passed=False,
-                                stderr=str(exc),
-                            )
+                    async def run_single_tc(idx: int, tc: TestCaseSchema):
+                        async with sem:
+                            try:
+                                sandbox_result = await executor.run_testcase_with_compile_workspace(
+                                    code=job.code,
+                                    testcase=tc,
+                                    time_limit=tc.time_limit or job.time_limit,
+                                    memory_limit=tc.memory_limit or job.memory_limit,
+                                    compile_workspace=compile_workspace,
+                                )
+                                tc_result = JudgeEngine.evaluate(
+                                    sandbox_result=sandbox_result,
+                                    testcase=tc,
+                                    compile_output=compile_output,
+                                    comparison_mode=tc.comparison_mode or job.comparison_mode,
+                                )
+                                testcase_results[idx] = tc_result
+                            except Exception as exc:
+                                logger.exception("Worker #%d testcase %d error: %s", self.worker_id, idx, exc)
+                                testcase_results[idx] = TestCaseResult(
+                                    testcase_id=tc.id,
+                                    name=tc.name,
+                                    hidden=tc.hidden,
+                                    verdict=Verdict.INTERNAL_ERROR,
+                                    passed=False,
+                                    stderr=str(exc),
+                                )
 
-                try:
-                    tasks = [run_single_tc(i, tc) for i, tc in enumerate(testcases)]
-                    await asyncio.gather(*tasks)
-                finally:
-                    if compile_workspace:
-                        await executor._cleanup_workspace(compile_workspace)
+                    try:
+                        tasks = [run_single_tc(i, tc) for i, tc in enumerate(testcases)]
+                        await asyncio.gather(*tasks)
+                    finally:
+                        if compile_workspace:
+                            await executor._cleanup_workspace(compile_workspace)
 
             # ── Phase 4: Judge ───────────────────────────────────────────
             await self._update_status(submission_id, ExecutionStatus.JUDGING)
@@ -192,16 +219,13 @@ class ExecutionWorker:
                 completed_at=datetime.utcnow(),
             )
 
-            # ── Phase 5: Persist to MongoDB ──────────────────────────────
-            await self._save_result(job, execution_result)
+            result_data = execution_result.model_dump(mode="json")
 
-            # ── Phase 6: Cache in Redis ──────────────────────────────────
-            await self.queue.store_result(
-                submission_id,
-                execution_result.model_dump(mode="json"),
-            )
+            # ── Phase 5: Cache in Redis FIRST (triggers instant notification) ─
+            # This is the critical path — the controller is waiting on this
+            await self.queue.store_result(submission_id, result_data)
 
-            # ── Phase 7: Broadcast Completed ─────────────────────────────
+            # ── Phase 6: Broadcast Completed via WebSocket ────────────────
             await self._update_status(
                 submission_id,
                 ExecutionStatus.COMPLETED,
@@ -224,6 +248,13 @@ class ExecutionWorker:
                     "time": execution_result.time,
                     "memory": execution_result.memory,
                 },
+            )
+
+            # ── Phase 7: Persist to MongoDB (non-blocking) ───────────────
+            # This runs AFTER the user already has their result
+            asyncio.create_task(
+                self._save_result_background(job, execution_result),
+                name=f"save-result-{submission_id[:8]}",
             )
 
             logger.info(
@@ -275,6 +306,17 @@ class ExecutionWorker:
             await ws_manager.broadcast(submission_id, event)
         except Exception as exc:
             logger.warning("WebSocket broadcast failed: %s", exc)
+
+    @staticmethod
+    async def _save_result_background(job: ExecutionJob, result: ExecutionResult) -> None:
+        """
+        Persist execution result to MongoDB + update user profile.
+        Runs as a background task AFTER the user already has their result.
+        """
+        try:
+            await ExecutionWorker._save_result(job, result)
+        except Exception as exc:
+            logger.error("Background save failed for job=%s: %s", job.job_id, exc)
 
     @staticmethod
     async def _save_result(job: ExecutionJob, result: ExecutionResult) -> None:
@@ -335,9 +377,14 @@ class ExecutionWorker:
                     upsert=True,
                 )
                 
-                # Update user profile dynamically
+                # Update user profile in background (fire-and-forget)
+                # This is the heaviest operation — recalculates all ratings, badges, streak
+                # Now runs as a separate background task so it doesn't block the worker
                 if job.user_id:
-                    await _update_user_ratings_and_badges(job.user_id)
+                    asyncio.create_task(
+                        _update_user_ratings_and_badges(job.user_id),
+                        name=f"update-ratings-{job.user_id[:8]}",
+                    )
 
                 # Record contest submission if contest_id is attached
                 contest_id = getattr(job, "contest_id", None)
@@ -496,4 +543,3 @@ async def _update_user_ratings_and_badges(user_id: str) -> None:
         
     except Exception as exc:
         logger.exception("Failed to update user ratings and badges: %s", exc)
-

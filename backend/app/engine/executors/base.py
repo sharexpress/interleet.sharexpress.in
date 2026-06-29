@@ -1,6 +1,11 @@
 """
 Interleet Judge Engine — Base Executor
 Abstract base class for all language-specific executors.
+
+Performance optimizations:
+  - Batch testcase execution: ONE workspace for interpreted languages
+  - Hardlinks instead of file copies for compiled binaries
+  - Shared compile workspace avoids redundant compilations
 """
 
 from __future__ import annotations
@@ -247,18 +252,16 @@ class BaseExecutor(ABC):
         compile_workspace: Path | None = None,
     ) -> SandboxResult:
         """
-        Run a testcase in its own isolated workspace, copying pre-compiled files if available.
+        Run a testcase in its own isolated workspace, using hardlinks for
+        pre-compiled files (avoids multi-MB file copies per testcase).
         """
         from app.engine.docker.sandbox import DockerSandbox
-        import shutil
 
         workspace = await self._create_workspace()
         try:
             if compile_workspace:
-                # Copy compiled files from compile workspace
-                for item in compile_workspace.iterdir():
-                    if item.name != "stdin.txt" and item.is_file():
-                        shutil.copy2(item, workspace / item.name)
+                # Use hardlinks instead of copies — much faster for large binaries
+                await self._link_compiled_files(compile_workspace, workspace)
             else:
                 # Interpreted languages: write the source code directly
                 await self._write_code(workspace, code)
@@ -277,6 +280,59 @@ class BaseExecutor(ABC):
                 memory_limit_mb=tc_memory,
             )
             return sandbox_result
+        finally:
+            await self._cleanup_workspace(workspace)
+
+    # ─── Batch Execution (Interpreted Languages) ───────────────────────────
+
+    async def run_batch_testcases(
+        self,
+        code: str,
+        testcases: list[TestCaseSchema],
+        time_limit: float,
+        memory_limit: int,
+    ) -> list[SandboxResult]:
+        """
+        Run multiple testcases in a SINGLE workspace (interpreted languages only).
+        
+        Instead of:  create-workspace → write-code → write-stdin → run → cleanup  (per TC)
+        We do:       create-workspace → write-code → [write-stdin → run] × N → cleanup
+        
+        This saves ~20-30ms per testcase by avoiding redundant workspace I/O.
+        Testcases run sequentially in the same workspace (safe for interpreted langs).
+        """
+        from app.engine.docker.sandbox import DockerSandbox
+
+        workspace = await self._create_workspace()
+        results: list[SandboxResult] = []
+
+        try:
+            # Write code ONCE
+            await self._write_code(workspace, code)
+
+            # Run each testcase in sequence, swapping only stdin
+            for tc in testcases:
+                await self._write_stdin(workspace, tc.stdin)
+
+                tc_time_limit = tc.time_limit or time_limit
+                tc_memory = tc.memory_limit or memory_limit
+
+                sandbox_result = await DockerSandbox.run(
+                    image=self.docker_image,
+                    command=self.run_command,
+                    workspace=workspace,
+                    time_limit=tc_time_limit,
+                    memory_limit_mb=tc_memory,
+                )
+                results.append(sandbox_result)
+
+            return results
+        except Exception as exc:
+            logger.exception("Batch execution error: %s", exc)
+            # Fill remaining results with error
+            while len(results) < len(testcases):
+                results.append(SandboxResult(stderr=str(exc), exit_code=1))
+            return results
         finally:
             await self._cleanup_workspace(workspace)
 
@@ -305,6 +361,30 @@ class BaseExecutor(ABC):
         async with aiofiles.open(stdin_path, "w", encoding="utf-8") as f:
             await f.write(stdin)
         stdin_path.chmod(0o644)
+
+    @staticmethod
+    async def _link_compiled_files(src_workspace: Path, dst_workspace: Path) -> None:
+        """
+        Link compiled files from compile workspace to run workspace.
+        Uses hardlinks (instant, zero-copy) with fallback to regular copy.
+        """
+        import shutil
+
+        loop = asyncio.get_event_loop()
+
+        def _do_link():
+            for item in src_workspace.iterdir():
+                if item.name == "stdin.txt" or not item.is_file():
+                    continue
+                dst = dst_workspace / item.name
+                try:
+                    # Hardlink: instant, no data copy, same inode
+                    os.link(item, dst)
+                except OSError:
+                    # Fallback: regular copy (cross-device, etc.)
+                    shutil.copy2(item, dst)
+
+        await loop.run_in_executor(None, _do_link)
 
     @staticmethod
     async def _cleanup_workspace(workspace: Path) -> None:

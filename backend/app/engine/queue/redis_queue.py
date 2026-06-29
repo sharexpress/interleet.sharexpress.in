@@ -1,10 +1,16 @@
 """
 Interleet Judge Engine — Redis Execution Queue
 Async-safe queue backed by Redis BRPOP/LPUSH.
+
+Performance optimization:
+  - In-process asyncio.Event notification registry
+  - When a result is stored, the waiter is notified instantly
+  - Eliminates 200ms polling loops in the submission controller
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -31,10 +37,17 @@ class ExecutionQueue:
     Jobs are serialized JSON pushed to a Redis list.
     Workers BRPOP (blocking pop) to receive jobs.
     Status updates are stored in Redis hashes for fast WebSocket polling.
+    
+    Includes an in-process notification system (asyncio.Event registry)
+    so synchronous endpoints can await results without polling.
     """
 
     def __init__(self, redis_client: aioredis.Redis):
         self._redis = redis_client
+        # In-process notification: submission_id → asyncio.Event
+        self._result_events: dict[str, asyncio.Event] = {}
+        # Cached results for instant pickup after notification
+        self._result_cache: dict[str, dict] = {}
 
     # ─── Job Queue Operations ──────────────────────────────────────────────
 
@@ -63,6 +76,54 @@ class ExecutionQueue:
     async def queue_length(self) -> int:
         """Return current number of jobs in the queue."""
         return await self._redis.llen(QUEUE_KEY)
+
+    # ─── Instant Notification System ───────────────────────────────────────
+
+    def register_waiter(self, submission_id: str) -> asyncio.Event:
+        """
+        Register a waiter for a submission result.
+        Returns an asyncio.Event that will be set when the result arrives.
+        """
+        event = asyncio.Event()
+        self._result_events[submission_id] = event
+        return event
+
+    def unregister_waiter(self, submission_id: str) -> None:
+        """Clean up waiter registration."""
+        self._result_events.pop(submission_id, None)
+        self._result_cache.pop(submission_id, None)
+
+    def _notify_waiter(self, submission_id: str, result: dict) -> None:
+        """Notify a waiting controller that the result is ready."""
+        event = self._result_events.get(submission_id)
+        if event:
+            self._result_cache[submission_id] = result
+            event.set()
+
+    async def wait_for_result(
+        self,
+        submission_id: str,
+        timeout: float = 20.0,
+    ) -> Optional[dict[str, Any]]:
+        """
+        Wait for a submission result with instant notification.
+        Replaces the old 200ms polling loop.
+        
+        Returns the result dict, or None on timeout.
+        """
+        event = self.register_waiter(submission_id)
+        try:
+            await asyncio.wait_for(event.wait(), timeout=timeout)
+            # Check in-process cache first (fastest)
+            cached = self._result_cache.get(submission_id)
+            if cached:
+                return cached
+            # Fallback to Redis
+            return await self.get_result(submission_id)
+        except asyncio.TimeoutError:
+            return None
+        finally:
+            self.unregister_waiter(submission_id)
 
     # ─── Status / Result Storage ───────────────────────────────────────────
 
@@ -99,9 +160,14 @@ class ExecutionQueue:
     async def store_result(
         self, submission_id: str, result: dict[str, Any]
     ) -> None:
-        """Store the final execution result in Redis (for fast retrieval)."""
+        """
+        Store the final execution result in Redis (for fast retrieval).
+        Also notifies any in-process waiter instantly.
+        """
         key = f"{RESULT_PREFIX}{submission_id}"
         await self._redis.set(key, json.dumps(result, default=str), ex=STATUS_TTL_SECONDS)
+        # Instantly notify the waiting controller (if any)
+        self._notify_waiter(submission_id, result)
 
     async def get_result(self, submission_id: str) -> Optional[dict[str, Any]]:
         """Retrieve cached execution result from Redis."""

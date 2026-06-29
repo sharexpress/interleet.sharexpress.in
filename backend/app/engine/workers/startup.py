@@ -1,6 +1,9 @@
 """
 Interleet Judge Engine — Worker Startup
-Launches async workers as background tasks on FastAPI startup.
+Launches async workers and pre-warms Docker containers on FastAPI startup.
+
+Pre-warming ensures the FIRST code execution is just as fast as subsequent ones
+by creating all persistent containers before any user request arrives.
 """
 
 from __future__ import annotations
@@ -14,15 +17,36 @@ logger = logging.getLogger(__name__)
 
 _worker_tasks: list[asyncio.Task] = []
 
+# All language Docker images to pre-warm at startup
+_PREWARM_IMAGES = [
+    "interleet-python:latest",
+    "interleet-node:latest",      # JavaScript + TypeScript
+    "interleet-cpp:latest",
+    "interleet-go:latest",
+    "interleet-rust:latest",
+    "interleet-java:latest",
+]
+
 
 async def start_workers() -> None:
     """
     Launch WORKER_COUNT async worker coroutines as asyncio tasks.
+    Also pre-warms all Docker containers so the first execution is instant.
     Called from FastAPI lifespan on startup.
     """
     global _worker_tasks
     WORKER_SHUTDOWN.clear()
 
+    # Pre-warm Docker containers in a background thread (non-blocking)
+    loop = asyncio.get_event_loop()
+    try:
+        from app.engine.docker.sandbox import prewarm_containers
+        await loop.run_in_executor(None, prewarm_containers, _PREWARM_IMAGES)
+        logger.info("🐳 Pre-warmed %d Docker containers", len(_PREWARM_IMAGES))
+    except Exception as exc:
+        logger.warning("Container pre-warm failed (will create on demand): %s", exc)
+
+    # Start workers
     for i in range(WORKER_COUNT):
         worker = ExecutionWorker(worker_id=i + 1)
         task = asyncio.create_task(worker.run(), name=f"exec-worker-{i + 1}")

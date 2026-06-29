@@ -2,15 +2,22 @@
 Interleet Judge Engine — Docker Sandbox
 Secure isolated container execution using the Docker SDK.
 
+Architecture:
+  - ONE persistent container per language image (centralized execution engine)
+  - Container runs `sleep infinity` and stays alive forever
+  - Code execution uses `container.exec_run()` — no container create/destroy per run
+  - In-memory cache eliminates Docker API lookups on every call
+  - Dedicated thread pool prevents thread starvation under load
+
 Security model:
   - network_disabled=True        (no outbound networking)
   - mem_limit                    (hard memory cap)
-  - nano_cpus=1_000_000_000      (max 1 CPU core)
-  - pids_limit=64                (blocks fork bombs)
+  - nano_cpus=2_000_000_000      (max 2 CPU cores)
+  - pids_limit=256               (blocks fork bombs)
   - security_opt no-new-privileges (prevents privilege escalation)
   - cap_drop ALL                 (removes all Linux capabilities)
-  - read_only root FS where safe (workspace volume is always rw)
-  - Timeout kill via container.stop()
+  - tmpfs /tmp                   (ephemeral scratch space)
+  - Timeout kill via `timeout` command wrapper
 """
 
 from __future__ import annotations
@@ -18,7 +25,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import docker
@@ -32,61 +41,167 @@ logger = logging.getLogger(__name__)
 # Output size guard — 10 MB max stdout/stderr
 MAX_OUTPUT_BYTES = 10 * 1024 * 1024
 
+# Dedicated thread pool for Docker calls (prevents starvation of the default pool)
+_DOCKER_THREAD_POOL = ThreadPoolExecutor(max_workers=12, thread_name_prefix="docker-exec")
+
 # Docker client (lazy singleton)
 _docker_client: docker.DockerClient | None = None
+_docker_client_lock = threading.Lock()
+
+# ─── In-memory container cache ────────────────────────────────────────────
+# Key: image name (e.g. "interleet-python:latest")
+# Value: Container object
+_container_cache: dict[str, Container] = {}
+_container_cache_lock = threading.Lock()
 
 
 def get_docker_client() -> docker.DockerClient:
     global _docker_client
     if _docker_client is None:
-        _docker_client = docker.from_env()
+        with _docker_client_lock:
+            if _docker_client is None:
+                _docker_client = docker.from_env()
     return _docker_client
 
 
-def get_or_create_prewarmed_container(client: docker.DockerClient, image: str) -> Container:
-    """Get or dynamically start a pre-warmed background runner container."""
-    container_name = f"interleet-prewarmed-{image.replace(':', '-')}"
+def _create_persistent_container(client: docker.DockerClient, image: str) -> Container:
+    """Create a new persistent container for the given image."""
+    container_name = f"interleet-engine-{image.replace(':', '-').replace('/', '-')}"
     workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
     os.makedirs(workspace_base, exist_ok=True)
 
+    # Remove any existing container with the same name (clean slate)
     try:
-        container = client.containers.get(container_name)
-        if container.status != "running":
-            try:
-                container.start()
-            except Exception:
-                try:
-                    container.remove(force=True)
-                except Exception:
-                    pass
-                raise docker.errors.NotFound("Recreating broken container")
-        return container
+        old = client.containers.get(container_name)
+        old.remove(force=True)
+        logger.info("Removed stale container: %s", container_name)
     except docker.errors.NotFound:
-        # Create and start a new pre-warmed container
-        container = client.containers.run(
-            image=image,
-            command=["sleep", "infinity"],
-            name=container_name,
-            volumes={
-                workspace_base: {"bind": "/workspace", "mode": "rw"}
-            },
-            network_disabled=True,
-            mem_limit="512m",
-            memswap_limit="512m",
-            nano_cpus=2_000_000_000,
-            pids_limit=256,
-            security_opt=["no-new-privileges"],
-            cap_drop=["ALL"],
-            detach=True,
-            remove=False,
-            tmpfs={"/tmp": "size=32m,noexec,nosuid"},
-        )
+        pass
+    except Exception as exc:
+        logger.warning("Failed to remove old container %s: %s", container_name, exc)
+
+    container = client.containers.run(
+        image=image,
+        command=["sleep", "infinity"],
+        name=container_name,
+        volumes={
+            workspace_base: {"bind": "/workspace", "mode": "rw"}
+        },
+        network_disabled=True,
+        mem_limit="512m",
+        memswap_limit="512m",
+        nano_cpus=2_000_000_000,
+        pids_limit=256,
+        security_opt=["no-new-privileges"],
+        cap_drop=["ALL"],
+        detach=True,
+        remove=False,
+        tmpfs={"/tmp": "size=32m,noexec,nosuid"},
+        restart_policy={"Name": "unless-stopped"},  # Auto-restart on crash
+    )
+    logger.info("Created persistent container: %s (image=%s)", container_name, image)
+    return container
+
+
+def get_container(image: str) -> Container:
+    """
+    Get the cached persistent container for this image.
+    Creates one if it doesn't exist. Recreates if the container is dead.
+    This is the HOT PATH — must be as fast as possible.
+    """
+    # Fast path: check cache without lock
+    cached = _container_cache.get(image)
+    if cached is not None:
+        try:
+            # Refresh status only if we suspect issues (reload is cheap, ~2ms)
+            cached.reload()
+            if cached.status == "running":
+                return cached
+        except Exception:
+            pass
+        # Container is dead or errored — evict from cache
+        logger.warning("Cached container for %s is not running, recreating...", image)
+
+    # Slow path: create or recover container (under lock)
+    with _container_cache_lock:
+        # Double-check after acquiring lock
+        cached = _container_cache.get(image)
+        if cached is not None:
+            try:
+                cached.reload()
+                if cached.status == "running":
+                    return cached
+            except Exception:
+                pass
+
+        client = get_docker_client()
+
+        # Try to find an existing container by name first
+        container_name = f"interleet-engine-{image.replace(':', '-').replace('/', '-')}"
+        try:
+            existing = client.containers.get(container_name)
+            if existing.status == "running":
+                _container_cache[image] = existing
+                logger.info("Recovered existing container: %s", container_name)
+                return existing
+            else:
+                existing.start()
+                existing.reload()
+                if existing.status == "running":
+                    _container_cache[image] = existing
+                    logger.info("Restarted existing container: %s", container_name)
+                    return existing
+                # If it still won't start, remove and recreate
+                existing.remove(force=True)
+        except docker.errors.NotFound:
+            pass
+        except Exception as exc:
+            logger.warning("Error recovering container %s: %s", container_name, exc)
+            try:
+                client.containers.get(container_name).remove(force=True)
+            except Exception:
+                pass
+
+        # Create fresh container
+        container = _create_persistent_container(client, image)
+        _container_cache[image] = container
         return container
+
+
+def prewarm_containers(images: list[str]) -> None:
+    """
+    Pre-warm containers for all language images at server startup.
+    Called once during FastAPI lifespan startup.
+    """
+    client = get_docker_client()
+    for image in images:
+        try:
+            # Check image exists first
+            client.images.get(image)
+            container = get_container(image)
+            logger.info("Pre-warmed container for %s: %s", image, container.short_id)
+        except docker.errors.ImageNotFound:
+            logger.warning("Image not found (skipping pre-warm): %s", image)
+        except Exception as exc:
+            logger.error("Failed to pre-warm %s: %s", image, exc)
+
+
+def invalidate_container(image: str) -> None:
+    """Force-evict a container from cache (e.g., after image rebuild)."""
+    with _container_cache_lock:
+        container = _container_cache.pop(image, None)
+        if container:
+            try:
+                container.remove(force=True)
+            except Exception:
+                pass
+    logger.info("Invalidated container cache for: %s", image)
 
 
 class DockerSandbox:
     """
-    Utility class that executes user code inside pre-warmed Docker containers via exec.
+    Utility class that executes user code inside persistent Docker containers via exec.
+    Each language has ONE long-lived container — all execution happens via exec_run().
     """
 
     @staticmethod
@@ -97,11 +212,11 @@ class DockerSandbox:
         time_limit: float = 30.0,
     ) -> CompileResult:
         """
-        Run a compilation command inside the pre-warmed container.
+        Run a compilation command inside the persistent container.
         """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            None,
+            _DOCKER_THREAD_POOL,
             DockerSandbox._compile_sync,
             image,
             command,
@@ -118,11 +233,11 @@ class DockerSandbox:
         memory_limit_mb: int,
     ) -> SandboxResult:
         """
-        Run the execution command inside the pre-warmed container.
+        Run the execution command inside the persistent container.
         """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
-            None,
+            _DOCKER_THREAD_POOL,
             DockerSandbox._run_sync,
             image,
             command,
@@ -131,7 +246,7 @@ class DockerSandbox:
             memory_limit_mb,
         )
 
-    # ─── Sync implementations (run in thread pool) ─────────────────────────
+    # ─── Sync implementations (run in dedicated thread pool) ───────────────
 
     @staticmethod
     def _compile_sync(
@@ -140,11 +255,10 @@ class DockerSandbox:
         workspace: Path,
         time_limit: float,
     ) -> CompileResult:
-        client = get_docker_client()
         start = time.monotonic()
 
         try:
-            container = get_or_create_prewarmed_container(client, image)
+            container = get_container(image)
 
             workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
             try:
@@ -153,7 +267,7 @@ class DockerSandbox:
             except Exception:
                 container_workspace = "/workspace"
 
-            # Wrap command in timeout command
+            # Wrap command in timeout
             wrapped_command = command.copy()
             if len(command) >= 3 and command[0] == "sh" and command[1] == "-c":
                 wrapped_command[2] = f"timeout {time_limit} {command[2]}"
@@ -189,6 +303,8 @@ class DockerSandbox:
             )
         except Exception as exc:
             logger.exception("Docker compile error: %s", exc)
+            # Invalidate cache on unexpected errors (container may be broken)
+            _container_cache.pop(image, None)
             return CompileResult(success=False, error=str(exc))
 
     @staticmethod
@@ -199,11 +315,10 @@ class DockerSandbox:
         time_limit: float,
         memory_limit_mb: int,
     ) -> SandboxResult:
-        client = get_docker_client()
         start = time.monotonic()
 
         try:
-            container = get_or_create_prewarmed_container(client, image)
+            container = get_container(image)
 
             workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
             try:
@@ -212,7 +327,7 @@ class DockerSandbox:
             except Exception:
                 container_workspace = "/workspace"
 
-            # Wrap command in timeout command
+            # Wrap command in timeout
             wrapped_command = command.copy()
             if len(command) >= 3 and command[0] == "sh" and command[1] == "-c":
                 wrapped_command[2] = f"timeout {time_limit} {command[2]}"
@@ -261,13 +376,15 @@ class DockerSandbox:
             )
         except Exception as exc:
             logger.exception("Docker run error: %s", exc)
+            # Invalidate cache on unexpected errors
+            _container_cache.pop(image, None)
             return SandboxResult(stderr=str(exc), exit_code=1)
 
     @staticmethod
     async def image_exists(image: str) -> bool:
         """Check if a Docker image exists locally."""
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, DockerSandbox._image_exists_sync, image)
+        return await loop.run_in_executor(_DOCKER_THREAD_POOL, DockerSandbox._image_exists_sync, image)
 
     @staticmethod
     def _image_exists_sync(image: str) -> bool:

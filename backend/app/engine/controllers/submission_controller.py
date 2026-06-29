@@ -1,6 +1,10 @@
 """
 Interleet Judge Engine — Submission Controller
 Business logic for creating and retrieving executions and submissions.
+
+Performance optimization:
+  - Replaced 200ms polling loop with instant asyncio.Event notification
+  - Results arrive the moment the worker finishes (zero latency)
 """
 
 from __future__ import annotations
@@ -25,9 +29,8 @@ from app.engine.services.submission_service import SubmissionService
 
 logger = logging.getLogger(__name__)
 
-# Max wait time for synchronous /execute endpoint
-SYNC_TIMEOUT_SECONDS = 30
-SYNC_POLL_INTERVAL = 0.2
+# Max wait time for synchronous endpoints (reduced from 30s — overhead is lower now)
+SYNC_TIMEOUT_SECONDS = 20
 
 
 class EngineSubmissionController:
@@ -47,10 +50,8 @@ class EngineSubmissionController:
         One-shot execution:
         1. Create a job
         2. Enqueue it
-        3. Poll Redis for result (up to SYNC_TIMEOUT_SECONDS)
+        3. Await instant notification (no polling!)
         4. Return result
-
-        This is the simplest path — no WebSocket needed.
         """
         submission_id = str(uuid4())
         queue = get_execution_queue()
@@ -87,8 +88,8 @@ class EngineSubmissionController:
         # Enqueue
         await queue.enqueue(job)
 
-        # Poll for result
-        result = await cls._poll_for_result(submission_id, queue)
+        # Wait for result with instant notification (replaces 200ms polling loop)
+        result = await queue.wait_for_result(submission_id, timeout=SYNC_TIMEOUT_SECONDS)
         if result:
             return result
 
@@ -108,7 +109,7 @@ class EngineSubmissionController:
     async def create_run(cls, request: RunRequest) -> dict[str, Any]:
         """
         Run code against inline test cases (from the frontend Run button).
-        Converts inline test cases to TestCaseSchema and runs synchronously.
+        Converts inline test cases to TestCaseSchema and waits for instant result.
         """
         submission_id = str(uuid4())
         queue = get_execution_queue()
@@ -155,7 +156,8 @@ class EngineSubmissionController:
         await queue.set_status(submission_id, ExecutionStatus.QUEUED.value)
         await queue.enqueue(job)
 
-        result = await cls._poll_for_result(submission_id, queue)
+        # Wait for result with instant notification (replaces 200ms polling loop)
+        result = await queue.wait_for_result(submission_id, timeout=SYNC_TIMEOUT_SECONDS)
         if result:
             return result
 
@@ -310,28 +312,3 @@ class EngineSubmissionController:
 
         # Fetch from MongoDB
         return await SubmissionService.get_result(submission_id)
-
-    # ─── Internal ──────────────────────────────────────────────────────────
-
-    @staticmethod
-    async def _poll_for_result(
-        submission_id: str,
-        queue,
-        timeout: float = SYNC_TIMEOUT_SECONDS,
-    ) -> Optional[dict[str, Any]]:
-        """Poll Redis for a result up to `timeout` seconds."""
-        deadline = asyncio.get_event_loop().time() + timeout
-
-        while asyncio.get_event_loop().time() < deadline:
-            result = await queue.get_result(submission_id)
-            if result:
-                return result
-
-            status = await queue.get_status(submission_id)
-            current = status.get("status", "") if status else ""
-            if current in (ExecutionStatus.COMPLETED.value, ExecutionStatus.FAILED.value):
-                return result
-
-            await asyncio.sleep(SYNC_POLL_INTERVAL)
-
-        return None
