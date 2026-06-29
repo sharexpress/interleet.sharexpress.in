@@ -115,7 +115,7 @@ def _create_persistent_container(client: docker.DockerClient, image: str) -> Con
             cap_drop=["ALL"],
             detach=True,
             remove=False,
-            tmpfs={"/tmp": "size=32m,noexec,nosuid"},
+            tmpfs={"/tmp": "size=256m,noexec,nosuid"},
             restart_policy={"Name": "unless-stopped"},
         )
         logger.info("Created persistent container: %s (image=%s)", container_name, image)
