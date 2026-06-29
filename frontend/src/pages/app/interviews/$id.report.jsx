@@ -4,21 +4,7 @@ import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Check, 
-  X, 
-  ArrowRight, 
-  AlertTriangle, 
-  Trophy, 
-  Target, 
-  TrendingUp, 
-  BookOpen,
-  Zap,
-  Activity,
-  Award,
-  Sparkles,
-  ArrowLeft
-} from "lucide-react";
+import { Check, X, ArrowRight, Loader2, AlertTriangle, Trophy, Target, TrendingUp, BookOpen } from "lucide-react";
 import {
   ResponsiveContainer,
   RadarChart,
@@ -35,38 +21,28 @@ import { fetchReport } from "@/redux/slices/interviewsSlice";
 
 function ScoreRing({ value, label }) {
   const color =
-    value >= 75 ? "text-emerald-500" : value >= 55 ? "text-amber-500" : "text-rose-500";
-  const strokeColor =
-    value >= 75 ? "#10b981" : value >= 55 ? "#f59e0b" : "#f43f5e";
-  const shadowColor =
-    value >= 75 ? "rgba(16,185,129,0.15)" : value >= 55 ? "rgba(245,158,11,0.15)" : "rgba(244,63,94,0.15)";
-
+    value >= 80 ? "#22c55e" : value >= 60 ? "#f97316" : "#ef4444";
   return (
-    <Card className="border border-zinc-800/80 bg-zinc-950/20 backdrop-blur-sm p-6 flex flex-col items-center justify-between hover:border-zinc-700/60 transition-all duration-300 shadow-xl">
+    <Card className="border-border bg-card p-5 flex flex-col items-center gap-3">
       <div className="relative flex items-center justify-center">
-        {/* Subtle radial glow */}
-        <div 
-          className="absolute w-14 h-14 rounded-full blur-xl opacity-20 transition-all duration-300"
-          style={{ backgroundColor: strokeColor, boxShadow: `0 0 20px 10px ${shadowColor}` }}
-        />
-        <svg width={90} height={90} viewBox="0 0 90 90" className="drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]">
-          <circle cx={45} cy={45} r={38} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth={6} />
+        <svg width={80} height={80} viewBox="0 0 80 80">
+          <circle cx={40} cy={40} r={34} fill="none" stroke="#1f1f1f" strokeWidth={8} />
           <circle
-            cx={45}
-            cy={45}
-            r={38}
+            cx={40}
+            cy={40}
+            r={34}
             fill="none"
-            stroke={strokeColor}
-            strokeWidth={6}
-            strokeDasharray={`${(value / 100) * 2 * Math.PI * 38} ${2 * Math.PI * 38}`}
+            stroke={color}
+            strokeWidth={8}
+            strokeDasharray={`${(value / 100) * 2 * Math.PI * 34} ${2 * Math.PI * 34}`}
             strokeLinecap="round"
-            transform="rotate(-90 45 45)"
-            style={{ transition: "stroke-dasharray 1s cubic-bezier(0.4, 0, 0.2, 1)" }}
+            transform="rotate(-90 40 40)"
+            style={{ transition: "stroke-dasharray 0.8s ease" }}
           />
         </svg>
-        <span className="absolute text-2xl font-black text-white tracking-tight">{value}</span>
+        <span className="absolute text-xl font-bold text-white">{value}</span>
       </div>
-      <p className="mt-4 text-[10px] font-mono font-semibold uppercase tracking-widest text-zinc-500 text-center">
+      <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground text-center">
         {label}
       </p>
     </Card>
@@ -77,34 +53,23 @@ function ScoreRing({ value, label }) {
 
 function TopicRow({ item }) {
   const score = item.score ?? item.s ?? 0;
-  // Support both 0-10 and 0-100 scales
-  const displayScore = score <= 10 ? score : score / 10;
-  const percentage = displayScore * 10;
-
   const color =
-    percentage >= 75 ? "text-emerald-400 border-emerald-950 bg-emerald-950/20"
-    : percentage >= 55 ? "text-amber-400 border-amber-950 bg-amber-950/20"
-    : "text-rose-400 border-rose-950 bg-rose-950/20";
-
+    score >= 8 ? "text-emerald-400 border-emerald-800/40 bg-emerald-950/20"
+    : score >= 6 ? "text-amber-400 border-amber-800/40 bg-amber-950/20"
+    : "text-red-400 border-red-800/40 bg-red-950/20";
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-zinc-900 bg-zinc-950/30 p-4 transition-all hover:bg-zinc-950/50 hover:border-zinc-800/80 duration-200">
+    <div className="flex items-start gap-3 rounded-lg border border-zinc-800/50 bg-zinc-900/30 p-3">
+      <Badge className={`shrink-0 font-mono text-xs ${color} border`}>
+        {score}/10
+      </Badge>
       <div className="flex-1 min-w-0">
-        <h4 className="text-sm font-semibold text-zinc-200 tracking-tight capitalize">
-          {item.topic || item.axis}
-        </h4>
-        {item.summary ? (
-          <p className="text-xs text-zinc-500 leading-relaxed mt-1">
+        <p className="text-sm font-medium text-zinc-100">{item.topic || item.axis}</p>
+        {item.summary && (
+          <p className="text-[11px] text-zinc-500 leading-relaxed mt-0.5 line-clamp-2">
             {item.summary}
-          </p>
-        ) : (
-          <p className="text-[11px] text-zinc-600 mt-1">
-            Topic evaluated and graded during the interactive chat session.
           </p>
         )}
       </div>
-      <Badge className={`shrink-0 font-mono text-xs px-2.5 py-1 ${color} border`}>
-        {score <= 10 ? `${score}/10` : score}
-      </Badge>
     </div>
   );
 }
@@ -119,9 +84,13 @@ function ReportPage() {
   );
 
   useEffect(() => {
+    // If we don't have a report yet (or it's for a different session), fetch it
     if (!report || report.session_id !== id) {
       dispatch(fetchReport(id));
     }
+    return () => {
+      // Keep report in state so user can navigate back without refetch
+    };
   }, [id]); // eslint-disable-line
 
   // ── Loading state ───────────────────────────────────────────────────────────
@@ -247,7 +216,6 @@ function ReportPage() {
     : (typeof report.recommendation === "string" && report.recommendation.trim() !== "") 
       ? [report.recommendation] 
       : [];
-
   let topicEvals = report.topic_evaluations || [];
   if (topicEvals.length === 0 && report.topic_scores) {
     topicEvals = Object.entries(report.topic_scores).map(([k, v]) => ({
@@ -258,93 +226,62 @@ function ReportPage() {
 
   return (
     <AppShell>
-      <div className="flex flex-col gap-1 border-b border-zinc-900 bg-zinc-950/20 px-4 py-6 md:px-8 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
-            <Link to="/app/interviews" className="hover:text-zinc-300 flex items-center gap-1">
-              <ArrowLeft className="h-3 w-3" /> Interviews
-            </Link>
-            <span>/</span>
-            <span className="text-zinc-400">Report</span>
-          </div>
-          <h1 className="text-xl font-bold tracking-tight text-white mt-1">Interview Report</h1>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Session · {id?.slice(0, 8)} • {role} ({difficulty})
-          </p>
-        </div>
-        <div className="mt-4 md:mt-0">
-          <Button asChild className="bg-primary hover:bg-orange-600 text-white font-medium shadow-md shadow-orange-500/10">
+      <PageHeader
+        title="Interview Report"
+        badge={`Session · ${id?.slice(0, 8)}`}
+        description={`${role} · ${difficulty} — AI-graded breakdown of your performance with personalized feedback.`}
+        actions={
+          <Button asChild className="bg-primary hover:bg-orange-600 text-white">
             <Link to="/app/interviews">
               Run another <ArrowRight className="ml-1.5 h-4 w-4" />
             </Link>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="space-y-6 px-4 py-6 md:px-8 max-w-7xl mx-auto">
+      <div className="space-y-6 px-4 py-6 md:px-8">
 
         {/* ── Overall Score Hero ── */}
-        <Card className="border border-zinc-800/80 bg-zinc-950/30 p-6 flex flex-col sm:flex-row items-center gap-6 shadow-xl relative overflow-hidden backdrop-blur-md">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+        <Card className="border-border bg-card p-6 flex flex-col sm:flex-row items-center gap-6">
           <div className="relative flex items-center justify-center shrink-0">
-            {/* Glowing ring shadow */}
-            <div className="absolute w-24 h-24 rounded-full blur-2xl opacity-15 bg-primary" />
-            <svg width={130} height={130} viewBox="0 0 120 120" className="drop-shadow-[0_4px_10px_rgba(0,0,0,0.5)]">
-              <circle cx={60} cy={60} r={52} fill="none" stroke="rgba(255,255,255,0.02)" strokeWidth={8} />
+            <svg width={120} height={120} viewBox="0 0 120 120">
+              <circle cx={60} cy={60} r={52} fill="none" stroke="#1a1a1a" strokeWidth={10} />
               <circle
                 cx={60} cy={60} r={52}
                 fill="none"
-                stroke={overallScore >= 75 ? "#10b981" : overallScore >= 55 ? "#f59e0b" : "#f43f5e"}
-                strokeWidth={8}
+                stroke={overallScore >= 75 ? "#f97316" : overallScore >= 55 ? "#eab308" : "#ef4444"}
+                strokeWidth={10}
                 strokeDasharray={`${(overallScore / 100) * 2 * Math.PI * 52} ${2 * Math.PI * 52}`}
                 strokeLinecap="round"
                 transform="rotate(-90 60 60)"
-                style={{ transition: "stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1)" }}
+                style={{ transition: "stroke-dasharray 1s ease" }}
               />
             </svg>
             <div className="absolute flex flex-col items-center">
-              <span className="text-3xl font-black text-white tracking-tight">{overallScore}</span>
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">/ 100</span>
+              <span className="text-3xl font-bold text-white">{overallScore}</span>
+              <span className="text-[10px] text-zinc-500 uppercase tracking-wider">/ 100</span>
             </div>
           </div>
-          
           <div className="flex-1 text-center sm:text-left">
-            <div className="flex items-center gap-2 justify-center sm:justify-start mb-1.5">
-              <Trophy className="h-5 w-5 text-primary animate-pulse" />
-              <h2 className="text-lg font-bold text-white tracking-tight">Performance Assessment</h2>
+            <div className="flex items-center gap-2 justify-center sm:justify-start mb-1">
+              <Trophy className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-bold text-white">Overall Performance</h2>
             </div>
-            <p className="text-sm text-zinc-400 leading-relaxed max-w-2xl">
+            <p className="text-sm text-zinc-400 leading-relaxed">
               {overallScore >= 80
-                ? "Outstanding! You displayed excellent architectural depth, solid technical fundamentals, and concise professional communication. Ready for high-stakes loops."
+                ? "Excellent performance! You demonstrated strong technical expertise and clear communication."
                 : overallScore >= 65
-                ? "Good performance. You mapped out clear baseline signals, but have specific points of code optimization or structural refinement to reach the top tier."
-                : "Keep practicing. The session highlights key conceptual or structural improvement areas. Focus on deep-dives in the topics flagged below to unlock higher ratings."}
+                ? "Good performance. With targeted practice you can reach the top tier."
+                : "Keep practicing — review the improvement areas below to level up your skills."}
             </p>
-            
-            <div className="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start items-center">
-              <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 font-semibold">{role}</Badge>
-              <Badge variant="outline" className="border-zinc-800 bg-zinc-900/40 text-zinc-400 capitalize">{difficulty}</Badge>
-              <span className="h-3 w-px bg-zinc-800 mx-1 hidden sm:inline" />
-              <span className="text-xs text-zinc-500 flex items-center gap-1">
-                <Activity className="h-3.5 w-3.5" /> Answers Graded: {report.questions_answered ?? 0}
-              </span>
+            <div className="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
+              <Badge className="bg-primary/10 text-primary border-primary/20 font-semibold">{role}</Badge>
+              <Badge variant="outline" className="border-zinc-700 text-zinc-400 capitalize">{difficulty}</Badge>
             </div>
-
-            {report.behavior_flags && report.behavior_flags.length > 0 && (
-              <div className="mt-3.5 flex flex-wrap gap-1.5 justify-center sm:justify-start items-center">
-                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mr-1">Signals Detected:</span>
-                {report.behavior_flags.map((f, i) => (
-                  <Badge key={i} className="bg-rose-500/10 text-rose-400 border-rose-950 text-[10px] py-0.5 font-mono font-medium">
-                    ⚠️ {f}
-                  </Badge>
-                ))}
-              </div>
-            )}
           </div>
         </Card>
 
-        {/* ── Score Cards Grid ── */}
+        {/* ── Score Cards ── */}
         <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
           {scoreCards.map((s) => (
             <ScoreRing key={s.k} value={s.v} label={s.k} />
@@ -352,19 +289,17 @@ function ReportPage() {
         </div>
 
         {/* ── Radar + Topic Evals ── */}
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {radarData.length > 0 && (
-            <Card className="border border-zinc-800/80 bg-zinc-950/20 backdrop-blur-sm p-6 shadow-xl flex flex-col justify-between">
-              <div className="flex items-center gap-2 mb-6">
-                <Target className="h-4.5 w-4.5 text-primary" />
-                <h3 className="text-sm font-semibold text-white tracking-tight">Skills Analytics Radar</h3>
+            <Card className="border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Target className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-white">Skill Breakdown</h3>
               </div>
-              <div className="h-72 flex items-center justify-center">
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radarData}>
-                    {/* Dark Grid Lines */}
                     <PolarGrid stroke="rgba(255,255,255,0.05)" />
-                    {/* Clear White Tick Labels on Dark Background */}
                     <PolarAngleAxis
                       dataKey="axis"
                       tick={{ fontSize: 10, fill: "#e4e4e7", fontWeight: 500 }}
@@ -372,17 +307,16 @@ function ReportPage() {
                     <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 100]} />
                     <Radar
                       dataKey="s"
-                      stroke="#f97316"
-                      fill="#f97316"
-                      fillOpacity={0.18}
+                      stroke="var(--color-primary, #f97316)"
+                      fill="var(--color-primary, #f97316)"
+                      fillOpacity={0.2}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: "#09090b",
-                        border: "1px solid #27272a",
+                        background: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
                         borderRadius: 8,
-                        fontSize: 11,
-                        color: "#f4f4f5"
+                        fontSize: 12,
                       }}
                     />
                   </RadarChart>
@@ -392,12 +326,12 @@ function ReportPage() {
           )}
 
           {topicEvals.length > 0 && (
-            <Card className="border border-zinc-800/80 bg-zinc-950/20 backdrop-blur-sm p-6 shadow-xl flex flex-col justify-between">
-              <div className="flex items-center gap-2 mb-6">
-                <TrendingUp className="h-4.5 w-4.5 text-primary" />
-                <h3 className="text-sm font-semibold text-white tracking-tight">Topic Breakdowns</h3>
+            <Card className="border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-white">Topic Evaluations</h3>
               </div>
-              <div className="space-y-3 overflow-y-auto max-h-72 pr-1 custom-scrollbar">
+              <div className="space-y-2 overflow-auto max-h-72 pr-1">
                 {topicEvals.map((t, i) => (
                   <TopicRow key={i} item={t} />
                 ))}
@@ -407,63 +341,43 @@ function ReportPage() {
         </div>
 
         {/* ── Strengths + Improvements ── */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Strengths Card */}
-          <Card className="border border-zinc-800/80 bg-zinc-950/20 backdrop-blur-sm p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <Check className="h-4 w-4 text-emerald-400" />
-              </div>
-              <h3 className="text-sm font-bold text-emerald-400 tracking-tight">✓ Strengths & Highlights</h3>
-            </div>
-            
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="border-border bg-card p-5">
+            <h3 className="text-sm font-semibold text-emerald-400 mb-3">✓ Strengths</h3>
             {strengths.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-zinc-900 rounded-xl bg-zinc-950/10">
-                <Sparkles className="h-7 w-7 text-zinc-700 mb-2.5" />
+              <div className="flex flex-col items-center justify-center py-6 text-center text-zinc-500 bg-zinc-950/10 border border-dashed border-zinc-900 rounded-lg">
                 <p className="text-xs font-semibold text-zinc-400">No core strengths highlighted yet</p>
                 <p className="text-[10px] text-zinc-500 max-w-xs mt-1 leading-relaxed px-4">
-                  Focus on providing detailed examples, mapping trade-offs, and showing core technical concepts in your next chat.
+                  Focus on providing detailed examples, trade-offs, and conceptual depth in your next session.
                 </p>
               </div>
             ) : (
-              <ul className="space-y-2.5">
+              <ul className="space-y-2">
                 {strengths.map((x, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                    <span className="leading-relaxed">
-                      {typeof x === "string" ? x : x.text || x.description || JSON.stringify(x)}
-                    </span>
+                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-200">
+                    <Check className="mt-0.5 h-4 w-4 text-emerald-400 shrink-0" />
+                    <span>{typeof x === "string" ? x : x.text || x.description || JSON.stringify(x)}</span>
                   </li>
                 ))}
               </ul>
             )}
           </Card>
 
-          {/* Areas to Improve Card */}
-          <Card className="border border-zinc-800/80 bg-zinc-950/20 backdrop-blur-sm p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20">
-                <X className="h-4 w-4 text-rose-400" />
-              </div>
-              <h3 className="text-sm font-bold text-rose-400 tracking-tight">✗ Areas to Optimize</h3>
-            </div>
-
+          <Card className="border-border bg-card p-5">
+            <h3 className="text-sm font-semibold text-red-400 mb-3">✗ Areas to Improve</h3>
             {improvements.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-zinc-900 rounded-xl bg-zinc-950/10">
-                <Award className="h-7 w-7 text-emerald-500/80 mb-2.5" />
-                <p className="text-xs font-semibold text-zinc-400">No significant gaps flagged</p>
+              <div className="flex flex-col items-center justify-center py-6 text-center text-zinc-500 bg-zinc-950/10 border border-dashed border-zinc-900 rounded-lg">
+                <p className="text-xs font-semibold text-zinc-400">No major concerns found</p>
                 <p className="text-[10px] text-zinc-500 max-w-xs mt-1 leading-relaxed px-4">
-                  Excellent signal density! Keep pushing your difficulty level to explore senior design limits.
+                  Outstanding! You met or exceeded all signals during this mock interview session.
                 </p>
               </div>
             ) : (
-              <ul className="space-y-2.5">
+              <ul className="space-y-2">
                 {improvements.map((x, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-zinc-300">
-                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-                    <span className="leading-relaxed">
-                      {typeof x === "string" ? x : x.text || x.description || JSON.stringify(x)}
-                    </span>
+                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-200">
+                    <X className="mt-0.5 h-4 w-4 text-red-400 shrink-0" />
+                    <span>{typeof x === "string" ? x : x.text || x.description || JSON.stringify(x)}</span>
                   </li>
                 ))}
               </ul>
@@ -473,22 +387,17 @@ function ReportPage() {
 
         {/* ── Recommendations ── */}
         {recommendations.length > 0 && (
-          <Card className="border border-zinc-800/80 bg-zinc-950/20 backdrop-blur-sm p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
-                <BookOpen className="h-4 w-4 text-primary" />
-              </div>
-              <h3 className="text-sm font-bold text-white tracking-tight">Evaluation & Next Milestones</h3>
+          <Card className="border-border bg-card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <BookOpen className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-white">Recommended Next Steps</h3>
             </div>
-            <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid gap-2 md:grid-cols-3">
               {recommendations.map((x, i) => (
                 <li
                   key={i}
-                  className="rounded-xl border border-zinc-900 bg-zinc-950/30 p-4 text-xs text-zinc-400 leading-relaxed hover:border-zinc-850 hover:bg-zinc-950/50 transition-all duration-300"
+                  className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-200 leading-relaxed"
                 >
-                  <div className="flex items-center gap-1.5 mb-1.5 font-bold font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
-                    <Zap className="h-3 w-3 text-primary animate-pulse" /> Milestone #{i+1}
-                  </div>
                   {typeof x === "string" ? x : x.text || x.description || JSON.stringify(x)}
                 </li>
               ))}
