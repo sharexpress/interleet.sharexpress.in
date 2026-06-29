@@ -673,6 +673,7 @@ function EditorPage() {
     setResult(null);
     setPrevSubmission(null);
     setUsingPrevCode(false);
+    dispatch(resetExecution());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
