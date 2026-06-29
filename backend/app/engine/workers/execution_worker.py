@@ -115,39 +115,41 @@ class ExecutionWorker:
                             )
                         )
 
-            # ── Phase 3: Run testcases (in parallel) ─────────────────────
+            # ── Phase 3: Run testcases (in parallel with concurrency limit) ─
             if not compilation_failed:
                 await self._update_status(submission_id, ExecutionStatus.RUNNING)
                 await self._broadcast(submission_id, WebSocketEventType.RUNNING, ExecutionStatus.RUNNING)
 
                 testcase_results = [None] * len(testcases)
+                sem = asyncio.Semaphore(4)  # Limit concurrent Docker runs to 4 per job
 
                 async def run_single_tc(idx: int, tc: TestCaseSchema):
-                    try:
-                        sandbox_result = await executor.run_testcase_with_compile_workspace(
-                            code=job.code,
-                            testcase=tc,
-                            time_limit=tc.time_limit or job.time_limit,
-                            memory_limit=tc.memory_limit or job.memory_limit,
-                            compile_workspace=compile_workspace,
-                        )
-                        tc_result = JudgeEngine.evaluate(
-                            sandbox_result=sandbox_result,
-                            testcase=tc,
-                            compile_output=compile_output,
-                            comparison_mode=tc.comparison_mode or job.comparison_mode,
-                        )
-                        testcase_results[idx] = tc_result
-                    except Exception as exc:
-                        logger.exception("Worker #%d testcase %d error: %s", self.worker_id, idx, exc)
-                        testcase_results[idx] = TestCaseResult(
-                            testcase_id=tc.id,
-                            name=tc.name,
-                            hidden=tc.hidden,
-                            verdict=Verdict.INTERNAL_ERROR,
-                            passed=False,
-                            stderr=str(exc),
-                        )
+                    async with sem:
+                        try:
+                            sandbox_result = await executor.run_testcase_with_compile_workspace(
+                                code=job.code,
+                                testcase=tc,
+                                time_limit=tc.time_limit or job.time_limit,
+                                memory_limit=tc.memory_limit or job.memory_limit,
+                                compile_workspace=compile_workspace,
+                            )
+                            tc_result = JudgeEngine.evaluate(
+                                sandbox_result=sandbox_result,
+                                testcase=tc,
+                                compile_output=compile_output,
+                                comparison_mode=tc.comparison_mode or job.comparison_mode,
+                            )
+                            testcase_results[idx] = tc_result
+                        except Exception as exc:
+                            logger.exception("Worker #%d testcase %d error: %s", self.worker_id, idx, exc)
+                            testcase_results[idx] = TestCaseResult(
+                                testcase_id=tc.id,
+                                name=tc.name,
+                                hidden=tc.hidden,
+                                verdict=Verdict.INTERNAL_ERROR,
+                                passed=False,
+                                stderr=str(exc),
+                            )
 
                 try:
                     tasks = [run_single_tc(i, tc) for i, tc in enumerate(testcases)]
