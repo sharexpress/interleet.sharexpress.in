@@ -3,27 +3,130 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- ─── Branding ──────────────────────────────────────────── -->
     <link rel="icon" type="image/png" href="/favicon.png" />
-    
-    <title>sharexpress interleet — Systems Engineering Sandbox</title>
-    <meta name="description" content="Master distributed systems, fault-tolerant architectures, and core DevOps operations under load with interactive sandbox labs." />
-    <meta name="keywords" content="interleet, sharexpress, systems engineering, distributed systems, DevOps sandbox, fault injection, Docker labs" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <meta name="application-name" content="Interleet" />
+    <meta name="theme-color" content="#09090b" />
+
+    <!-- ─── Primary SEO ───────────────────────────────────────── -->
+    <title>Interleet — Practice Real Engineering Challenges | Frontend, Backend, DevOps, System Design</title>
+    <meta name="description" content="Interleet is the engineering interview platform for real-world challenges. Practice frontend, backend, DevOps, database, and system design problems. Run AI mock interviews. Compete on leaderboards. Build a recruiter-verified profile." />
+    <meta name="keywords" content="interleet, engineering challenges, coding practice, system design interview, backend challenges, frontend challenges, DevOps practice, AI mock interview, coding interview prep, full stack engineering, distributed systems, database challenges, leetcode alternative" />
     <link rel="canonical" href="https://interleet.sharexpress.in" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="author" content="Interleet" />
 
-    <!-- Open Graph / Facebook -->
+    <!-- ─── Open Graph / Facebook ─────────────────────────────── -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Interleet" />
     <meta property="og:url" content="https://interleet.sharexpress.in" />
-    <meta property="og:title" content="sharexpress interleet — Systems Engineering Sandbox" />
-    <meta property="og:description" content="Master distributed systems, fault-tolerant architectures, and core DevOps operations under load with interactive sandbox labs." />
+    <meta property="og:title" content="Interleet — Practice Real Engineering Challenges" />
+    <meta property="og:description" content="Master frontend, backend, DevOps, databases, and system design with production-style challenges. AI mock interviews. Engineering leaderboards." />
     <meta property="og:image" content="https://interleet.sharexpress.in/logo.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_US" />
 
-    <!-- Twitter -->
+    <!-- ─── Twitter ───────────────────────────────────────────── -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://interleet.sharexpress.in" />
-    <meta name="twitter:title" content="sharexpress interleet — Systems Engineering Sandbox" />
-    <meta name="twitter:description" content="Master distributed systems, fault-tolerant architectures, and core DevOps operations under load with interactive sandbox labs." />
+    <meta name="twitter:title" content="Interleet — Practice Real Engineering Challenges" />
+    <meta name="twitter:description" content="Master frontend, backend, DevOps, databases, and system design with production-style challenges. AI mock interviews. Engineering leaderboards." />
     <meta name="twitter:image" content="https://interleet.sharexpress.in/logo.png" />
 
+    <!-- ─── JSON-LD Structured Data ───────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "name": "Interleet",
+          "url": "https://interleet.sharexpress.in",
+          "logo": "https://interleet.sharexpress.in/logo.png",
+          "description": "Real engineering interview platform with production-style coding challenges, AI mock interviews, system design labs, and engineering leaderboards.",
+          "sameAs": []
+        },
+        {
+          "@type": "WebApplication",
+          "name": "Interleet",
+          "url": "https://interleet.sharexpress.in",
+          "description": "Practice real engineering challenges across frontend, backend, DevOps, databases, and system design. Run AI-powered mock interviews and compete on engineering leaderboards.",
+          "applicationCategory": "EducationalApplication",
+          "operatingSystem": "Web",
+          "browserRequirements": "Requires JavaScript. Requires HTML5.",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "INR",
+            "description": "Free tier available — no credit card required"
+          },
+          "featureList": [
+            "Real-world engineering challenges",
+            "AI-powered mock interviews",
+            "System design canvas with live collaboration",
+            "Multi-language code execution sandbox",
+            "Engineering leaderboard and contests",
+            "Recruiter-verified profiles",
+            "Frontend, Backend, DevOps, APIs, Databases domains"
+          ],
+          "screenshot": "https://interleet.sharexpress.in/logo.png"
+        },
+        {
+          "@type": "WebSite",
+          "name": "Interleet",
+          "url": "https://interleet.sharexpress.in",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://interleet.sharexpress.in/app/challenges?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Interleet?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Interleet is an engineering interview platform that bridges the gap between DSA and real-world engineering. It offers production-style challenges across Frontend, Backend, DevOps, APIs, Databases, and System Design domains, along with AI-powered mock interviews and competitive leaderboards."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How is Interleet different from LeetCode?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "While LeetCode focuses on data structures and algorithms, Interleet focuses on real engineering skills — building APIs, designing distributed systems, writing database queries, configuring CI/CD pipelines, and architecting frontend applications. Problems run in Docker sandboxes with real infrastructure."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Interleet free to use?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, Interleet offers a free tier with access to challenges, AI interviews, and leaderboards. No credit card is required to get started."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What programming languages does Interleet support?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Interleet supports Python, JavaScript, TypeScript, Go, C++, Rust, and Java. Code runs in isolated Docker sandboxes for security and accuracy."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
+    <!-- ─── Fonts ─────────────────────────────────────────────── -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -32,6 +135,29 @@
     />
   </head>
   <body class="bg-background text-foreground antialiased">
+    <!--
+      SEO: Noscript fallback for crawlers that don't execute JS.
+      This ensures essential content is always visible.
+    -->
+    <noscript>
+      <div style="max-width:800px;margin:0 auto;padding:40px 20px;font-family:Inter,system-ui,sans-serif;color:#fafafa;background:#09090b;">
+        <h1>Interleet — Practice Real Engineering Challenges</h1>
+        <p>Interleet is the engineering interview platform for real-world challenges. Practice frontend, backend, DevOps, database, and system design problems with production-grade sandboxed environments.</p>
+        <h2>Why Interleet?</h2>
+        <ul>
+          <li><strong>Real Engineering Challenges</strong> — Not just algorithms. Build APIs, design systems, write database queries, configure CI/CD.</li>
+          <li><strong>AI Mock Interviews</strong> — Practice with an AI interviewer tailored to your target role and difficulty level.</li>
+          <li><strong>System Design Canvas</strong> — Interactive whiteboard for designing distributed architectures.</li>
+          <li><strong>Multi-Language Sandbox</strong> — Python, JavaScript, TypeScript, Go, C++, Rust, Java — all running in Docker.</li>
+          <li><strong>Engineering Leaderboard</strong> — Compete with peers and build a recruiter-verified engineering profile.</li>
+          <li><strong>Live Contests</strong> — Real-time competitive engineering challenges.</li>
+        </ul>
+        <h2>Domains</h2>
+        <p>Frontend · Backend · DevOps · APIs · Databases · Fullstack · System Design</p>
+        <h2>Get Started</h2>
+        <p><a href="https://interleet.sharexpress.in/signup" style="color:#7c3aed;">Sign up free</a> — no credit card required.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

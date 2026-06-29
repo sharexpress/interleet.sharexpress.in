@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node prerender.mjs",
+    "build:no-prerender": "vite build",
+    "prerender": "node prerender.mjs",
     "preview": "vite preview",
     "lint": "eslint ."
   },

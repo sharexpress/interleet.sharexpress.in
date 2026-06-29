@@ -49,6 +49,14 @@ function LoginPage() {
 
   const inputRefs = useRef([]);
 
+  /* ── SEO ──────────────────────────────────────────── */
+  useEffect(() => {
+    document.title = "Log In — Interleet | Engineering Challenge Platform";
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", "Log in to Interleet to practice real engineering challenges, run AI mock interviews, and compete on engineering leaderboards.");
+    document.dispatchEvent(new Event("prerender-ready"));
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
 

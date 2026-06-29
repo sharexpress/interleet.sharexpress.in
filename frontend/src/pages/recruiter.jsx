@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,14 @@ import { candidates } from "@/lib/mock";
 
 
 function Recruiter() {
+  /* ── SEO ──────────────────────────────────────────── */
+  useEffect(() => {
+    document.title = "Recruiter Dashboard — Interleet | Hire Verified Engineers";
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", "Interleet Recruiter Dashboard — search and compare verified engineers with rubric-backed skill scores. Filter by domain, rating, and location.");
+    document.dispatchEvent(new Event("prerender-ready"));
+  }, []);
+
   return (
     <AppShell>
       <PageHeader

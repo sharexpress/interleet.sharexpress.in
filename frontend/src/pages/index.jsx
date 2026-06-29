@@ -51,9 +51,15 @@ function Landing() {
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
+    document.title = "Interleet — Practice Real Engineering Challenges | Frontend, Backend, DevOps, System Design";
     API.get("/api/public/stats")
       .then((res) => setStats(res.data))
       .catch(() => {});
+  }, []);
+
+  /* Signal to vite-plugin-prerender that the page is ready to snapshot */
+  useEffect(() => {
+    document.dispatchEvent(new Event("prerender-ready"));
   }, []);
 
   return (

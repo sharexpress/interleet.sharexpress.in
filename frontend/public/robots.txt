@@ -1,0 +1,13 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /signup
+Allow: /recruiter
+
+Disallow: /app/
+Disallow: /admin
+Disallow: /onboarding
+
+# Sitemap
+Sitemap: https://interleet.sharexpress.in/sitemap.xml

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Eye, EyeOff, Github, Mail, Check } from "lucide-react";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,14 @@ function SignupPage() {
   const s = strength(pw);
   const labels = ["Too short", "Weak", "Okay", "Good", "Strong"];
   const colors = ["bg-destructive", "bg-destructive", "bg-warning", "bg-chart-1", "bg-success"];
+
+  /* ── SEO ──────────────────────────────────────────── */
+  useEffect(() => {
+    document.title = "Sign Up Free — Interleet | Engineering Challenge Platform";
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", "Create your free Interleet account. Practice real-world frontend, backend, DevOps, and system design challenges. AI mock interviews included.");
+    document.dispatchEvent(new Event("prerender-ready"));
+  }, []);
 
   return (
     <AuthShell
