@@ -80,6 +80,22 @@ function Dashboard() {
 
   if (!user) return null;
 
+  // Real-time resolved data
+  const activeUser = dashboardData?.user || user;
+
+  // Map domainData dynamically from user.domains or backend ratings
+  const domainData = useMemo(() => {
+    return (activeUser.domains || [
+      { domain: "Frontend", score: activeUser.frontend_rating || 0 },
+      { domain: "Backend", score: activeUser.backend_rating || 0 },
+      { domain: "Fullstack", score: activeUser.fullstack_rating || 0 },
+      { domain: "DevOps", score: activeUser.devops_rating || 0 },
+    ]).map(d => ({
+      domain: d.domain,
+      score: d.score || d.rating || 0
+    }));
+  }, [activeUser]);
+
   if (loading) {
     return (
       <AppShell>
@@ -115,8 +131,6 @@ function Dashboard() {
     );
   }
 
-  // Real-time resolved data
-  const activeUser = dashboardData?.user || user;
   const activeWeekly = dashboardData?.activityWeekly || activityWeekly;
   const activeRecentActivity = dashboardData?.recentActivity || recentActivity;
   const activeChallenges = dashboardData?.recommendedChallenges || challenges;
@@ -130,19 +144,6 @@ function Dashboard() {
     { d: "W7", s: 81 },
     { d: "W8", s: 84 },
   ];
-
-  // Map domainData dynamically from user.domains or backend ratings
-  const domainData = useMemo(() => {
-    return (activeUser.domains || [
-      { domain: "Frontend", score: activeUser.frontend_rating || 0 },
-      { domain: "Backend", score: activeUser.backend_rating || 0 },
-      { domain: "Fullstack", score: activeUser.fullstack_rating || 0 },
-      { domain: "DevOps", score: activeUser.devops_rating || 0 },
-    ]).map(d => ({
-      domain: d.domain,
-      score: d.score || d.rating || 0
-    }));
-  }, [activeUser]);
 
   const handleQuestToggle = (id) => {
     setQuests(prev => prev.map(q => {
