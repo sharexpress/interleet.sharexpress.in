@@ -74,6 +74,7 @@ class OpeningQuestion(BaseModel):
 
 class InterviewStateModel(BaseModel):
     session_id: str
+    user_id: str = ""
     role: str
     interview_type: str
     status: InterviewStatus = InterviewStatus.ACTIVE

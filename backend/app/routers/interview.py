@@ -51,7 +51,7 @@ async def start_interview(payload: dict, user_auth=Depends(UserMiddleware.me)):
             status_code=403,
             detail="AI Mock Interviews require an active Premium subscription.",
         )
-    state = build_initial_state(payload)
+    state = build_initial_state(payload, user_id=user_doc.get("user_id"))
     state = await run_interview_graph(state)
     await SessionService.create_session(state["session_id"], state)
     return {

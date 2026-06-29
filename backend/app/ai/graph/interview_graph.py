@@ -12,7 +12,7 @@ from app.ai.graph.state import InterviewState
 from app.ai.schemas.interview import Difficulty, InterviewStateModel
 
 
-def build_initial_state(payload: dict[str, Any]) -> InterviewState:
+def build_initial_state(payload: dict[str, Any], user_id: str | None = None) -> InterviewState:
     mock_test = payload.get("mock_test", payload)
     parsed_resume = payload.get("parsed_resume", {})
 
@@ -45,6 +45,7 @@ def build_initial_state(payload: dict[str, Any]) -> InterviewState:
 
     model = InterviewStateModel(
         session_id=payload.get("session_id") or str(uuid.uuid4()),
+        user_id=user_id or "",
         role=role,
         interview_type=interview_type,
         difficulty=Difficulty.EASY,  # Always start at "easy" baseline for warmup
