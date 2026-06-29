@@ -106,23 +106,56 @@ class ExecutionQueue:
         timeout: float = 20.0,
     ) -> Optional[dict[str, Any]]:
         """
-        Wait for a submission result with instant notification.
-        Replaces the old 200ms polling loop.
-        
-        Returns the result dict, or None on timeout.
+        Wait for a submission result.
+        Uses in-process asyncio.Event combined with Redis Pub/Sub for multi-process support.
         """
         event = self.register_waiter(submission_id)
+        
+        # Check in-process cache first (fastest)
+        cached = self._result_cache.get(submission_id)
+        if cached:
+            self.unregister_waiter(submission_id)
+            return cached
+            
+        # Check Redis (in case it completed before we registered)
+        redis_cached = await self.get_result(submission_id)
+        if redis_cached:
+            self.unregister_waiter(submission_id)
+            return redis_cached
+
+        # Subscribe to Redis Pub/Sub channel
+        pubsub = self._redis.pubsub()
+        channel = f"interleet:channel:{submission_id}"
+        await pubsub.subscribe(channel)
+
+        async def listen_pubsub():
+            try:
+                async for message in pubsub.listen():
+                    if message['type'] == 'message':
+                        try:
+                            result_data = json.loads(message['data'])
+                            self._notify_waiter(submission_id, result_data)
+                            break
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
+        listener_task = asyncio.create_task(listen_pubsub())
+
         try:
             await asyncio.wait_for(event.wait(), timeout=timeout)
-            # Check in-process cache first (fastest)
-            cached = self._result_cache.get(submission_id)
-            if cached:
-                return cached
-            # Fallback to Redis
-            return await self.get_result(submission_id)
+            return self._result_cache.get(submission_id)
         except asyncio.TimeoutError:
-            return None
+            # Fallback check one last time
+            return await self.get_result(submission_id)
         finally:
+            listener_task.cancel()
+            try:
+                await pubsub.unsubscribe(channel)
+                await pubsub.close()
+            except Exception:
+                pass
             self.unregister_waiter(submission_id)
 
     # ─── Status / Result Storage ───────────────────────────────────────────
@@ -162,12 +195,18 @@ class ExecutionQueue:
     ) -> None:
         """
         Store the final execution result in Redis (for fast retrieval).
-        Also notifies any in-process waiter instantly.
+        Also notifies any in-process waiter and publishes to Redis Pub/Sub.
         """
         key = f"{RESULT_PREFIX}{submission_id}"
-        await self._redis.set(key, json.dumps(result, default=str), ex=STATUS_TTL_SECONDS)
-        # Instantly notify the waiting controller (if any)
+        payload = json.dumps(result, default=str)
+        await self._redis.set(key, payload, ex=STATUS_TTL_SECONDS)
+        
+        # Instantly notify the waiting controller in this process
         self._notify_waiter(submission_id, result)
+        
+        # Publish to other processes via Pub/Sub
+        channel = f"interleet:channel:{submission_id}"
+        await self._redis.publish(channel, payload)
 
     async def get_result(self, submission_id: str) -> Optional[dict[str, Any]]:
         """Retrieve cached execution result from Redis."""
