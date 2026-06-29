@@ -1,4 +1,4 @@
-DOMAINS = ["Frontend", "Backend", "DevOps", "APIs", "Databases", "System Design"]
+DOMAINS = ["Frontend", "Backend", "DevOps", "APIs", "Databases"]
 
 
 CHALLENGES = [
@@ -76,19 +76,7 @@ CHALLENGES = [
         "tags": ["GitHub Actions", "Docker", "Caching"],
         "summary": "Build a multi-stage pipeline with caching, parallel jobs, and artifact promotion.",
     },
-    {
-        "id": "4",
-        "slug": "design-twitter-feed",
-        "title": "Design Twitter's Home Feed",
-        "domain": "System Design",
-        "difficulty": "Hard",
-        "minutes": 120,
-        "xp": 720,
-        "completion": 28,
-        "tags": ["Fan-out", "Cache", "Sharding"],
-        "summary": "Architect a low-latency timeline service for 500M daily users.",
-        "is_premium": True,
-    },
+
     {
         "id": "5",
         "slug": "rest-versioning",
