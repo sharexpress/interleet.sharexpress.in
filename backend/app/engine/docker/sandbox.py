@@ -65,42 +65,70 @@ def get_docker_client() -> docker.DockerClient:
 
 
 def _create_persistent_container(client: docker.DockerClient, image: str) -> Container:
-    """Create a new persistent container for the given image."""
+    """Create a new persistent container for the given image.
+    
+    Handles race conditions when multiple PM2 instances start simultaneously
+    and all try to create the same container. If container already exists (409),
+    we simply reuse it instead of crashing.
+    """
     container_name = f"interleet-engine-{image.replace(':', '-').replace('/', '-')}"
     workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
     os.makedirs(workspace_base, exist_ok=True)
 
-    # Remove any existing container with the same name (clean slate)
+    # Try to reuse existing container first (another PM2 instance may have created it)
     try:
-        old = client.containers.get(container_name)
-        old.remove(force=True)
-        logger.info("Removed stale container: %s", container_name)
+        existing = client.containers.get(container_name)
+        if existing.status == "running":
+            logger.info("Reusing existing container: %s (image=%s)", container_name, image)
+            return existing
+        # Not running — try to start it
+        existing.start()
+        existing.reload()
+        if existing.status == "running":
+            logger.info("Restarted existing container: %s (image=%s)", container_name, image)
+            return existing
+        # Still not running — remove and recreate
+        existing.remove(force=True)
     except docker.errors.NotFound:
         pass
     except Exception as exc:
-        logger.warning("Failed to remove old container %s: %s", container_name, exc)
+        logger.warning("Failed to recover container %s: %s", container_name, exc)
+        try:
+            client.containers.get(container_name).remove(force=True)
+        except Exception:
+            pass
 
-    container = client.containers.run(
-        image=image,
-        command=["sleep", "infinity"],
-        name=container_name,
-        volumes={
-            workspace_base: {"bind": "/workspace", "mode": "rw"}
-        },
-        network_disabled=True,
-        mem_limit="512m",
-        memswap_limit="512m",
-        nano_cpus=2_000_000_000,
-        pids_limit=256,
-        security_opt=["no-new-privileges"],
-        cap_drop=["ALL"],
-        detach=True,
-        remove=False,
-        tmpfs={"/tmp": "size=32m,noexec,nosuid"},
-        restart_policy={"Name": "unless-stopped"},  # Auto-restart on crash
-    )
-    logger.info("Created persistent container: %s (image=%s)", container_name, image)
-    return container
+    try:
+        container = client.containers.run(
+            image=image,
+            command=["sleep", "infinity"],
+            name=container_name,
+            volumes={
+                workspace_base: {"bind": "/workspace", "mode": "rw"}
+            },
+            network_disabled=True,
+            mem_limit="512m",
+            memswap_limit="512m",
+            nano_cpus=2_000_000_000,
+            pids_limit=256,
+            security_opt=["no-new-privileges"],
+            cap_drop=["ALL"],
+            detach=True,
+            remove=False,
+            tmpfs={"/tmp": "size=32m,noexec,nosuid"},
+            restart_policy={"Name": "unless-stopped"},
+        )
+        logger.info("Created persistent container: %s (image=%s)", container_name, image)
+        return container
+    except docker.errors.APIError as exc:
+        if exc.status_code == 409:
+            # 409 Conflict: Another PM2 instance already created this container
+            logger.info("Container created by another instance, reusing: %s", container_name)
+            container = client.containers.get(container_name)
+            if container.status != "running":
+                container.start()
+            return container
+        raise
 
 
 def get_container(image: str) -> Container:
