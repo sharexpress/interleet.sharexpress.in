@@ -43,14 +43,51 @@ def get_docker_client() -> docker.DockerClient:
     return _docker_client
 
 
+def get_or_create_prewarmed_container(client: docker.DockerClient, image: str) -> Container:
+    """Get or dynamically start a pre-warmed background runner container."""
+    container_name = f"interleet-prewarmed-{image.replace(':', '-')}"
+    workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
+    os.makedirs(workspace_base, exist_ok=True)
+
+    try:
+        container = client.containers.get(container_name)
+        if container.status != "running":
+            try:
+                container.start()
+            except Exception:
+                try:
+                    container.remove(force=True)
+                except Exception:
+                    pass
+                raise docker.errors.NotFound("Recreating broken container")
+        return container
+    except docker.errors.NotFound:
+        # Create and start a new pre-warmed container
+        container = client.containers.run(
+            image=image,
+            command=["sleep", "infinity"],
+            name=container_name,
+            volumes={
+                workspace_base: {"bind": "/workspace", "mode": "rw"}
+            },
+            network_disabled=True,
+            mem_limit="512m",
+            memswap_limit="512m",
+            nano_cpus=2_000_000_000,
+            pids_limit=256,
+            security_opt=["no-new-privileges"],
+            cap_drop=["ALL"],
+            detach=True,
+            remove=False,
+            tmpfs={"/tmp": "size=32m,noexec,nosuid"},
+        )
+        return container
+
+
 class DockerSandbox:
     """
-    Static utility class that runs code inside isolated Docker containers.
-
-    All methods are async (offload blocking Docker calls to a thread pool).
+    Utility class that executes user code inside pre-warmed Docker containers via exec.
     """
-
-    # ─── Public API ────────────────────────────────────────────────────────
 
     @staticmethod
     async def compile(
@@ -60,8 +97,7 @@ class DockerSandbox:
         time_limit: float = 30.0,
     ) -> CompileResult:
         """
-        Run a compilation command inside a container.
-        Returns CompileResult with success flag and compiler output.
+        Run a compilation command inside the pre-warmed container.
         """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
@@ -82,8 +118,7 @@ class DockerSandbox:
         memory_limit_mb: int,
     ) -> SandboxResult:
         """
-        Run the execution command inside a hardened container.
-        Returns SandboxResult with stdout, stderr, timing, and memory metrics.
+        Run the execution command inside the pre-warmed container.
         """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(
@@ -106,42 +141,38 @@ class DockerSandbox:
         time_limit: float,
     ) -> CompileResult:
         client = get_docker_client()
-        container: Container | None = None
         start = time.monotonic()
 
         try:
-            container = client.containers.run(
-                image=image,
-                command=command,
-                volumes={
-                    str(workspace): {"bind": "/workspace", "mode": "rw"}
-                },
-                working_dir="/workspace",
-                network_disabled=True,
-                mem_limit="512m",  # generous for compilation
-                nano_cpus=2_000_000_000,  # 2 CPUs for compilation
-                pids_limit=128,
-                security_opt=["no-new-privileges"],
-                cap_drop=["ALL"],
-                detach=True,
+            container = get_or_create_prewarmed_container(client, image)
+
+            workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
+            try:
+                rel = workspace.relative_to(workspace_base)
+                container_workspace = f"/workspace/{rel}"
+            except Exception:
+                container_workspace = "/workspace"
+
+            # Wrap command in timeout command
+            wrapped_command = command.copy()
+            if len(command) >= 3 and command[0] == "sh" and command[1] == "-c":
+                wrapped_command[2] = f"timeout {time_limit} {command[2]}"
+            else:
+                cmd_str = " ".join(command)
+                wrapped_command = ["sh", "-c", f"timeout {time_limit} {cmd_str}"]
+
+            exec_res = container.exec_run(
+                cmd=wrapped_command,
+                workdir=container_workspace,
                 stdout=True,
                 stderr=True,
-                remove=False,
+                demux=True,
             )
 
-            try:
-                result = container.wait(timeout=time_limit)
-                exit_code = result.get("StatusCode", 1)
-            except Exception:
-                container.kill()
-                return CompileResult(
-                    success=False,
-                    error="Compilation timed out",
-                    time_ms=(time.monotonic() - start) * 1000,
-                )
+            exit_code = exec_res.exit_code
+            stdout_bytes, stderr_bytes = exec_res.output or (b"", b"")
+            output = _decode_output(stdout_bytes or b"") + _decode_output(stderr_bytes or b"")
 
-            logs = container.logs(stdout=True, stderr=True)
-            output = _decode_output(logs)
             elapsed_ms = (time.monotonic() - start) * 1000
 
             return CompileResult(
@@ -159,12 +190,6 @@ class DockerSandbox:
         except Exception as exc:
             logger.exception("Docker compile error: %s", exc)
             return CompileResult(success=False, error=str(exc))
-        finally:
-            if container:
-                try:
-                    container.remove(force=True)
-                except Exception:
-                    pass
 
     @staticmethod
     def _run_sync(
@@ -175,69 +200,44 @@ class DockerSandbox:
         memory_limit_mb: int,
     ) -> SandboxResult:
         client = get_docker_client()
-        container: Container | None = None
         start = time.monotonic()
 
         try:
-            container = client.containers.run(
-                image=image,
-                command=command,
-                volumes={
-                    str(workspace): {"bind": "/workspace", "mode": "rw"}
-                },
-                working_dir="/workspace",
-                # ─── Security ────────────────────────────
-                network_disabled=True,
-                mem_limit=f"{memory_limit_mb}m",
-                memswap_limit=f"{memory_limit_mb}m",  # disable swap
-                nano_cpus=1_000_000_000,              # 1 CPU core
-                pids_limit=64,                        # block fork bombs
-                security_opt=["no-new-privileges"],
-                cap_drop=["ALL"],
-                # ─── Isolation ───────────────────────────
-                detach=True,
+            container = get_or_create_prewarmed_container(client, image)
+
+            workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
+            try:
+                rel = workspace.relative_to(workspace_base)
+                container_workspace = f"/workspace/{rel}"
+            except Exception:
+                container_workspace = "/workspace"
+
+            # Wrap command in timeout command
+            wrapped_command = command.copy()
+            if len(command) >= 3 and command[0] == "sh" and command[1] == "-c":
+                wrapped_command[2] = f"timeout {time_limit} {command[2]}"
+            else:
+                cmd_str = " ".join(command)
+                wrapped_command = ["sh", "-c", f"timeout {time_limit} {cmd_str}"]
+
+            exec_res = container.exec_run(
+                cmd=wrapped_command,
+                workdir=container_workspace,
                 stdout=True,
                 stderr=True,
-                remove=False,
-                tmpfs={"/tmp": "size=32m,noexec,nosuid"},
+                demux=True,
             )
 
-            timed_out = False
-            oom_killed = False
+            exit_code = exec_res.exit_code
+            stdout_bytes, stderr_bytes = exec_res.output or (b"", b"")
 
-            try:
-                result = container.wait(timeout=time_limit + 2)
-                exit_code = result.get("StatusCode", 1)
-                oom_killed = result.get("Error", {}) == "OOM"
-            except Exception:
-                timed_out = True
-                exit_code = 124  # Standard timeout exit code
-                try:
-                    container.kill()
-                except Exception:
-                    pass
+            stdout = _decode_output(stdout_bytes or b"")
+            stderr = _decode_output(stderr_bytes or b"")
+
+            timed_out = (exit_code == 124)
+            oom_killed = (exit_code == 137)
 
             wall_time_ms = (time.monotonic() - start) * 1000
-
-            # Collect stats before removal
-            peak_memory_mb = 0.0
-            try:
-                stats = container.stats(stream=False)
-                mem_usage = stats.get("memory_stats", {}).get("max_usage", 0)
-                peak_memory_mb = round(mem_usage / (1024 * 1024), 2)
-                # Check OOM from container inspect
-                inspect = container.attrs
-                if inspect.get("State", {}).get("OOMKilled", False):
-                    oom_killed = True
-            except Exception:
-                pass
-
-            # Collect output
-            stdout_bytes = container.logs(stdout=True, stderr=False)
-            stderr_bytes = container.logs(stdout=False, stderr=True)
-
-            stdout = _decode_output(stdout_bytes)
-            stderr = _decode_output(stderr_bytes)
 
             # Enforce output size limit
             if len(stdout.encode()) > MAX_OUTPUT_BYTES:
@@ -249,7 +249,7 @@ class DockerSandbox:
                 stderr=stderr,
                 exit_code=exit_code,
                 wall_time_ms=round(wall_time_ms, 2),
-                peak_memory_mb=peak_memory_mb,
+                peak_memory_mb=0.0,
                 timed_out=timed_out,
                 oom_killed=oom_killed,
             )
@@ -262,12 +262,6 @@ class DockerSandbox:
         except Exception as exc:
             logger.exception("Docker run error: %s", exc)
             return SandboxResult(stderr=str(exc), exit_code=1)
-        finally:
-            if container:
-                try:
-                    container.remove(force=True)
-                except Exception:
-                    pass
 
     @staticmethod
     async def image_exists(image: str) -> bool:
