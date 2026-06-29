@@ -91,58 +91,70 @@ class ExecutionWorker:
                 ]
 
             # ── Phase 2: Compile (if needed) ────────────────────────────
+            # ── Phase 2: Compile (if needed) ────────────────────────────
             compile_output = ""
+            compile_workspace = None
+            compilation_failed = False
             if executor.requires_compile:
                 await self._update_status(submission_id, ExecutionStatus.COMPILING)
                 await self._broadcast(submission_id, WebSocketEventType.COMPILING, ExecutionStatus.COMPILING)
+                
+                success, compile_output, compile_workspace = await executor.compile_code(job.code)
+                if not success:
+                    compilation_failed = True
+                    testcase_results = []
+                    for tc in testcases:
+                        testcase_results.append(
+                            TestCaseResult(
+                                testcase_id=tc.id,
+                                name=tc.name,
+                                hidden=tc.hidden,
+                                verdict=Verdict.COMPILATION_ERROR,
+                                passed=False,
+                                compile_output=compile_output,
+                            )
+                        )
 
-            # ── Phase 3: Run testcases ───────────────────────────────────
-            await self._update_status(submission_id, ExecutionStatus.RUNNING)
-            await self._broadcast(submission_id, WebSocketEventType.RUNNING, ExecutionStatus.RUNNING)
+            # ── Phase 3: Run testcases (in parallel) ─────────────────────
+            if not compilation_failed:
+                await self._update_status(submission_id, ExecutionStatus.RUNNING)
+                await self._broadcast(submission_id, WebSocketEventType.RUNNING, ExecutionStatus.RUNNING)
 
-            testcase_results: list[TestCaseResult] = []
+                testcase_results = [None] * len(testcases)
 
-            for i, testcase in enumerate(testcases):
-                logger.debug(
-                    "Worker #%d running testcase %d/%d for %s",
-                    self.worker_id, i + 1, len(testcases), submission_id,
-                )
-                try:
-                    sandbox_result, compile_result = await executor.run_testcase(
-                        code=job.code,
-                        testcase=testcase,
-                        time_limit=testcase.time_limit or job.time_limit,
-                        memory_limit=testcase.memory_limit or job.memory_limit,
-                        comparison_mode=job.comparison_mode,
-                    )
-                    if compile_result is not None:
-                        compile_output = compile_result.error or compile_result.output
-
-                    tc_result = JudgeEngine.evaluate(
-                        sandbox_result=sandbox_result,
-                        testcase=testcase,
-                        compile_output=compile_output if compile_result and not compile_result.success else "",
-                        comparison_mode=testcase.comparison_mode or job.comparison_mode,
-                    )
-                    testcase_results.append(tc_result)
-
-                    # Early exit on compilation error
-                    if tc_result.verdict == Verdict.COMPILATION_ERROR:
-                        break
-
-                except Exception as exc:
-                    logger.exception(
-                        "Worker #%d testcase %d error: %s", self.worker_id, i, exc
-                    )
-                    testcase_results.append(
-                        TestCaseResult(
-                            testcase_id=testcase.id,
-                            hidden=testcase.hidden,
+                async def run_single_tc(idx: int, tc: TestCaseSchema):
+                    try:
+                        sandbox_result = await executor.run_testcase_with_compile_workspace(
+                            code=job.code,
+                            testcase=tc,
+                            time_limit=tc.time_limit or job.time_limit,
+                            memory_limit=tc.memory_limit or job.memory_limit,
+                            compile_workspace=compile_workspace,
+                        )
+                        tc_result = JudgeEngine.evaluate(
+                            sandbox_result=sandbox_result,
+                            testcase=tc,
+                            compile_output=compile_output,
+                            comparison_mode=tc.comparison_mode or job.comparison_mode,
+                        )
+                        testcase_results[idx] = tc_result
+                    except Exception as exc:
+                        logger.exception("Worker #%d testcase %d error: %s", self.worker_id, idx, exc)
+                        testcase_results[idx] = TestCaseResult(
+                            testcase_id=tc.id,
+                            name=tc.name,
+                            hidden=tc.hidden,
                             verdict=Verdict.INTERNAL_ERROR,
                             passed=False,
                             stderr=str(exc),
                         )
-                    )
+
+                try:
+                    tasks = [run_single_tc(i, tc) for i, tc in enumerate(testcases)]
+                    await asyncio.gather(*tasks)
+                finally:
+                    if compile_workspace:
+                        await executor._cleanup_workspace(compile_workspace)
 
             # ── Phase 4: Judge ───────────────────────────────────────────
             await self._update_status(submission_id, ExecutionStatus.JUDGING)

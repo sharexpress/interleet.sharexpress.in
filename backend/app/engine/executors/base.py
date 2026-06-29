@@ -212,6 +212,74 @@ class BaseExecutor(ABC):
         finally:
             await self._cleanup_workspace(workspace)
 
+    async def compile_code(self, code: str) -> tuple[bool, str, Path | None]:
+        """
+        Compile code once in a shared compile workspace.
+        Returns (success, compile_output, compile_workspace_path).
+        """
+        from app.engine.docker.sandbox import DockerSandbox
+        workspace = await self._create_workspace()
+        try:
+            await self._write_code(workspace, code)
+            compile_result = await DockerSandbox.compile(
+                image=self.docker_image,
+                command=self.compile_command,
+                workspace=workspace,
+                time_limit=30.0,
+            )
+            compile_output = compile_result.output or compile_result.error
+            if not compile_result.success:
+                await self._cleanup_workspace(workspace)
+                return False, compile_output, None
+            return True, compile_output, workspace
+        except Exception as exc:
+            logger.exception("Compile error: %s", exc)
+            if workspace:
+                await self._cleanup_workspace(workspace)
+            return False, str(exc), None
+
+    async def run_testcase_with_compile_workspace(
+        self,
+        code: str,
+        testcase: TestCaseSchema,
+        time_limit: float,
+        memory_limit: int,
+        compile_workspace: Path | None = None,
+    ) -> SandboxResult:
+        """
+        Run a testcase in its own isolated workspace, copying pre-compiled files if available.
+        """
+        from app.engine.docker.sandbox import DockerSandbox
+        import shutil
+
+        workspace = await self._create_workspace()
+        try:
+            if compile_workspace:
+                # Copy compiled files from compile workspace
+                for item in compile_workspace.iterdir():
+                    if item.name != "stdin.txt" and item.is_file():
+                        shutil.copy2(item, workspace / item.name)
+            else:
+                # Interpreted languages: write the source code directly
+                await self._write_code(workspace, code)
+
+            # Write testcase stdin
+            await self._write_stdin(workspace, testcase.stdin)
+
+            tc_time_limit = testcase.time_limit or time_limit
+            tc_memory = testcase.memory_limit or memory_limit
+
+            sandbox_result = await DockerSandbox.run(
+                image=self.docker_image,
+                command=self.run_command,
+                workspace=workspace,
+                time_limit=tc_time_limit,
+                memory_limit_mb=tc_memory,
+            )
+            return sandbox_result
+        finally:
+            await self._cleanup_workspace(workspace)
+
     # ─── Workspace Helpers ─────────────────────────────────────────────────
 
     @staticmethod
