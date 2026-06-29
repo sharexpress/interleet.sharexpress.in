@@ -60,10 +60,10 @@ export const submitCode = createAsyncThunk(
       const { submission_id } = queueRes.data;
       if (!submission_id) throw new Error('No submission_id returned');
 
-      // Step 2: Poll with exponential backoff until result is ready (max 60s)
+      // Step 2: Poll with active backoff until result is ready (max 60s)
       // 404 = "not yet done" → keep polling. Only error on 5xx or other issues.
-      const INTERVALS = [1000, 1500, 2000, 2000, 2000, 3000, 3000, 3000, 3000, 3000]; // first 10
-      const DEFAULT_INTERVAL = 3000;
+      const INTERVALS = [200, 400, 600, 800, 1200, 1500, 2000, 2000, 2000]; // faster checks
+      const DEFAULT_INTERVAL = 2000;
       const MAX_WAIT_MS = 60_000;
       const start = Date.now();
       let attempt = 0;
