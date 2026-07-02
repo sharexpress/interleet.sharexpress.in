@@ -24,10 +24,6 @@ export function AuthShell({
       });
   }, []);
 
-  const challengeText = challengeCount !== null
-    ? `${challengeCount.toLocaleString()} production-style challenges`
-    : "12,000+ production-style challenges";
-
   return (
     <div className="grid min-h-screen bg-background md:grid-cols-2">
       <div className="flex flex-col px-6 py-8 md:px-12">
@@ -61,15 +57,22 @@ export function AuthShell({
               Practice the real stack — frontend through infra — with rubric-graded interviews and
               recruiter-verified profiles.
             </p>
-            <div className="mt-8 space-y-2">
+            <div className="mt-8 space-y-2.5">
               {[
-                challengeText,
-                "AI mock interviews with full transcripts",
-                "Verified skill badges for hiring teams"
-              ].map((x) => (
-                <div key={x} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
-                  <span className="text-foreground/85">{x}</span>
+                <span key="challenges" className="inline-flex items-center gap-1.5 align-middle">
+                  {challengeCount === null ? (
+                    <span className="inline-block h-3.5 w-8 animate-pulse rounded bg-foreground/15 align-middle" />
+                  ) : (
+                    <span className="font-semibold text-foreground">{challengeCount.toLocaleString()}</span>
+                  )}
+                  <span>production-style challenges</span>
+                </span>,
+                <span key="interviews">AI mock interviews with full transcripts</span>,
+                <span key="badges">Verified skill badges for hiring teams</span>
+              ].map((node, idx) => (
+                <div key={idx} className="flex items-start gap-2.5 text-sm">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  <span className="text-foreground/85 leading-tight">{node}</span>
                 </div>
               ))}
             </div>
