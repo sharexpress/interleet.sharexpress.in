@@ -16,12 +16,16 @@ router = APIRouter(prefix="/api/contest", tags=["Contests"])
 db = get_db()
 
 
+import asyncio
+
 # ─── WebSocket Connection Manager for Contests ─────────────────────────────────
 
 class ContestWebSocketManager:
     def __init__(self):
         # room_code -> set of WebSockets
         self.connections: Dict[str, set[WebSocket]] = {}
+        # room_code -> asyncio.Task
+        self.pubsub_tasks: Dict[str, asyncio.Task] = {}
 
     async def connect(self, room_code: str, websocket: WebSocket):
         await websocket.accept()
@@ -30,14 +34,70 @@ class ContestWebSocketManager:
         self.connections[room_code].add(websocket)
         logger.info(f"WS connected to contest room {room_code}. Count: {len(self.connections[room_code])}")
 
+        # Start Redis Pub/Sub task for this room if not already running
+        if room_code not in self.pubsub_tasks:
+            self.pubsub_tasks[room_code] = asyncio.create_task(self._listen_pubsub(room_code))
+
     async def disconnect(self, room_code: str, websocket: WebSocket):
         if room_code in self.connections:
             self.connections[room_code].discard(websocket)
             if not self.connections[room_code]:
                 del self.connections[room_code]
+                # Clean up pubsub task
+                if room_code in self.pubsub_tasks:
+                    self.pubsub_tasks[room_code].cancel()
+                    del self.pubsub_tasks[room_code]
         logger.info(f"WS disconnected from contest room {room_code}")
 
+    async def _listen_pubsub(self, room_code: str):
+        from app.engine.queue.redis_queue import get_redis_client
+        import json
+        
+        redis_client = get_redis_client()
+        pubsub = redis_client.pubsub()
+        channel = f"interleet:contest:{room_code}"
+        
+        try:
+            await pubsub.subscribe(channel)
+            logger.info(f"Subscribed to Redis channel {channel} for contest lobby")
+            
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    try:
+                        raw_data = message["data"]
+                        if isinstance(raw_data, bytes):
+                            raw_data = raw_data.decode("utf-8")
+                        
+                        event_data = json.loads(raw_data)
+                        await self._local_broadcast(room_code, event_data)
+                    except Exception as e:
+                        logger.error(f"Error handling Pub/Sub message for room {room_code}: {e}")
+        except asyncio.CancelledError:
+            logger.info(f"Pub/Sub listener for room {room_code} cancelled")
+            raise
+        except Exception as e:
+            logger.error(f"Pub/Sub listener exception for room {room_code}: {e}")
+        finally:
+            try:
+                await pubsub.unsubscribe(channel)
+            except Exception:
+                pass
+
     async def broadcast(self, room_code: str, message: dict):
+        from app.engine.queue.redis_queue import get_redis_client
+        import json
+        
+        channel = f"interleet:contest:{room_code}"
+        redis_client = get_redis_client()
+        try:
+            payload = json.dumps(message)
+            await redis_client.publish(channel, payload)
+        except Exception as e:
+            logger.error(f"Failed to publish to channel {channel}: {e}")
+            # Fallback: broadcast locally if Redis fails
+            await self._local_broadcast(room_code, message)
+
+    async def _local_broadcast(self, room_code: str, message: dict):
         if room_code in self.connections:
             dead = set()
             for ws in self.connections[room_code]:
@@ -49,6 +109,10 @@ class ContestWebSocketManager:
                 self.connections[room_code].discard(ws)
             if room_code in self.connections and not self.connections[room_code]:
                 del self.connections[room_code]
+                # Clean up pubsub task if there are no more local connections
+                if room_code in self.pubsub_tasks:
+                    self.pubsub_tasks[room_code].cancel()
+                    del self.pubsub_tasks[room_code]
 
     async def broadcast_contest_update(self, room_code: str, message: dict):
         await self.broadcast(room_code, message)
