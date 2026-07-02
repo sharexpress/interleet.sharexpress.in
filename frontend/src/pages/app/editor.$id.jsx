@@ -345,9 +345,16 @@ func main() {
 `,
 };
 
-function getStarter(slug, lang) {
+function getStarter(slug, lang, dbChallenge) {
+  if (dbChallenge?.starter_code) {
+    const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
+    if (dbChallenge.starter_code[backendKey]) {
+      return dbChallenge.starter_code[backendKey];
+    }
+  }
   return STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
 }
+
 
 // ─── Sandboxed JS/TS runner ───────────────────────────────────────────────────
 
@@ -622,8 +629,34 @@ function EditorPage() {
   const loading = useSelector(selectDetailLoading);
   const detailError = useSelector(selectDetailError);
 
-  const [lang, setLang] = useState("ts");
-  const [code, setCode] = useState(() => getStarter(slug, "ts"));
+  const availableLangs = (() => {
+    if (c?.starter_code) {
+      const keys = Object.keys(c.starter_code);
+      const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k);
+      return ["ts", "js", "py", "go"].filter(k => shortKeys.includes(k));
+    }
+    return ["ts", "js", "py", "go"];
+  })();
+
+  const getInitialState = () => {
+    let initialLang = "ts";
+    if (c?.starter_code) {
+      const keys = Object.keys(c.starter_code);
+      if (keys.includes("javascript") && !keys.includes("typescript")) {
+        initialLang = "js";
+      } else if (keys.length > 0) {
+        const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).find(k => ["ts", "js", "py", "go"].includes(k));
+        if (matched) initialLang = matched;
+      }
+    }
+    return {
+      lang: initialLang,
+      code: getStarter(slug, initialLang, c)
+    };
+  };
+
+  const [lang, setLang] = useState(() => getInitialState().lang);
+  const [code, setCode] = useState(() => getInitialState().code);
   const [consoleResult, setResult] = useState(null);
   const [activeTab, setActiveTab] = useState("testcase");
   const [customTestCases, setCustomTestCases] = useState([]);
@@ -669,13 +702,29 @@ function EditorPage() {
   }, []);
 
   useEffect(() => {
-    setCode(getStarter(slug, lang));
+    const initialState = getInitialState();
+    setLang(initialState.lang);
+    setCode(initialState.code);
     setResult(null);
     setPrevSubmission(null);
     setUsingPrevCode(false);
     dispatch(resetExecution());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
+
+  useEffect(() => {
+    if (c && !usingPrevCode) {
+      const keys = Object.keys(c.starter_code || {});
+      const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).filter(k => ["ts", "js", "py", "go"].includes(k));
+      
+      let nextLang = lang;
+      if (shortKeys.length > 0 && !shortKeys.includes(lang)) {
+        nextLang = shortKeys[0];
+        setLang(nextLang);
+      }
+      setCode(getStarter(slug, nextLang, c));
+    }
+  }, [c, slug, usingPrevCode]);
 
   useEffect(() => {
     dispatch(FetchChallengeBySlug(slug));
@@ -710,10 +759,10 @@ function EditorPage() {
   const handleLangChange = useCallback(
     (l) => {
       setLang(l);
-      setCode(getStarter(slug, l));
+      setCode(getStarter(slug, l, c));
       setResult(null);
     },
-    [slug],
+    [slug, c],
   );
 
   // Run — executes custom test cases or visible sample test cases
@@ -732,11 +781,11 @@ function EditorPage() {
 
   // Reset editor to default starter code, dismissing previous submission
   const handleResetToStarter = useCallback(() => {
-    const starterCode = getStarter(slug, lang);
+    const starterCode = getStarter(slug, lang, c);
     setCode(starterCode);
     setUsingPrevCode(false);
     setResult(null);
-  }, [slug, lang]);
+  }, [slug, lang, c]);
 
   if (loading && !c)
     return (
@@ -824,9 +873,9 @@ function EditorPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {Object.entries(LANG_LABEL).map(([v, l]) => (
+              {availableLangs.map((v) => (
                 <SelectItem key={v} value={v}>
-                  {l}
+                  {LANG_LABEL[v]}
                 </SelectItem>
               ))}
             </SelectContent>
