@@ -563,16 +563,14 @@ function Dashboard() {
 
           <Card className="border-border bg-card p-5">
             <h3 className="mb-3 text-sm font-semibold">Badges & achievements</h3>
-            <div className="space-y-2">
-              {(activeUser.badges || []).map((badge) => (
+            <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+              {Array.from(new Set(activeUser.badges || [])).map((badge) => (
                 <div
                   key={badge}
-                  className="flex items-center gap-3 rounded-md border border-border bg-background/40 p-2.5"
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs text-foreground/80 transition-all hover:border-primary/30"
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-primary">
-                    <Award className="h-4 w-4" />
-                  </span>
-                  <span className="text-sm">{badge}</span>
+                  <Award className="h-3 w-3 text-primary" />
+                  <span>{badge}</span>
                 </div>
               ))}
             </div>
