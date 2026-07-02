@@ -23,7 +23,8 @@ DEFAULT_SYSTEM_DESIGN_CHALLENGES = [
         "tags": ["Web", "Database", "Cache"],
         "brief": "Design a service like bit.ly that shortens long URLs and redirects users with low latency. Handle ~10k req/s with high read traffic.",
         "requirements": ["Generate unique short codes", "Sub-100ms redirects globally", "Analytics on click counts", "Handle read-heavy traffic (100:1 reads/writes)"],
-        "hints": ["Cache hot keys in Redis", "Use a CDN for global reach", "Separate read replicas"]
+        "hints": ["Cache hot keys in Redis", "Use a CDN for global reach", "Separate read replicas"],
+        "duration": "30m"
     },
     {
         "id": "video-streaming",
@@ -32,7 +33,8 @@ DEFAULT_SYSTEM_DESIGN_CHALLENGES = [
         "tags": ["CDN", "Storage", "Encoding"],
         "brief": "Architect a Netflix-style streaming platform serving millions of concurrent viewers across multiple regions.",
         "requirements": ["Adaptive bitrate streaming", "Global CDN distribution", "Recommendations service", "User auth & billing"],
-        "hints": ["Use CDN edge nodes", "Async transcoding via queue", "Recommendation microservice"]
+        "hints": ["Use CDN edge nodes", "Async transcoding via queue", "Recommendation microservice"],
+        "duration": "45m"
     },
     {
         "id": "ride-sharing",
@@ -41,7 +43,8 @@ DEFAULT_SYSTEM_DESIGN_CHALLENGES = [
         "tags": ["Realtime", "Geo", "Queue"],
         "brief": "Build an Uber-like system that matches drivers and riders in real time with live location tracking.",
         "requirements": ["Realtime location updates", "Driver matching service", "Trip & payment service", "Surge pricing"],
-        "hints": ["Use Kafka for event streams", "Geospatial index in Redis", "Microservices per domain"]
+        "hints": ["Use Kafka for event streams", "Geospatial index in Redis", "Microservices per domain"],
+        "duration": "50m"
     },
     {
         "id": "chat-app",
@@ -50,7 +53,8 @@ DEFAULT_SYSTEM_DESIGN_CHALLENGES = [
         "tags": ["Realtime", "Messaging"],
         "brief": "Design WhatsApp-style messaging with 1:1 chats, group chats, presence and read receipts.",
         "requirements": ["WebSocket fanout", "Message persistence", "Push notifications", "Read receipts"],
-        "hints": ["Message broker like Kafka", "Cache presence in Redis", "Sharded DB by user"]
+        "hints": ["Message broker like Kafka", "Cache presence in Redis", "Sharded DB by user"],
+        "duration": "35m"
     },
     {
         "id": "ecommerce",
@@ -59,7 +63,8 @@ DEFAULT_SYSTEM_DESIGN_CHALLENGES = [
         "tags": ["Catalog", "Orders", "Payments"],
         "brief": "Build an Amazon-like store with catalog, cart, checkout, inventory and order processing.",
         "requirements": ["Product catalog search", "Cart & checkout flow", "Inventory consistency", "Order pipeline"],
-        "hints": ["Elasticsearch for search", "Kafka for order events", "Redis for cart"]
+        "hints": ["Elasticsearch for search", "Kafka for order events", "Redis for cart"],
+        "duration": "40m"
     },
     {
         "id": "social-feed",
@@ -68,7 +73,8 @@ DEFAULT_SYSTEM_DESIGN_CHALLENGES = [
         "tags": ["Feed", "Cache", "Fanout"],
         "brief": "Architect a Twitter-style feed handling fanout for users with millions of followers.",
         "requirements": ["Timeline generation", "Fanout on write / read", "Media storage", "Notifications"],
-        "hints": ["Pre-compute feeds in cache", "Hybrid fanout strategy", "Object storage for media"]
+        "hints": ["Pre-compute feeds in cache", "Hybrid fanout strategy", "Object storage for media"],
+        "duration": "45m"
     }
 ]
 

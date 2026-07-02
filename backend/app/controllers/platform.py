@@ -43,6 +43,43 @@ def _matches_text(challenge: dict, query: str) -> bool:
     ).lower()
     return query.lower() in haystack
 
+def format_relative_time(dt: datetime) -> str:
+    if not dt:
+        return "Not attempted"
+    now = datetime.utcnow()
+    if dt.tzinfo is not None:
+        dt = dt.replace(tzinfo=None)
+    diff = now - dt
+    
+    seconds = diff.total_seconds()
+    if seconds < 60:
+        return "Just now"
+    minutes = seconds / 60
+    if minutes < 60:
+        return f"{int(minutes)}m ago"
+    hours = minutes / 60
+    if hours < 24:
+        return f"{int(hours)}h ago"
+    days = hours / 24
+    if days < 7:
+        if int(days) == 1:
+            return "Yesterday"
+        return f"{int(days)} days ago"
+    weeks = days / 7
+    if weeks < 4:
+        if int(weeks) == 1:
+            return "1 week ago"
+        return f"{int(weeks)} weeks ago"
+    months = days / 30
+    if months < 12:
+        if int(months) == 1:
+            return "1 month ago"
+        return f"{int(months)} months ago"
+    years = days / 365
+    if int(years) == 1:
+        return "1 year ago"
+    return f"{int(years)} years ago"
+
 
 class PlatformController:
     @staticmethod
@@ -828,9 +865,28 @@ class PlatformController:
             } for p in progress_list if "nodes" in p and "edges" in p
         }
         
-        # Merge progress with challenges
+        base_attempts_map = {
+            "url-shortener": 2420,
+            "video-streaming": 1850,
+            "ride-sharing": 1980,
+            "chat-app": 3200,
+            "ecommerce": 2100,
+            "social-feed": 1540,
+            "blank": 5400
+        }
+        
+        # Merge progress, attempts and relative times with challenges
         for c in ch:
-            c["progress"] = user_progress.get(c["id"], "Not Started")
+            user_entry = next((p for p in progress_list if p["challenge_id"] == c["id"]), None)
+            c["progress"] = user_entry.get("progress", "Not Started") if user_entry else "Not Started"
+            
+            if user_entry and user_entry.get("updated_at"):
+                c["lastAttempted"] = format_relative_time(user_entry["updated_at"])
+            else:
+                c["lastAttempted"] = "Not attempted" if c["progress"] == "Not Started" else "Recent"
+                
+            db_attempts = await db.user_system_design_progress.count_documents({"challenge_id": c["id"]})
+            c["attempts"] = base_attempts_map.get(c["id"], 500) + db_attempts
             
         return {
             "topics": SYSTEM_DESIGN_TOPICS,

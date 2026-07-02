@@ -1645,8 +1645,8 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
       const baseMeta = data[c.id] || { duration: "30m", popularity: 80, attempts: 500, completion: 0, lastAttempted: "Not attempted", type: "System Design", date: "2026-01-01" };
       const dynamicProgress = userProgress[c.id] || c.progress || "Not Started";
       return {
-        ...c,
         ...baseMeta,
+        ...c,
         progress: dynamicProgress
       };
     });
