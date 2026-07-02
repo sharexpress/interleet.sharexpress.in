@@ -753,10 +753,13 @@ function EditorPage() {
   const detailError = useSelector(selectDetailError);
 
   const availableLangs = (() => {
-    if (c?.starter_code) {
-      const keys = Object.keys(c.starter_code);
-      const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k);
-      return ["ts", "js", "py", "go"].filter(k => shortKeys.includes(k));
+    if (c?.domain === "Frontend") {
+      if (c?.starter_code) {
+        const keys = Object.keys(c.starter_code);
+        const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k);
+        return ["ts", "js"].filter(k => shortKeys.includes(k));
+      }
+      return ["ts", "js"];
     }
     return ["ts", "js", "py", "go"];
   })();
@@ -840,9 +843,18 @@ function EditorPage() {
       const keys = Object.keys(c.starter_code || {});
       const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).filter(k => ["ts", "js", "py", "go"].includes(k));
       
+      const allowedLangs = c.domain === "Frontend"
+        ? ["ts", "js"].filter(k => shortKeys.includes(k))
+        : ["ts", "js", "py", "go"];
+
       let nextLang = lang;
-      if (shortKeys.length > 0 && !shortKeys.includes(lang)) {
-        nextLang = shortKeys[0];
+      
+      // If current lang is not allowed, or current lang has no starter code but others in the DB do:
+      const currentHasStarter = keys.includes(lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang);
+      
+      if (!allowedLangs.includes(lang) || (!currentHasStarter && shortKeys.length > 0)) {
+        const dbLang = shortKeys.find(k => allowedLangs.includes(k));
+        nextLang = dbLang || allowedLangs[0];
         setLang(nextLang);
       }
       setCode(getStarter(slug, nextLang, c));
