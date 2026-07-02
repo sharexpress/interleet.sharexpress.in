@@ -2180,19 +2180,43 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
                         Template
                       </Badge>
                     </div>
-                    <h3 className="mt-3 text-base font-semibold leading-snug tracking-tight group-hover:text-primary transition-colors flex items-center gap-1.5">
-                      {!user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
-                      <span>{t.name}</span>
+                    <h3 className="mt-3 text-base font-semibold leading-snug tracking-tight group-hover:text-primary transition-colors flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5">
+                        {!user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
+                        <span>{t.name}</span>
+                      </span>
+                      {t.progress === "Completed" && (
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="Completed" />
+                      )}
+                      {t.progress === "In Progress" && (
+                        <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" title="In Progress" />
+                      )}
                     </h3>
                     <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{t.description}</p>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      <span className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                        {t.nodes.length} nodes
+                      </span>
+                      <span className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                        {t.edges.length} connections
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="mt-4 flex items-center gap-2 border-t border-border pt-3">
-                    <span className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                      {t.nodes.length} nodes
+                  <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {t.duration || "Self-paced"}
                     </span>
-                    <span className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                      {t.edges.length} connections
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      {(t.attempts || 0).toLocaleString()}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      {t.progress === "Completed" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+                      {t.progress === "In Progress" && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+                      {t.progress === "Not Started" && <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />}
+                      {t.progress || "Not Started"}
                     </span>
                   </div>
                 </Card>

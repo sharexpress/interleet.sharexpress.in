@@ -888,6 +888,33 @@ class PlatformController:
             db_attempts = await db.user_system_design_progress.count_documents({"challenge_id": c["id"]})
             c["attempts"] = base_attempts_map.get(c["id"], 500) + db_attempts
             
+        base_tpl_attempts_map = {
+            "basic-web": 1200,
+            "ecommerce": 1450,
+            "url-shortener": 980,
+            "chat": 1600,
+            "netflix": 2100,
+            "instagram": 1750,
+            "uber": 1300,
+            "whatsapp": 1900,
+            "youtube": 1500,
+            "ai-saas": 2200
+        }
+        
+        # Merge progress, attempts and relative times with templates
+        for t in tpl:
+            user_entry = next((p for p in progress_list if p["challenge_id"] == t["id"]), None)
+            t["progress"] = user_entry.get("progress", "Not Started") if user_entry else "Not Started"
+            
+            if user_entry and user_entry.get("updated_at"):
+                t["lastAttempted"] = format_relative_time(user_entry["updated_at"])
+            else:
+                t["lastAttempted"] = "Not attempted" if t["progress"] == "Not Started" else "Recent"
+                
+            db_attempts = await db.user_system_design_progress.count_documents({"challenge_id": t["id"]})
+            t["attempts"] = base_tpl_attempts_map.get(t["id"], 400) + db_attempts
+            t["duration"] = "Self-paced"
+            
         return {
             "topics": SYSTEM_DESIGN_TOPICS,
             "challenges": ch,

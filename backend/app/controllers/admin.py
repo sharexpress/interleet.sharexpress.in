@@ -95,68 +95,208 @@ DEFAULT_SYSTEM_DESIGN_TEMPLATES = [
         ]
     },
     {
-        "id": "ecommerce-prod",
-        "name": "Production E-Commerce Platform",
-        "description": "A high-level, production-grade e-commerce system architecture with catalog search, caching, order processing, and payment streaming.",
-        "category": "E-Commerce",
+        "id": "ecommerce",
+        "name": "E-Commerce Platform",
         "nodes": [
-            { "id": "c", "type": "infra", "position": { "x": 50, "y": 280 }, "data": { "kind": "client", "label": "Web Client", "category": "Client", "replicas": 1 } },
-            { "id": "dns", "type": "infra", "position": { "x": 240, "y": 120 }, "data": { "kind": "dns", "label": "DNS", "category": "Network" } },
-            { "id": "cdn", "type": "infra", "position": { "x": 240, "y": 420 }, "data": { "kind": "cdn", "label": "CDN Edge", "category": "Network" } },
-            { "id": "lb", "type": "infra", "position": { "x": 420, "y": 280 }, "data": { "kind": "load-balancer", "label": "API Gateway / LB", "category": "Network" } },
-            { "id": "svc-cat", "type": "infra", "position": { "x": 620, "y": 140 }, "data": { "kind": "web-server", "label": "Catalog Service", "category": "Compute" } },
-            { "id": "svc-ord", "type": "infra", "position": { "x": 620, "y": 280 }, "data": { "kind": "web-server", "label": "Order Service", "category": "Compute" } },
-            { "id": "svc-pay", "type": "infra", "position": { "x": 620, "y": 420 }, "data": { "kind": "web-server", "label": "Payment Service", "category": "Compute" } },
-            { "id": "db-mongo", "type": "infra", "position": { "x": 860, "y": 60 }, "data": { "kind": "mongodb", "label": "MongoDB Catalog", "category": "Data" } },
-            { "id": "db-es", "type": "infra", "position": { "x": 860, "y": 160 }, "data": { "kind": "elasticsearch", "label": "Search Index (ES)", "category": "Data" } },
-            { "id": "cache-redis", "type": "infra", "position": { "x": 860, "y": 260 }, "data": { "kind": "redis", "label": "Redis Cache", "category": "Data" } },
-            { "id": "db-sql", "type": "infra", "position": { "x": 860, "y": 360 }, "data": { "kind": "postgresql", "label": "PostgreSQL Orders", "category": "Data" } },
-            { "id": "stream-kafka", "type": "infra", "position": { "x": 860, "y": 460 }, "data": { "kind": "kafka", "label": "Kafka Order Stream", "category": "Data" } },
-            { "id": "q-notif", "type": "infra", "position": { "x": 860, "y": 560 }, "data": { "kind": "queue", "label": "Receipt Queue", "category": "Data" } }
+            { "id": "c", "type": "infra", "position": { "x": 40, "y": 260 }, "data": { "kind": "client", "label": "Client", "category": "Client" } },
+            { "id": "cdn", "type": "infra", "position": { "x": 260, "y": 140 }, "data": { "kind": "cdn", "label": "CDN", "category": "Network" } },
+            { "id": "lb", "type": "infra", "position": { "x": 260, "y": 360 }, "data": { "kind": "load-balancer", "label": "Load Balancer", "category": "Network" } },
+            { "id": "gw", "type": "infra", "position": { "x": 500, "y": 360 }, "data": { "kind": "api-gateway", "label": "API Gateway", "category": "Network" } },
+            { "id": "svc", "type": "infra", "position": { "x": 740, "y": 260 }, "data": { "kind": "microservice", "label": "Catalog Service", "category": "Application" } },
+            { "id": "ord", "type": "infra", "position": { "x": 740, "y": 460 }, "data": { "kind": "microservice", "label": "Order Service", "category": "Application" } },
+            { "id": "r", "type": "infra", "position": { "x": 980, "y": 260 }, "data": { "kind": "redis", "label": "Redis", "category": "Data" } },
+            { "id": "db", "type": "infra", "position": { "x": 980, "y": 460 }, "data": { "kind": "postgresql", "label": "PostgreSQL", "category": "Data" } },
+            { "id": "q", "type": "infra", "position": { "x": 1220, "y": 360 }, "data": { "kind": "kafka", "label": "Kafka", "category": "Messaging" } }
         ],
         "edges": [
-            { "id": "c-dns", "source": "c", "target": "dns", "type": "traffic", "animated": True, "data": { "kind": "request" } },
             { "id": "c-cdn", "source": "c", "target": "cdn", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "dns-lb", "source": "dns", "target": "lb", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "cdn-lb", "source": "cdn", "target": "lb", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "lb-cat", "source": "lb", "target": "svc-cat", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "lb-ord", "source": "lb", "target": "svc-ord", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "lb-pay", "source": "lb", "target": "svc-pay", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "cat-mongo", "source": "svc-cat", "target": "db-mongo", "type": "traffic", "animated": True, "data": { "kind": "database" } },
-            { "id": "cat-es", "source": "svc-cat", "target": "db-es", "type": "traffic", "animated": True, "data": { "kind": "database" } },
-            { "id": "cat-redis", "source": "svc-cat", "target": "cache-redis", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
-            { "id": "ord-sql", "source": "svc-ord", "target": "db-sql", "type": "traffic", "animated": True, "data": { "kind": "database" } },
-            { "id": "ord-kafka", "source": "svc-ord", "target": "stream-kafka", "type": "traffic", "animated": True, "data": { "kind": "database" } },
-            { "id": "stream-pay", "source": "stream-kafka", "target": "svc-pay", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "pay-sql", "source": "svc-pay", "target": "db-sql", "type": "traffic", "animated": True, "data": { "kind": "database" } },
-            { "id": "pay-q", "source": "svc-pay", "target": "q-notif", "type": "traffic", "animated": True, "data": { "kind": "database" } }
+            { "id": "c-lb", "source": "c", "target": "lb", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "lb-gw", "source": "lb", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-svc", "source": "gw", "target": "svc", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-ord", "source": "gw", "target": "ord", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "svc-r", "source": "svc", "target": "r", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
+            { "id": "ord-db", "source": "ord", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "ord-q", "source": "ord", "target": "q", "type": "traffic", "animated": True, "data": { "kind": "queue" } }
         ]
     },
     {
-        "id": "url-shortener-prod",
-        "name": "Production URL Shortener",
-        "description": "High-throughput production URL shortener with CDN edge redirect caching, scalable app servers, Redis key-value caching, and database read replication.",
-        "category": "Web",
+        "id": "url-shortener",
+        "name": "URL Shortener",
         "nodes": [
-            { "id": "c", "type": "infra", "position": { "x": 60, "y": 280 }, "data": { "kind": "client", "label": "Global Users", "category": "Client", "replicas": 1 } },
-            { "id": "dns", "type": "infra", "position": { "x": 220, "y": 140 }, "data": { "kind": "dns", "label": "Geo DNS", "category": "Network" } },
-            { "id": "cdn", "type": "infra", "position": { "x": 220, "y": 420 }, "data": { "kind": "cdn", "label": "CDN Edge redirects", "category": "Network" } },
-            { "id": "lb", "type": "infra", "position": { "x": 380, "y": 280 }, "data": { "kind": "load-balancer", "label": "API Load Balancer", "category": "Network" } },
-            { "id": "ws", "type": "infra", "position": { "x": 560, "y": 280 }, "data": { "kind": "web-server", "label": "URL Shortener Servers", "category": "Compute", "replicas": 3 } },
-            { "id": "redis", "type": "infra", "position": { "x": 740, "y": 180 }, "data": { "kind": "redis", "label": "Redis Hotkey Cache", "category": "Data" } },
-            { "id": "db", "type": "infra", "position": { "x": 740, "y": 380 }, "data": { "kind": "postgresql", "label": "Primary DB (Writes)", "category": "Data" } },
-            { "id": "db-rep", "type": "infra", "position": { "x": 920, "y": 380 }, "data": { "kind": "postgresql", "label": "Replica DB (Reads)", "category": "Data" } }
+            { "id": "c", "type": "infra", "position": { "x": 60, "y": 280 }, "data": { "kind": "client", "label": "Client", "category": "Client" } },
+            { "id": "lb", "type": "infra", "position": { "x": 300, "y": 240 }, "data": { "kind": "load-balancer", "label": "LB", "category": "Network" } },
+            { "id": "svc", "type": "infra", "position": { "x": 540, "y": 240 }, "data": { "kind": "microservice", "label": "Shortener API", "category": "Application" } },
+            { "id": "r", "type": "infra", "position": { "x": 780, "y": 140 }, "data": { "kind": "redis", "label": "Redis", "category": "Data" } },
+            { "id": "db", "type": "infra", "position": { "x": 780, "y": 340 }, "data": { "kind": "postgresql", "label": "Postgres", "category": "Data" } }
         ],
         "edges": [
-            { "id": "c-dns", "source": "c", "target": "dns", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "c-lb", "source": "c", "target": "lb", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "lb-svc", "source": "lb", "target": "svc", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "svc-r", "source": "svc", "target": "r", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
+            { "id": "svc-db", "source": "svc", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } }
+        ]
+    },
+    {
+        "id": "chat",
+        "name": "Chat Application",
+        "nodes": [
+            { "id": "c", "type": "infra", "position": { "x": 40, "y": 240 }, "data": { "kind": "client", "label": "Client", "category": "Client" } },
+            { "id": "gw", "type": "infra", "position": { "x": 260, "y": 240 }, "data": { "kind": "api-gateway", "label": "Gateway", "category": "Network" } },
+            { "id": "ws", "type": "infra", "position": { "x": 500, "y": 240 }, "data": { "kind": "app-server", "label": "WebSocket Server", "category": "Application" } },
+            { "id": "svc", "type": "infra", "position": { "x": 740, "y": 140 }, "data": { "kind": "microservice", "label": "Chat Service", "category": "Application" } },
+            { "id": "presence", "type": "infra", "position": { "x": 740, "y": 340 }, "data": { "kind": "microservice", "label": "Presence", "category": "Application" } },
+            { "id": "r", "type": "infra", "position": { "x": 980, "y": 140 }, "data": { "kind": "redis", "label": "Redis", "category": "Data" } },
+            { "id": "db", "type": "infra", "position": { "x": 980, "y": 340 }, "data": { "kind": "mongodb", "label": "MongoDB", "category": "Data" } },
+            { "id": "k", "type": "infra", "position": { "x": 1220, "y": 240 }, "data": { "kind": "kafka", "label": "Kafka", "category": "Messaging" } }
+        ],
+        "edges": [
+            { "id": "c-gw", "source": "c", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-ws", "source": "gw", "target": "ws", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "ws-svc", "source": "ws", "target": "svc", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "ws-presence", "source": "ws", "target": "presence", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "svc-r", "source": "svc", "target": "r", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
+            { "id": "svc-db", "source": "svc", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "svc-k", "source": "svc", "target": "k", "type": "traffic", "animated": True, "data": { "kind": "event" } }
+        ]
+    },
+    {
+        "id": "netflix",
+        "name": "Netflix Architecture",
+        "nodes": [
+            { "id": "c", "type": "infra", "position": { "x": 40, "y": 260 }, "data": { "kind": "client", "label": "Client", "category": "Client" } },
+            { "id": "cdn", "type": "infra", "position": { "x": 260, "y": 140 }, "data": { "kind": "cdn", "label": "CDN", "category": "Network" } },
+            { "id": "gw", "type": "infra", "position": { "x": 260, "y": 380 }, "data": { "kind": "api-gateway", "label": "API Gateway", "category": "Network" } },
+            { "id": "rec", "type": "infra", "position": { "x": 500, "y": 140 }, "data": { "kind": "microservice", "label": "Recommendations", "category": "Application" } },
+            { "id": "play", "type": "infra", "position": { "x": 500, "y": 380 }, "data": { "kind": "microservice", "label": "Playback", "category": "Application" } },
+            { "id": "meta", "type": "infra", "position": { "x": 500, "y": 620 }, "data": { "kind": "microservice", "label": "Metadata", "category": "Application" } },
+            { "id": "r", "type": "infra", "position": { "x": 760, "y": 140 }, "data": { "kind": "redis", "label": "Redis", "category": "Data" } },
+            { "id": "db", "type": "infra", "position": { "x": 760, "y": 380 }, "data": { "kind": "mongodb", "label": "MongoDB", "category": "Data" } },
+            { "id": "es", "type": "infra", "position": { "x": 760, "y": 620 }, "data": { "kind": "elasticsearch", "label": "Elasticsearch", "category": "Data" } },
+            { "id": "k", "type": "infra", "position": { "x": 1000, "y": 380 }, "data": { "kind": "kafka", "label": "Kafka", "category": "Messaging" } }
+        ],
+        "edges": [
             { "id": "c-cdn", "source": "c", "target": "cdn", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "dns-lb", "source": "dns", "target": "lb", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "cdn-lb", "source": "cdn", "target": "lb", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "lb-ws", "source": "lb", "target": "ws", "type": "traffic", "animated": True, "data": { "kind": "request" } },
-            { "id": "ws-redis", "source": "ws", "target": "redis", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
-            { "id": "ws-db", "source": "ws", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } },
-            { "id": "ws-dbrep", "source": "ws", "target": "db-rep", "type": "traffic", "animated": True, "data": { "kind": "database" } },
-            { "id": "db-sync", "source": "db", "target": "db-rep", "type": "traffic", "animated": True, "data": { "kind": "database" } }
+            { "id": "c-gw", "source": "c", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-rec", "source": "gw", "target": "rec", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-play", "source": "gw", "target": "play", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-meta", "source": "gw", "target": "meta", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "rec-r", "source": "rec", "target": "r", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
+            { "id": "play-db", "source": "play", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "meta-es", "source": "meta", "target": "es", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "play-k", "source": "play", "target": "k", "type": "traffic", "animated": True, "data": { "kind": "event" } }
+        ]
+    },
+    {
+        "id": "instagram",
+        "name": "Instagram Architecture",
+        "nodes": [
+            { "id": "c", "type": "infra", "position": { "x": 40, "y": 260 }, "data": { "kind": "client", "label": "Client", "category": "Client" } },
+            { "id": "cdn", "type": "infra", "position": { "x": 260, "y": 140 }, "data": { "kind": "cdn", "label": "CDN", "category": "Network" } },
+            { "id": "gw", "type": "infra", "position": { "x": 260, "y": 380 }, "data": { "kind": "api-gateway", "label": "Gateway", "category": "Network" } },
+            { "id": "feed", "type": "infra", "position": { "x": 500, "y": 260 }, "data": { "kind": "microservice", "label": "Feed Service", "category": "Application" } },
+            { "id": "media", "type": "infra", "position": { "x": 500, "y": 500 }, "data": { "kind": "microservice", "label": "Media Service", "category": "Application" } },
+            { "id": "r", "type": "infra", "position": { "x": 760, "y": 140 }, "data": { "kind": "redis", "label": "Redis", "category": "Data" } },
+            { "id": "db", "type": "infra", "position": { "x": 760, "y": 380 }, "data": { "kind": "postgresql", "label": "Postgres", "category": "Data" } },
+            { "id": "k", "type": "infra", "position": { "x": 1000, "y": 260 }, "data": { "kind": "kafka", "label": "Kafka", "category": "Messaging" } }
+        ],
+        "edges": [
+            { "id": "c-cdn", "source": "c", "target": "cdn", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "c-gw", "source": "c", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-feed", "source": "gw", "target": "feed", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-media", "source": "gw", "target": "media", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "feed-r", "source": "feed", "target": "r", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
+            { "id": "feed-db", "source": "feed", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "media-k", "source": "media", "target": "k", "type": "traffic", "animated": True, "data": { "kind": "event" } }
+        ]
+    },
+    {
+        "id": "uber",
+        "name": "Uber Architecture",
+        "nodes": [
+            { "id": "c", "type": "infra", "position": { "x": 40, "y": 140 }, "data": { "kind": "mobile", "label": "Rider App", "category": "Client" } },
+            { "id": "d", "type": "infra", "position": { "x": 40, "y": 380 }, "data": { "kind": "mobile", "label": "Driver App", "category": "Client" } },
+            { "id": "gw", "type": "infra", "position": { "x": 260, "y": 260 }, "data": { "kind": "api-gateway", "label": "Gateway", "category": "Network" } },
+            { "id": "match", "type": "infra", "position": { "x": 500, "y": 140 }, "data": { "kind": "microservice", "label": "Matching", "category": "Application" } },
+            { "id": "trip", "type": "infra", "position": { "x": 500, "y": 380 }, "data": { "kind": "microservice", "label": "Trip Service", "category": "Application" } },
+            { "id": "r", "type": "infra", "position": { "x": 760, "y": 140 }, "data": { "kind": "redis", "label": "Redis", "category": "Data" } },
+            { "id": "db", "type": "infra", "position": { "x": 760, "y": 380 }, "data": { "kind": "postgresql", "label": "Postgres", "category": "Data" } },
+            { "id": "k", "type": "infra", "position": { "x": 1000, "y": 260 }, "data": { "kind": "kafka", "label": "Kafka", "category": "Messaging" } }
+        ],
+        "edges": [
+            { "id": "c-gw", "source": "c", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "d-gw", "source": "d", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-match", "source": "gw", "target": "match", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-trip", "source": "gw", "target": "trip", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "match-r", "source": "match", "target": "r", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
+            { "id": "trip-db", "source": "trip", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "match-k", "source": "match", "target": "k", "type": "traffic", "animated": True, "data": { "kind": "event" } }
+        ]
+    },
+    {
+        "id": "whatsapp",
+        "name": "WhatsApp Architecture",
+        "nodes": [
+            { "id": "c", "type": "infra", "position": { "x": 40, "y": 240 }, "data": { "kind": "mobile", "label": "Client", "category": "Client" } },
+            { "id": "gw", "type": "infra", "position": { "x": 260, "y": 240 }, "data": { "kind": "api-gateway", "label": "Gateway", "category": "Network" } },
+            { "id": "ws", "type": "infra", "position": { "x": 500, "y": 240 }, "data": { "kind": "app-server", "label": "WebSocket", "category": "Application" } },
+            { "id": "msg", "type": "infra", "position": { "x": 740, "y": 240 }, "data": { "kind": "microservice", "label": "Message Service", "category": "Application" } },
+            { "id": "db", "type": "infra", "position": { "x": 980, "y": 140 }, "data": { "kind": "mongodb", "label": "MongoDB", "category": "Data" } },
+            { "id": "q", "type": "infra", "position": { "x": 980, "y": 340 }, "data": { "kind": "queue", "label": "Queue", "category": "Messaging" } }
+        ],
+        "edges": [
+            { "id": "c-gw", "source": "c", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-ws", "source": "gw", "target": "ws", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "ws-msg", "source": "ws", "target": "msg", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "msg-db", "source": "msg", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "msg-q", "source": "msg", "target": "q", "type": "traffic", "animated": True, "data": { "kind": "queue" } }
+        ]
+    },
+    {
+        "id": "youtube",
+        "name": "YouTube Architecture",
+        "nodes": [
+            { "id": "c", "type": "infra", "position": { "x": 40, "y": 260 }, "data": { "kind": "client", "label": "Client", "category": "Client" } },
+            { "id": "cdn", "type": "infra", "position": { "x": 260, "y": 140 }, "data": { "kind": "cdn", "label": "CDN", "category": "Network" } },
+            { "id": "gw", "type": "infra", "position": { "x": 260, "y": 380 }, "data": { "kind": "api-gateway", "label": "Gateway", "category": "Network" } },
+            { "id": "up", "type": "infra", "position": { "x": 500, "y": 140 }, "data": { "kind": "microservice", "label": "Upload", "category": "Application" } },
+            { "id": "watch", "type": "infra", "position": { "x": 500, "y": 380 }, "data": { "kind": "microservice", "label": "Watch Service", "category": "Application" } },
+            { "id": "trans", "type": "infra", "position": { "x": 500, "y": 620 }, "data": { "kind": "microservice", "label": "Transcoder", "category": "Application" } },
+            { "id": "db", "type": "infra", "position": { "x": 760, "y": 380 }, "data": { "kind": "mysql", "label": "MySQL", "category": "Data" } },
+            { "id": "es", "type": "infra", "position": { "x": 760, "y": 620 }, "data": { "kind": "elasticsearch", "label": "Search", "category": "Data" } },
+            { "id": "k", "type": "infra", "position": { "x": 1000, "y": 380 }, "data": { "kind": "kafka", "label": "Kafka", "category": "Messaging" } }
+        ],
+        "edges": [
+            { "id": "c-cdn", "source": "c", "target": "cdn", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "c-gw", "source": "c", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-up", "source": "gw", "target": "up", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-watch", "source": "gw", "target": "watch", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "up-trans", "source": "up", "target": "trans", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "watch-db", "source": "watch", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "watch-es", "source": "watch", "target": "es", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "trans-k", "source": "trans", "target": "k", "type": "traffic", "animated": True, "data": { "kind": "event" } }
+        ]
+    },
+    {
+        "id": "ai-saas",
+        "name": "AI SaaS Platform",
+        "nodes": [
+            { "id": "c", "type": "infra", "position": { "x": 40, "y": 260 }, "data": { "kind": "client", "label": "Client", "category": "Client" } },
+            { "id": "gw", "type": "infra", "position": { "x": 260, "y": 260 }, "data": { "kind": "api-gateway", "label": "Gateway", "category": "Network" } },
+            { "id": "orch", "type": "infra", "position": { "x": 500, "y": 260 }, "data": { "kind": "microservice", "label": "Orchestrator", "category": "Application" } },
+            { "id": "llm", "type": "infra", "position": { "x": 740, "y": 140 }, "data": { "kind": "llm", "label": "LLM Service", "category": "AI" } },
+            { "id": "emb", "type": "infra", "position": { "x": 740, "y": 380 }, "data": { "kind": "embedding", "label": "Embeddings", "category": "AI" } },
+            { "id": "vdb", "type": "infra", "position": { "x": 980, "y": 380 }, "data": { "kind": "vector-db", "label": "Vector DB", "category": "AI" } },
+            { "id": "r", "type": "infra", "position": { "x": 980, "y": 140 }, "data": { "kind": "redis", "label": "Redis", "category": "Data" } },
+            { "id": "db", "type": "infra", "position": { "x": 1220, "y": 260 }, "data": { "kind": "postgresql", "label": "Postgres", "category": "Data" } }
+        ],
+        "edges": [
+            { "id": "c-gw", "source": "c", "target": "gw", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "gw-orch", "source": "gw", "target": "orch", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "orch-llm", "source": "orch", "target": "llm", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "orch-emb", "source": "orch", "target": "emb", "type": "traffic", "animated": True, "data": { "kind": "request" } },
+            { "id": "emb-vdb", "source": "emb", "target": "vdb", "type": "traffic", "animated": True, "data": { "kind": "database" } },
+            { "id": "orch-r", "source": "orch", "target": "r", "type": "traffic", "animated": True, "data": { "kind": "cache" } },
+            { "id": "orch-db", "source": "orch", "target": "db", "type": "traffic", "animated": True, "data": { "kind": "database" } }
         ]
     }
 ]
@@ -247,6 +387,8 @@ class AdminController:
     # ─── SYSTEM DESIGN TEMPLATES ───────────────────────────────────────────
     @staticmethod
     async def list_system_design_templates():
+        new_ids = [t["id"] for t in DEFAULT_SYSTEM_DESIGN_TEMPLATES]
+        await db.system_design_templates.delete_many({"id": {"$nin": new_ids}})
         for t in DEFAULT_SYSTEM_DESIGN_TEMPLATES:
             await db.system_design_templates.update_one({"id": t["id"]}, {"$set": t}, upsert=True)
         cursor = db.system_design_templates.find({}, {"_id": 0})
