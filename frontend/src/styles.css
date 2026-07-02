@@ -151,6 +151,10 @@
     border-color: var(--color-border);
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   html,
   body {
     font-family: var(--font-sans);
@@ -161,6 +165,10 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+  }
+
+  section[id] {
+    scroll-margin-top: 5rem;
   }
 
   code,

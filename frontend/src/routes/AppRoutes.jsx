@@ -8,6 +8,15 @@ import LoginPage from "@/pages/login";
 import SignupPage from "@/pages/signup";
 import ForgotPage from "@/pages/forgot";
 import RecruiterPage from "@/pages/recruiter";
+import AboutPage from "@/pages/about";
+import BlogPage from "@/pages/blog";
+import ContactPage from "@/pages/contact";
+import ChangelogPage from "@/pages/changelog";
+import StatusPage from "@/pages/status";
+import SecurityPage from "@/pages/security";
+import PrivacyPage from "@/pages/privacy";
+import TermsPage from "@/pages/terms";
+import CookiesPage from "@/pages/cookies";
 
 // Onboarding
 import OnboardingPage from "@/pages/app/Onboarding";
@@ -50,6 +59,42 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <IndexPage />,
+  },
+  {
+    path: "/about",
+    element: <AboutPage />,
+  },
+  {
+    path: "/blog",
+    element: <BlogPage />,
+  },
+  {
+    path: "/contact",
+    element: <ContactPage />,
+  },
+  {
+    path: "/changelog",
+    element: <ChangelogPage />,
+  },
+  {
+    path: "/status",
+    element: <StatusPage />,
+  },
+  {
+    path: "/security",
+    element: <SecurityPage />,
+  },
+  {
+    path: "/privacy",
+    element: <PrivacyPage />,
+  },
+  {
+    path: "/terms",
+    element: <TermsPage />,
+  },
+  {
+    path: "/cookies",
+    element: <CookiesPage />,
   },
   {
     path: "/recruiter",
