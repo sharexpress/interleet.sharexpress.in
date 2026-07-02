@@ -355,6 +355,129 @@ function getStarter(slug, lang, dbChallenge) {
   return STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
 }
 
+function parseItalic(text) {
+  const italicRegex = /\*([^*]+)\*/g;
+  let match;
+  let lastIndex = 0;
+  const parts = [];
+  while ((match = italicRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(<em key={`i-${match.index}`} className="italic">{match[1]}</em>);
+    lastIndex = italicRegex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts.length > 0 ? parts : text;
+}
+
+function parseInlineMarkdown(text) {
+  const codeRegex = /`([^`]+)`/g;
+  let match;
+  let lastIndex = 0;
+  const tokens = [];
+  while ((match = codeRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({ type: 'text', content: text.slice(lastIndex, match.index) });
+    }
+    tokens.push({ type: 'code', content: match[1] });
+    lastIndex = codeRegex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    tokens.push({ type: 'text', content: text.slice(lastIndex) });
+  }
+  if (tokens.length === 0) {
+    tokens.push({ type: 'text', content: text });
+  }
+  return tokens.map((token, tIdx) => {
+    if (token.type === 'code') {
+      return (
+        <code key={tIdx} className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-[11px] text-amber-500 font-semibold border border-zinc-700/50">
+          {token.content}
+        </code>
+      );
+    }
+    let txt = token.content;
+    const subParts = [];
+    const boldRegex = /\*\*([^*]+)\*\*/g;
+    let bMatch;
+    let bLastIndex = 0;
+    while ((bMatch = boldRegex.exec(txt)) !== null) {
+      if (bMatch.index > bLastIndex) {
+        subParts.push(parseItalic(txt.slice(bLastIndex, bMatch.index)));
+      }
+      subParts.push(<strong key={`b-${bMatch.index}`} className="font-semibold text-foreground">{bMatch[1]}</strong>);
+      bLastIndex = boldRegex.lastIndex;
+    }
+    if (bLastIndex < txt.length) {
+      subParts.push(parseItalic(txt.slice(bLastIndex)));
+    }
+    return subParts.length > 0 ? subParts : txt;
+  });
+}
+
+function renderMarkdown(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return lines.map((line, idx) => {
+    if (line.startsWith('### ')) {
+      return (
+        <h3 key={idx} className="mt-5 mb-2 text-sm font-semibold text-foreground flex items-center gap-1.5">
+          {parseInlineMarkdown(line.slice(4))}
+        </h3>
+      );
+    }
+    if (line.startsWith('## ')) {
+      return (
+        <h2 key={idx} className="mt-6 mb-3 text-base font-bold text-foreground">
+          {parseInlineMarkdown(line.slice(3))}
+        </h2>
+      );
+    }
+    if (line.startsWith('# ')) {
+      return (
+        <h1 key={idx} className="mt-7 mb-4 text-lg font-extrabold text-foreground">
+          {parseInlineMarkdown(line.slice(2))}
+        </h1>
+      );
+    }
+    if (line.trim().startsWith('- ')) {
+      return (
+        <ul key={idx} className="list-disc pl-5 my-1 text-muted-foreground">
+          <li>{parseInlineMarkdown(line.trim().slice(2))}</li>
+        </ul>
+      );
+    }
+    if (line.startsWith('|')) {
+      if (line.includes('---')) {
+        return null;
+      }
+      const cells = line.split('|').slice(1, -1).map(c => c.trim());
+      const isHeader = idx === 0 || (lines[idx - 1] && lines[idx - 1].trim() === '') || idx === 2; // naive check
+      return (
+        <div key={idx} className={`flex border-b border-border/40 py-2 text-xs ${isHeader ? 'font-semibold text-foreground bg-card/25' : 'text-muted-foreground'}`}>
+          {cells.map((cell, cIdx) => (
+            <div key={cIdx} className="flex-1 px-3">
+              {parseInlineMarkdown(cell)}
+            </div>
+          ))}
+        </div>
+      );
+    }
+    if (line.trim() === '') {
+      return <div key={idx} className="h-2" />;
+    }
+    return (
+      <p key={idx} className="my-2 text-muted-foreground leading-relaxed">
+        {parseInlineMarkdown(line)}
+      </p>
+    );
+  });
+}
+
+
 
 // ─── Sandboxed JS/TS runner ───────────────────────────────────────────────────
 
@@ -1054,7 +1177,11 @@ function EditorPage() {
             </div>
             <div className="flex-1 overflow-auto px-4 py-4 text-sm leading-relaxed text-foreground/90">
               <p>{c.summary}</p>
-              {c.description && <p className="mt-3 text-muted-foreground">{c.description}</p>}
+              {c.description && (
+                <div className="mt-4 space-y-1 text-muted-foreground">
+                  {renderMarkdown(c.description)}
+                </div>
+              )}
               {c.test_cases?.filter((t) => !t.hidden).length > 0 && (
                 <>
                   <h3 className="mt-5 text-sm font-semibold">Examples</h3>
