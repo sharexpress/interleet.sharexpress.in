@@ -235,130 +235,206 @@ function Dashboard() {
           />
         </div>
 
-        {/* CHARTS */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="border-border bg-card p-5 lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold">Weekly activity</h3>
-                <p className="text-xs text-muted-foreground">
-                  Challenges solved and minutes practiced.
-                </p>
-              </div>
-              <Badge variant="outline" className="font-mono text-[10px]">
-                7d
-              </Badge>
-            </div>
-
-            <div className="h-64">
-              {isReady ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeWeekly}>
-                    <CartesianGrid
-                      stroke="var(--color-border)"
-                      strokeDasharray="3 3"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="day"
-                      stroke="var(--color-muted-foreground)"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke="var(--color-muted-foreground)"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--color-card)",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Bar dataKey="solved" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl p-4 flex flex-col justify-end gap-3 animate-pulse">
-                  <div className="flex items-end justify-between gap-3 h-full px-2">
-                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[40%]" />
-                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[70%]" />
-                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[50%]" />
-                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[90%]" />
-                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[30%]" />
-                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[60%]" />
-                    <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[80%]" />
-                  </div>
+        {/* MAIN DASHBOARD CONTENT GRID */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* LEFT PANEL */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Weekly activity */}
+            <Card className="border-border bg-card p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold">Weekly activity</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Challenges solved and minutes practiced.
+                  </p>
                 </div>
-              )}
-            </div>
-          </Card>
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  7d
+                </Badge>
+              </div>
 
-          <Card className="border-border bg-card p-5">
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold">Domain strengths</h3>
-              <p className="text-xs text-muted-foreground">Skill across the engineering stack.</p>
-            </div>
-
-            <div className="h-64">
-              {isReady ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={domainData}>
-                    <PolarGrid stroke="var(--color-border)" />
-                    <PolarAngleAxis
-                      dataKey="domain"
-                      tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
-                    />
-                    <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 100]} />
-                    <Radar
-                      dataKey="score"
-                      stroke="var(--color-primary)"
-                      fill="var(--color-primary)"
-                      fillOpacity={0.25}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl flex items-center justify-center animate-pulse">
-                  <div className="relative w-36 h-36 rounded-full border border-dashed border-zinc-800/80 flex items-center justify-center">
-                    <div className="w-24 h-24 rounded-full border border-dashed border-zinc-800/60 flex items-center justify-center">
-                      <div className="w-12 h-12 rounded-full bg-zinc-850 dark:bg-zinc-800/80" />
+              <div className="h-64">
+                {isReady ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={activeWeekly}>
+                      <CartesianGrid
+                        stroke="var(--color-border)"
+                        strokeDasharray="3 3"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="day"
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--color-card)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Bar dataKey="solved" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl p-4 flex flex-col justify-end gap-3 animate-pulse">
+                    <div className="flex items-end justify-between gap-3 h-full px-2">
+                      <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[40%]" />
+                      <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[70%]" />
+                      <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[50%]" />
+                      <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[90%]" />
+                      <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[30%]" />
+                      <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[60%]" />
+                      <div className="w-full bg-zinc-850 dark:bg-zinc-800 rounded-t h-[80%]" />
                     </div>
                   </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Recommended for you */}
+            <div>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold">Recommended for you</h3>
+                <Link
+                  to="/app/challenges"
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  See all
+                  <ChevronRight className="ml-0.5 inline h-3 w-3" />
+                </Link>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {activeChallenges.slice(0, 4).map((challenge) => (
+                  <ChallengeCard key={challenge.id} c={challenge} />
+                ))}
+              </div>
+            </div>
+
+            {/* Interview score trend */}
+            <Card className="border-border bg-card p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold">Interview score trend</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Rolling average across all sessions.
+                  </p>
                 </div>
-              )}
-            </div>
-          </Card>
-        </div>
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  90d
+                </Badge>
+              </div>
 
-        {/* RECOMMENDED */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Recommended for you</h3>
-              <Link
-                to="/app/challenges"
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                See all
-                <ChevronRight className="ml-0.5 inline h-3 w-3" />
-              </Link>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {activeChallenges.slice(0, 4).map((challenge) => (
-                <ChallengeCard key={challenge.id} c={challenge} />
-              ))}
-            </div>
+              <div className="h-56">
+                {!isReady ? (
+                  <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl p-4 flex flex-col justify-between animate-pulse">
+                    <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
+                    <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
+                    <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
+                    <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
+                  </div>
+                ) : activeInterviewTrend.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center border border-dashed border-border rounded bg-zinc-950/20 p-4 text-center">
+                    <p className="text-xs text-muted-foreground font-mono">No mock interviews completed yet.</p>
+                    <p className="text-[10px] text-zinc-500 font-mono mt-1">Practice mock interviews to plot your score trends!</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={activeInterviewTrend}
+                    >
+                      <CartesianGrid
+                        stroke="var(--color-border)"
+                        strokeDasharray="3 3"
+                        vertical={false}
+                      />
+                      <XAxis
+                        dataKey="d"
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        stroke="var(--color-muted-foreground)"
+                        fontSize={11}
+                        tickLine={false}
+                        axisLine={false}
+                        domain={[40, 100]}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--color-card)",
+                          border: "1px solid var(--color-border)",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="s"
+                        stroke="var(--color-primary)"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </Card>
           </div>
 
-          <div className="space-y-4">
-            {/* Daily Quests Card */}
+          {/* RIGHT PANEL */}
+          <div className="space-y-6">
+            {/* Domain strengths */}
+            <Card className="border-border bg-card p-5">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold">Domain strengths</h3>
+                <p className="text-xs text-muted-foreground">Skill across the engineering stack.</p>
+              </div>
+
+              <div className="h-64">
+                {isReady ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={domainData}>
+                      <PolarGrid stroke="var(--color-border)" />
+                      <PolarAngleAxis
+                        dataKey="domain"
+                        tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
+                      />
+                      <PolarRadiusAxis tick={false} axisLine={false} domain={[0, 100]} />
+                      <Radar
+                        dataKey="score"
+                        stroke="var(--color-primary)"
+                        fill="var(--color-primary)"
+                        fillOpacity={0.25}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl flex items-center justify-center animate-pulse">
+                    <div className="relative w-36 h-36 rounded-full border border-dashed border-zinc-800/80 flex items-center justify-center">
+                      <div className="w-24 h-24 rounded-full border border-dashed border-zinc-800/60 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-zinc-850 dark:bg-zinc-800/80" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Daily Quests */}
             <Card className="border-border bg-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-white">Daily Quests</h3>
@@ -391,7 +467,7 @@ function Dashboard() {
               </ul>
             </Card>
 
-            {/* Recent Activity Card */}
+            {/* Recent activity */}
             <Card className="border-border bg-card p-5 shadow-sm">
               <h3 className="mb-4 text-sm font-semibold">Recent activity</h3>
               <ul className="space-y-2">
@@ -485,104 +561,31 @@ function Dashboard() {
                 <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
               </Button>
             </Card>
-          </div>
-        </div>
 
-        {/* INTERVIEW + BADGES */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="border-border bg-card p-5 lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold">Interview score trend</h3>
-                <p className="text-xs text-muted-foreground">
-                  Rolling average across all sessions.
-                </p>
-              </div>
-              <Badge variant="outline" className="font-mono text-[10px]">
-                90d
-              </Badge>
-            </div>
-
-             <div className="h-56">
-              {!isReady ? (
-                <div className="h-full w-full bg-zinc-900/10 dark:bg-zinc-900/40 rounded-xl p-4 flex flex-col justify-between animate-pulse">
-                  <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
-                  <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
-                  <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
-                  <div className="w-full h-px bg-zinc-850 dark:bg-zinc-850/50" />
-                </div>
-              ) : activeInterviewTrend.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center border border-dashed border-border rounded bg-zinc-950/20 p-4 text-center">
-                  <p className="text-xs text-muted-foreground font-mono">No mock interviews completed yet.</p>
-                  <p className="text-[10px] text-zinc-500 font-mono mt-1">Practice mock interviews to plot your score trends!</p>
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={activeInterviewTrend}
+            {/* Badges & achievements */}
+            <Card className="border-border bg-card p-5">
+              <h3 className="mb-3 text-sm font-semibold">Badges & achievements</h3>
+              <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+                {Array.from(new Set(activeUser.badges || [])).map((badge) => (
+                  <div
+                    key={badge}
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs text-foreground/80 transition-all hover:border-primary/30"
                   >
-                    <CartesianGrid
-                      stroke="var(--color-border)"
-                      strokeDasharray="3 3"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="d"
-                      stroke="var(--color-muted-foreground)"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      stroke="var(--color-muted-foreground)"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                      domain={[40, 100]}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--color-card)",
-                        border: "1px solid var(--color-border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="s"
-                      stroke="var(--color-primary)"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </Card>
-
-          <Card className="border-border bg-card p-5">
-            <h3 className="mb-3 text-sm font-semibold">Badges & achievements</h3>
-            <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto pr-1">
-              {Array.from(new Set(activeUser.badges || [])).map((badge) => (
-                <div
-                  key={badge}
-                  className="flex items-center gap-1.5 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs text-foreground/80 transition-all hover:border-primary/30"
-                >
-                  <Award className="h-3 w-3 text-primary" />
-                  <span>{badge}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4">
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Next badge: Top 5% APIs</span>
-                <span className="font-mono">82/100</span>
+                    <Award className="h-3 w-3 text-primary" />
+                    <span>{badge}</span>
+                  </div>
+                ))}
               </div>
-              <Progress value={82} />
-            </div>
-          </Card>
+
+              <div className="mt-4">
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Next badge: Top 5% APIs</span>
+                  <span className="font-mono">82/100</span>
+                </div>
+                <Progress value={82} />
+              </div>
+            </Card>
+          </div>
         </div>
       </div>
     </AppShell>
