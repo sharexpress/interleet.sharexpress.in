@@ -2231,7 +2231,7 @@ export default function SystemDesignSimulator() {
 
   const loadSystemDesign = useCallback(async () => {
     try {
-      const response = await API.get("/system-design");
+      const response = await API.get("/api/system-design");
       if (response.data.challenges) setCustomChallenges(response.data.challenges);
       if (response.data.templates) setCustomTemplates(response.data.templates);
       if (response.data.userProgress) setUserProgress(response.data.userProgress);
@@ -2396,7 +2396,7 @@ function Workspace({ challenge, template, userCanvas, onExit }) {
 
     autoSaveTimeoutRef.current = setTimeout(async () => {
       try {
-        await API.post("/system-design/canvas", {
+        await API.post("/api/system-design/canvas", {
           challenge_id: challenge.id,
           nodes,
           edges,
@@ -2425,7 +2425,7 @@ function Workspace({ challenge, template, userCanvas, onExit }) {
     const autoStart = async () => {
       if (challenge && challenge.id && (challenge.progress === "Not Started" || !challenge.progress)) {
         try {
-          const response = await API.post("/system-design/progress", {
+          const response = await API.post("/api/system-design/progress", {
             challenge_id: challenge.id,
             progress: "In Progress"
           });
@@ -2443,7 +2443,7 @@ function Workspace({ challenge, template, userCanvas, onExit }) {
   const handleToggleCompletion = async () => {
     const nextProgress = currentProgress === "Completed" ? "In Progress" : "Completed";
     try {
-      const response = await API.post("/system-design/progress", {
+      const response = await API.post("/api/system-design/progress", {
         challenge_id: challenge.id,
         progress: nextProgress
       });
