@@ -1,17 +1,33 @@
 
 import { Logo } from "@/components/brand/Logo";
+import { useState, useEffect } from "react";
+import { API } from "@/api/api";
+import { Link } from "react-router-dom";
 
 export function AuthShell({
   title,
   subtitle,
   children,
   footer
-
-
-
-
-
 }) {
+  const [challengeCount, setChallengeCount] = useState(null);
+
+  useEffect(() => {
+    API.get("/api/public/stats")
+      .then((res) => {
+        if (res.data && typeof res.data.total_challenges === "number") {
+          setChallengeCount(res.data.total_challenges);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching public stats:", err);
+      });
+  }, []);
+
+  const challengeText = challengeCount !== null
+    ? `${challengeCount.toLocaleString()} production-style challenges`
+    : "12,000+ production-style challenges";
+
   return (
     <div className="grid min-h-screen bg-background md:grid-cols-2">
       <div className="flex flex-col px-6 py-8 md:px-12">
@@ -25,8 +41,8 @@ export function AuthShell({
         </div>
         <p className="text-xs text-muted-foreground">
           © 2026 Interleet, Inc. ·{" "}
-          <a href="#" className="hover:text-foreground">Privacy</a> ·{" "}
-          <a href="#" className="hover:text-foreground">Terms</a>
+          <Link to="/privacy" className="hover:text-foreground">Privacy</Link> ·{" "}
+          <Link to="/terms" className="hover:text-foreground">Terms</Link>
         </p>
       </div>
       <div className="relative hidden overflow-hidden border-l border-border bg-card/40 md:block">
@@ -47,15 +63,15 @@ export function AuthShell({
             </p>
             <div className="mt-8 space-y-2">
               {[
-              "12,000+ production-style challenges",
-              "AI mock interviews with full transcripts",
-              "Verified skill badges for hiring teams"].
-              map((x) =>
-              <div key={x} className="flex items-start gap-2 text-sm">
+                challengeText,
+                "AI mock interviews with full transcripts",
+                "Verified skill badges for hiring teams"
+              ].map((x) => (
+                <div key={x} className="flex items-start gap-2 text-sm">
                   <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary" />
                   <span className="text-foreground/85">{x}</span>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         </div>
