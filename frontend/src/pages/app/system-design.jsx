@@ -2147,10 +2147,6 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
                       <Clock className="h-3.5 w-3.5" />
                       {ch.duration}
                     </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" />
-                      {ch.attempts.toLocaleString()}
-                    </span>
                     <span className="inline-flex items-center gap-1.5">
                       {ch.progress === "Completed" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
                       {ch.progress === "In Progress" && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
@@ -2207,10 +2203,6 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
                     <span className="inline-flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
                       {t.duration || "Self-paced"}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" />
-                      {(t.attempts || 0).toLocaleString()}
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       {t.progress === "Completed" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
