@@ -903,7 +903,47 @@ class PlatformController:
 
     @staticmethod
     async def candidates():
-        return {"items": CANDIDATES}
+        cursor = db.users.find({"role": "user"})
+        candidates_list = []
+        async for u in cursor:
+            # Determine their top domain track based on individual ratings
+            ratings = {
+                "Backend": u.get("backend_rating", 0) or 0,
+                "Frontend": u.get("frontend_rating", 0) or 0,
+                "DevOps": u.get("devops_rating", 0) or 0,
+                "System Design": u.get("system_design_rating", 0) or 0,
+                "Databases": u.get("database_rating", 0) or 0,
+                "APIs": u.get("api_rating", 0) or 0,
+            }
+            top_track = max(ratings, key=ratings.get) if any(ratings.values()) else "Backend"
+
+            # Retrieve database domain strengths
+            ds = u.get("domain_strengths") or {}
+            if hasattr(ds, "dict"):
+                ds = ds.dict()
+            elif not isinstance(ds, dict):
+                ds = {}
+
+            technical = ds.get("backend", 0) or ds.get("frontend", 0) or ds.get("fullstack", 0) or 75
+            system_design = ds.get("system_design", 0) or 70
+            communication = int(u.get("average_interview_score", 0) or 80)
+
+            candidates_list.append({
+                "name": u.get("full_name") or u.get("username") or "Anonymous Engineer",
+                "username": u.get("username") or "",
+                "rating": u.get("overall_rating", 1200) or 1200,
+                "top": top_track,
+                "verified": u.get("is_verified", False),
+                "location": u.get("location") or u.get("country") or "Remote",
+                "technical": technical,
+                "systemDesign": system_design,
+                "communication": communication
+            })
+
+        if not candidates_list:
+            candidates_list = CANDIDATES
+
+        return {"items": candidates_list}
 
     @staticmethod
     async def ai_evaluation(username: str | None = None, force_refresh: bool = False):

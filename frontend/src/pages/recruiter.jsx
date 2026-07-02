@@ -257,10 +257,10 @@ function Recruiter() {
                   </p>
                 ) : (
                   selectedCandidates.map((c) => {
-                    // Generate dynamic metrics scores mapped to candidate ratings
-                    const technical = Math.min(100, Math.max(50, Math.round((c.rating / 3000) * 100)));
-                    const communication = Math.min(100, Math.max(50, Math.round(75 + (c.rating % 20))));
-                    const systemDesign = Math.min(100, Math.max(50, Math.round(70 + (c.rating % 25))));
+                    // Prefer dynamic backend database metrics when available, else fall back to rating formulas
+                    const technical = c.technical || Math.min(100, Math.max(50, Math.round((c.rating / 3000) * 100)));
+                    const communication = c.communication || Math.min(100, Math.max(50, Math.round(75 + (c.rating % 20))));
+                    const systemDesign = c.systemDesign || Math.min(100, Math.max(50, Math.round(70 + (c.rating % 25))));
                     
                     const scoreList = [
                       ["Technical Depth", technical],
