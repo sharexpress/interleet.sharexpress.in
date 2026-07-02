@@ -16,7 +16,7 @@ import UpgradeModal from "@/components/UpgradeModal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, SlidersHorizontal, LayoutGrid, List as ListIcon, RefreshCw, Lock } from "lucide-react";
+import { Search, SlidersHorizontal, LayoutGrid, List as ListIcon, RefreshCw, Lock, Shuffle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -150,6 +150,14 @@ function ChallengesPage() {
     }
   };
 
+  const handleRandomChallenge = () => {
+    const list = displayedItems.length > 0 ? displayedItems : items;
+    if (!list || list.length === 0) return;
+    const randomIndex = Math.floor(Math.random() * list.length);
+    const randomChallenge = list[randomIndex];
+    openChallenge(randomChallenge);
+  };
+
   // ── Loading state ──────────────────────────────────────────────────────────
   if (loading && displayedItems.length === 0) {
     return (
@@ -236,7 +244,13 @@ function ChallengesPage() {
                 </span>
               )}
             </Button>
-            <Button>Submit a challenge</Button>
+            <Button 
+              onClick={handleRandomChallenge} 
+              disabled={loading || (displayedItems.length === 0 && items.length === 0)}
+            >
+              <Shuffle className="mr-1.5 h-4 w-4" />
+              Random Challenge
+            </Button>
           </>
         }
       />
