@@ -48,6 +48,12 @@ function ChallengesPage() {
   const [sort, setSort] = useState("popular");
   const [view, setView] = useState("grid");
 
+  // Advanced filters state
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [premiumFilter, setPremiumFilter] = useState("all"); // "all", "free", "premium"
+  const [timeFilter, setTimeFilter] = useState("all"); // "all", "quick", "medium", "extended"
+  const [beginnerFilter, setBeginnerFilter] = useState("all"); // "all", "beginner"
+
   // Displayed items state to support local filtering or backend results
   const [displayedItems, setDisplayedItems] = useState([]);
 
@@ -61,26 +67,55 @@ function ChallengesPage() {
     return () => clearTimeout(handler);
   }, [q]);
 
-  // Sync displayed items locally based on query matching
+  // Sync displayed items locally based on query, domain, difficulty, and advanced filters
   useEffect(() => {
+    let filtered = [...items];
+
+    // 1. Search Query
     const term = q.trim().toLowerCase();
-    if (!term) {
-      setDisplayedItems(items);
-      return;
+    if (term) {
+      filtered = filtered.filter((c) => {
+        const haystack = `${c.title} ${(c.tags || []).join(" ")} ${c.summary || ""}`.toLowerCase();
+        return haystack.includes(term);
+      });
     }
 
-    const localMatches = items.filter((c) => {
-      const haystack = `${c.title} ${(c.tags || []).join(" ")} ${c.summary || ""}`.toLowerCase();
-      return haystack.includes(term);
-    });
-
-    if (localMatches.length > 0) {
-      setDisplayedItems(localMatches);
-    } else {
-      // Clear displayed items to show a loading state while fetching from backend
-      setDisplayedItems([]);
+    // 2. Domain matching
+    if (domain !== "all") {
+      filtered = filtered.filter((c) => c.domain === domain);
     }
-  }, [items, q]);
+
+    // 3. Difficulty matching
+    if (diff !== "all") {
+      filtered = filtered.filter((c) => c.difficulty === diff);
+    }
+
+    // 4. Premium/Free filter
+    if (premiumFilter === "free") {
+      filtered = filtered.filter((c) => !c.is_premium);
+    } else if (premiumFilter === "premium") {
+      filtered = filtered.filter((c) => c.is_premium);
+    }
+
+    // 5. Estimated Time duration filter (resilient for minutes / estimated_time_minutes keys)
+    if (timeFilter === "quick") {
+      filtered = filtered.filter((c) => (c.minutes || c.estimated_time_minutes || 0) < 45);
+    } else if (timeFilter === "medium") {
+      filtered = filtered.filter((c) => {
+        const m = c.minutes || c.estimated_time_minutes || 0;
+        return m >= 45 && m <= 90;
+      });
+    } else if (timeFilter === "extended") {
+      filtered = filtered.filter((c) => (c.minutes || c.estimated_time_minutes || 0) > 90);
+    }
+
+    // 6. Target Audience filter
+    if (beginnerFilter === "beginner") {
+      filtered = filtered.filter((c) => c.recommended_for_beginner || c.difficulty === "Easy");
+    }
+
+    setDisplayedItems(filtered);
+  }, [items, q, domain, diff, premiumFilter, timeFilter, beginnerFilter]);
 
   // Fetch challenges from backend only when parameters or debounced query changes
   useEffect(() => {
@@ -176,6 +211,11 @@ function ChallengesPage() {
     );
   }
 
+  const activeFiltersCount = 
+    (premiumFilter !== "all" ? 1 : 0) + 
+    (timeFilter !== "all" ? 1 : 0) + 
+    (beginnerFilter !== "all" ? 1 : 0);
+
   return (
     <AppShell>
       <PageHeader
@@ -183,8 +223,18 @@ function ChallengesPage() {
         description="Real-world engineering problems across the full stack."
         actions={
           <>
-            <Button variant="outline">
-              <SlidersHorizontal className="mr-1.5 h-4 w-4" /> Advanced filters
+            <Button 
+              variant={showAdvanced ? "secondary" : "outline"}
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className={cn(showAdvanced && "bg-accent text-foreground")}
+            >
+              <SlidersHorizontal className="mr-1.5 h-4 w-4" /> 
+              Advanced filters
+              {activeFiltersCount > 0 && (
+                <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-semibold">
+                  {activeFiltersCount}
+                </span>
+              )}
             </Button>
             <Button>Submit a challenge</Button>
           </>
@@ -268,6 +318,67 @@ function ChallengesPage() {
             </div>
           </div>
         </div>
+
+        {/* Collapsible Advanced Filters Panel */}
+        {showAdvanced && (
+          <div className="mt-3 grid gap-4 rounded-xl border border-border bg-card/60 p-4 sm:grid-cols-3 relative animate-in slide-in-from-top-4 duration-200">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Access level</label>
+              <Select value={premiumFilter} onValueChange={setPremiumFilter}>
+                <SelectTrigger className="h-9 w-full bg-background/50 border-border hover:bg-background/80">
+                  <SelectValue placeholder="All Access" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Access</SelectItem>
+                  <SelectItem value="free">Free Only</SelectItem>
+                  <SelectItem value="premium">Premium Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Estimated Time</label>
+              <Select value={timeFilter} onValueChange={setTimeFilter}>
+                <SelectTrigger className="h-9 w-full bg-background/50 border-border hover:bg-background/80">
+                  <SelectValue placeholder="Any duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Any duration</SelectItem>
+                  <SelectItem value="quick">Quick (&lt; 45 mins)</SelectItem>
+                  <SelectItem value="medium">Medium (45 - 90 mins)</SelectItem>
+                  <SelectItem value="extended">Extended (&gt; 90 mins)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 flex flex-col justify-between">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Target Audience</label>
+                <Select value={beginnerFilter} onValueChange={setBeginnerFilter}>
+                  <SelectTrigger className="h-9 w-full bg-background/50 border-border hover:bg-background/80">
+                    <SelectValue placeholder="All Skill Levels" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Skill Levels</SelectItem>
+                    <SelectItem value="beginner">Beginner Friendly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {activeFiltersCount > 0 && (
+                <button 
+                  onClick={() => {
+                    setPremiumFilter("all");
+                    setTimeFilter("all");
+                    setBeginnerFilter("all");
+                  }}
+                  className="mt-2 text-right text-xs text-primary hover:underline self-end"
+                >
+                  Reset Advanced Filters
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Domain pills */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
