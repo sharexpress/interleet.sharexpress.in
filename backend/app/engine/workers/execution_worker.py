@@ -275,6 +275,14 @@ class ExecutionWorker:
                 ExecutionStatus.FAILED,
                 {"error": str(exc)},
             )
+            failed_result = {
+                "success": False,
+                "submission_id": submission_id,
+                "status": ExecutionStatus.FAILED.value,
+                "verdict": Verdict.INTERNAL_ERROR.value,
+                "error": str(exc),
+            }
+            await self.queue.store_result(submission_id, failed_result)
             await self._save_failed(job, str(exc))
 
     # ─── Internal Helpers ──────────────────────────────────────────────────
