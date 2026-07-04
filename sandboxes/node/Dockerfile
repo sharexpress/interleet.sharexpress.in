@@ -11,7 +11,7 @@ ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
 # Install common modules in the root /node_modules via a temp directory
 WORKDIR /tmp/deps
 RUN npm init -y && \
-    npm install lodash axios redis ws uuid && \
+    npm install lodash axios redis ws uuid jsdom && \
     mv node_modules /node_modules && \
     cd / && rm -rf /tmp/deps
 

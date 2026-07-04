@@ -47,7 +47,32 @@ function LoginPage() {
 
   const [cooldown, setCooldown] = useState(0);
 
+  const [isWebView, setIsWebView] = useState(false);
+
   const inputRefs = useRef([]);
+
+  useEffect(() => {
+    const ua = window.navigator.userAgent || window.navigator.vendor || window.opera;
+    const isUAWebView = (
+      (ua.indexOf("FBAN") > -1) ||
+      (ua.indexOf("FBAV") > -1) ||
+      (ua.indexOf("Instagram") > -1) ||
+      (ua.indexOf("Threads") > -1) ||
+      (ua.indexOf("Twitter") > -1) ||
+      (ua.indexOf("Pinterest") > -1) ||
+      (ua.indexOf("Snapchat") > -1) ||
+      (ua.indexOf("Line") > -1) ||
+      (ua.indexOf("Discord") > -1) ||
+      (ua.indexOf("Slack") > -1) ||
+      (ua.indexOf("LinkedIn") > -1) ||
+      (ua.indexOf("GSA") > -1) ||
+      (ua.indexOf("WebView") > -1) ||
+      (ua.indexOf("wv") > -1) ||
+      (ua.indexOf("Android") > -1 && ua.indexOf("Version/") > -1) ||
+      (ua.indexOf("iPhone") > -1 && !(ua.indexOf("Safari") > -1) && !(ua.indexOf("Chrome") > -1))
+    );
+    setIsWebView(isUAWebView);
+  }, []);
 
   /* ── SEO ──────────────────────────────────────────── */
   useEffect(() => {
@@ -191,6 +216,23 @@ function LoginPage() {
     >
       {authStep === "email" && (
         <>
+          {isWebView && (
+            <div className="mb-4 rounded-lg border border-rose-500/30 bg-rose-950/20 p-3 text-xs text-rose-200">
+              <div className="flex items-start gap-2">
+                <span className="text-sm">⚠️</span>
+                <div>
+                  <p className="font-semibold text-rose-400">In-App Browser Detected</p>
+                  <p className="mt-0.5 opacity-90 leading-normal font-sans">
+                    Google restricts sign-ins from inside embedded browsers (like Telegram, Discord, Instagram, or LinkedIn).
+                  </p>
+                  <p className="mt-1 font-medium text-white font-sans">
+                    Please tap the menu button (...) and select "Open in Safari" or "Open in Chrome" to authenticate successfully.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
             {/* GITHUB */}
 
@@ -209,7 +251,15 @@ function LoginPage() {
             <Button
               variant="outline"
               type="button"
-              onClick={() => dispatch(googleLogin())}
+              onClick={() => {
+                if (isWebView) {
+                  toast.error("Google Sign-In is blocked in this app. Please open in Safari or Chrome.", {
+                    duration: 6000,
+                  });
+                  return;
+                }
+                dispatch(googleLogin());
+              }}
               className="w-full border order-[0.1px] border-zinc-700 bg-zinc-950 text-white transition-all duration-200 ease-out hover:border-zinc-600 hover:bg-zinc-900 active:scale-[0.98]"
             >
               <img src={google} alt="Google" className="mr-2 h-4 w-4 object-contain" />

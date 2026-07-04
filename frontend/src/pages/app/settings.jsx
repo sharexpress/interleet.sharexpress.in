@@ -18,7 +18,7 @@ import {
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { toast } from "sonner";
-import { GetCurrentUser } from "@/redux/slices/userSlice";
+import { GetCurrentUser, clearUser } from "@/redux/slices/userSlice";
 import { API } from "@/api/api";
 
 const getDivisionTier = (rating, rank) => {
@@ -648,6 +648,7 @@ function LeaderboardCardPreview({ formState, user, profileData }) {
 /* 2. ACCOUNT SECTION                                                         */
 /* ────────────────────────────────────────────────────────────────────────── */
 function AccountSection() {
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.user);
   const [googleConnected, setGoogleConnected] = useState(user?.auth_provider === "google");
   const [githubConnected, setGithubConnected] = useState(user?.auth_provider === "github");
@@ -689,21 +690,37 @@ function AccountSection() {
       const res = await API.delete("/api/settings/account");
       if (res.data && res.data.success) {
         toast.success("Account deactivated successfully. Redirecting...");
-        // Terminate the local session by calling logout
-        await API.post("/api/auth/logout");
+        // Clear Redux state locally immediately to prevent race conditions
+        dispatch(clearUser());
+        // Terminate the local session by calling logout (may fail if user doc is deleted, swallow gracefully)
+        try {
+          await API.post("/api/auth/logout");
+        } catch (logoutErr) {
+          console.warn("Logout request failed (expected as user is deleted):", logoutErr);
+        }
         setTimeout(() => {
-          window.location.href = "/auth/login";
+          window.location.href = "/login";
         }, 1500);
+      } else {
+        setDeactivating(false);
       }
     } catch (err) {
       toast.error(err.response?.data?.detail || "Deactivation failed. Please try again.");
-    } finally {
       setDeactivating(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      {deactivating && (
+        <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-black/95 text-white backdrop-blur-md cursor-wait">
+          <RefreshCw className="h-10 w-10 text-red-500 animate-spin mb-4" />
+          <h2 className="text-lg font-bold tracking-tight">Purging your account...</h2>
+          <p className="text-xs text-muted-foreground mt-2">Deleting all database documents, submissions, and reports.</p>
+          <p className="text-xs text-red-500/80 mt-1 animate-pulse">Please do not close this tab or navigate away.</p>
+        </div>
+      )}
+      <div className="space-y-6">
       <div>
         <h2 className="text-xl font-bold text-white">Account Settings</h2>
         <p className="text-xs text-muted-foreground mt-1">
@@ -873,6 +890,7 @@ function AccountSection() {
 
       </div>
     </div>
+    </>
   );
 }
 

@@ -49,7 +49,27 @@ async def get_sessions(user_auth=Depends(UserMiddleware.me)):
     return await SettingsController.get_active_sessions(user_auth["user"])
 
 
+from fastapi import Response
+
 @router.delete("/account")
-async def delete_account(user_auth=Depends(UserMiddleware.me)):
+async def delete_account(response: Response, user_auth=Depends(UserMiddleware.me)):
     """Soft-delete user account. Anonymizes PII and deactivates."""
-    return await SettingsController.delete_account(user_auth["user"])
+    result = await SettingsController.delete_account(user_auth["user"])
+    
+    from app.core.config import PROJECT_ENVIRONMENT
+    is_prod = PROJECT_ENVIRONMENT == "PRODUCTION"
+    response.delete_cookie(
+        key="user",
+        httponly=True,
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
+        path="/",
+    )
+    response.delete_cookie(
+        key="guest_session",
+        httponly=True,
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
+        path="/",
+    )
+    return result

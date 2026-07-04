@@ -117,6 +117,17 @@ const userSlice = createSlice({
       state.error = null;
       state.success = false;
     },
+
+    clearUser(state) {
+      state.user = null;
+      state.isAuthenticated = false;
+      state.onboardingCompleted = false;
+      state.authStep = "email";
+      state.email = "";
+      state.transactionID = null;
+      state.error = null;
+      state.success = false;
+    },
   },
 
   extraReducers: (builder) => {
@@ -233,6 +244,6 @@ const userSlice = createSlice({
   },
 });
 
-export const { setEmail, clearError, resetAuthFlow } = userSlice.actions;
+export const { setEmail, clearError, resetAuthFlow, clearUser } = userSlice.actions;
 
 export default userSlice.reducer;

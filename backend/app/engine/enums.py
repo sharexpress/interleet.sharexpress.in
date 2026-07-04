@@ -14,6 +14,7 @@ class Language(str, Enum):
     CPP = "cpp"
     RUST = "rust"
     JAVA = "java"
+    HTML = "html"
 
 
 class Verdict(str, Enum):

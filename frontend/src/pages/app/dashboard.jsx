@@ -40,6 +40,22 @@ function Dashboard() {
   // state.user.user is the flat user object — no double-nesting needed
   const { user } = useSelector((state) => state.user);
 
+  const handleStartInterview = () => {
+    const roles = [
+      "Senior Backend Engineer",
+      "Frontend Architect",
+      "System Design (L5)",
+      "DevOps Lead",
+      "API Design",
+      "Full-Stack Generalist",
+      "MERN Stack Developer"
+    ];
+    const difficulties = ["Easy", "Intermediate", "Hard"];
+    const randomRole = roles[Math.floor(Math.random() * roles.length)];
+    const randomDiff = difficulties[Math.floor(Math.random() * difficulties.length)];
+    navigate(`/app/interviews/setup?role=${encodeURIComponent(randomRole)}&difficulty=${encodeURIComponent(randomDiff)}`);
+  };
+
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
@@ -166,7 +182,16 @@ function Dashboard() {
   return (
     <AppShell>
       <PageHeader
-        title={`Welcome back, ${activeUser.name?.split(" ")[0] || "Engineer"}`}
+        title={
+          <div className="flex items-center gap-2">
+            <span>Welcome back, {activeUser.name?.split(" ")[0] || "Engineer"}</span>
+            {activeUser.is_premium && (
+              <Badge variant="outline" className="bg-[#FF6500]/10 border-[#FF6500]/30 text-[#FF6500] text-[10px] font-black uppercase tracking-wider px-2 py-0.5">
+                Pro
+              </Badge>
+            )}
+          </div>
+        }
         description="Your engineering arena at a glance."
         actions={
           <>
@@ -185,9 +210,17 @@ function Dashboard() {
               </span>
             )}
 
-            <Button variant="outline" asChild>
-              <Link to="/app/interviews/live">Start an interview</Link>
-            </Button>
+            {!activeUser.is_premium ? (
+              <UpgradeModal
+                trigger={
+                  <Button variant="outline" className="cursor-pointer">Start an interview</Button>
+                }
+              />
+            ) : (
+              <Button variant="outline" onClick={handleStartInterview} className="cursor-pointer">
+                Start an interview
+              </Button>
+            )}
 
             <Button asChild>
               <Link to="/app/challenges">Practice now</Link>

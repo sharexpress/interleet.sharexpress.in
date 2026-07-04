@@ -210,42 +210,35 @@ class SettingsController:
 
     @staticmethod
     async def delete_account(user: dict) -> dict:
-        """Soft-delete user account. Marks as inactive, anonymizes PII."""
+        """Hard-delete user account and clean up all associated resources."""
         user_id = user["user_id"]
 
         user_doc = await db.users.find_one({"user_id": user_id})
         if not user_doc:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Soft delete — mark inactive and anonymize
-        await db.users.update_one(
-            {"user_id": user_id},
-            {
-                "$set": {
-                    "is_active": False,
-                    "is_locked": True,
-                    "email": f"deleted_{user_id}@interleet.local",
-                    "full_name": "Deleted User",
-                    "username": f"deleted_{user_id[:8]}",
-                    "avatar": None,
-                    "bio": None,
-                    "location": None,
-                    "github_username": None,
-                    "linkedin_url": None,
-                    "portfolio_url": None,
-                    "website": None,
-                    "deleted_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow(),
-                }
-            },
-        )
+        # Delete all database resources linked to the user
+        await db.users.delete_one({"user_id": user_id})
+        await db.user_settings.delete_many({"user_id": user_id})
+        await db.submissions.delete_many({"user_id": user_id})
+        await db.interview_reports.delete_many({"user_id": user_id})
+        await db.user_system_design_progress.delete_many({"user_id": user_id})
+        await db.webauthn_credentials.delete_many({"userId": user_id})
+        await db.notifications.delete_many({"user_id": user_id})
+        await db.xp_transactions.delete_many({"user_id": user_id})
+        await db.payment_orders.delete_many({"user_id": user_id})
+        await db.orders.delete_many({"user_id": user_id})
+        await db.store_purchases.delete_many({"user_id": user_id})
 
-        # Remove settings
-        await db.user_settings.delete_one({"user_id": user_id})
+        # Remove from other users' followers and following lists
+        await db.users.update_many(
+            {},
+            {"$pull": {"following": user_id, "followers": user_id}}
+        )
 
         return {
             "success": True,
-            "message": "Account has been deactivated. Your data has been anonymized.",
+            "message": "Account and all associated resources have been permanently deleted.",
         }
 
 

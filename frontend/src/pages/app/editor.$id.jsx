@@ -73,7 +73,7 @@ function loadMonaco() {
 
 // ─── Language config ──────────────────────────────────────────────────────────
 
-const LANG_TO_MONACO = { ts: "typescript", js: "javascript", py: "python", go: "go" };
+const LANG_TO_MONACO = { ts: "typescript", js: "javascript", py: "python", go: "go", html: "html", css: "css" };
 const LANG_LABEL = { ts: "TypeScript", js: "JavaScript", py: "Python", go: "Go" };
 const LANG_BADGE = { ts: "node v20.10", js: "node v20.10", py: "python 3.12", go: "go 1.22" };
 const LANG_FILE = { ts: "solution.ts", js: "solution.js", py: "solution.py", go: "main.go" };
@@ -784,9 +784,72 @@ function EditorPage() {
   const [lang, setLang] = useState(() => getInitialState().lang);
   const [code, setCode] = useState(() => getInitialState().code);
   const [consoleResult, setResult] = useState(null);
-  const [activeTab, setActiveTab] = useState("testcase");
+  const [activeTab, setActiveTab] = useState(() => typeof window !== "undefined" && window.innerWidth < 768 ? "description" : "testcase");
   const [customTestCases, setCustomTestCases] = useState([]);
   const [selectedTestCaseIdx, setSelectedTestCaseIdx] = useState(0);
+
+  // Frontend challenges 3-tab file states
+  const [activeFile, setActiveFile] = useState("index.html");
+  const [frontendFiles, setFrontendFiles] = useState({
+    "index.html": "",
+    "index.css": "",
+    "index.js": ""
+  });
+  const isLocalChange = useRef(false);
+
+  useEffect(() => {
+    if (isLocalChange.current) {
+      isLocalChange.current = false;
+      return;
+    }
+    
+    if (c?.domain === "Frontend") {
+      try {
+        const parsed = JSON.parse(code);
+        if (parsed && typeof parsed === "object" && "index.html" in parsed) {
+          setFrontendFiles(parsed);
+          return;
+        }
+      } catch (e) {}
+
+      // Fallback for legacy plain text starter code
+      setFrontendFiles({
+        "index.html": `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interleet Preview</title>
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Write your HTML structure here -->
+  </div>
+  <script src="index.js"></script>
+</body>
+</html>`,
+        "index.css": `/* Write your CSS styling here */
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #fafafa;
+  background: #09090b;
+  margin: 0;
+  padding: 24px;
+}
+#app {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+  background: #18181b;
+}`,
+        "index.js": code || `// Write your JavaScript behavior here
+console.log("DOM loaded successfully!");
+`
+      });
+    }
+  }, [code, c?.domain]);
 
   useEffect(() => {
     if (c && c.test_cases) {
@@ -900,19 +963,34 @@ function EditorPage() {
     [slug, c],
   );
 
+  const handleCodeChange = useCallback((newValue) => {
+    if (c?.domain === "Frontend") {
+      setFrontendFiles((prev) => {
+        const next = { ...prev, [activeFile]: newValue };
+        isLocalChange.current = true;
+        setCode(JSON.stringify(next));
+        return next;
+      });
+    } else {
+      setCode(newValue);
+    }
+  }, [c?.domain, activeFile]);
+
   // Run — executes custom test cases or visible sample test cases
   const handleRun = useCallback(() => {
     dispatch(resetExecution());
     setActiveTab("result");
-    dispatch(runCode({ code, language: lang, testCases: customTestCases }));
-  }, [code, lang, customTestCases, dispatch]);
+    const executionLang = c?.domain === "Frontend" ? "html" : lang;
+    dispatch(runCode({ code, language: executionLang, testCases: customTestCases }));
+  }, [code, lang, customTestCases, dispatch, c?.domain]);
 
   // Submit — runs against all test cases (including hidden) via backend DB
   const handleSubmit = useCallback(() => {
     dispatch(resetExecution());
     setActiveTab("result");
-    dispatch(submitCode({ code, language: lang, slug, userId: user?.user_id }));
-  }, [code, lang, slug, dispatch, user]);
+    const executionLang = c?.domain === "Frontend" ? "html" : lang;
+    dispatch(submitCode({ code, language: executionLang, slug, userId: user?.user_id }));
+  }, [code, lang, slug, dispatch, user, c?.domain]);
 
   // Reset editor to default starter code, dismissing previous submission
   const handleResetToStarter = useCallback(() => {
@@ -988,7 +1066,7 @@ function EditorPage() {
   return (
     <AppShell>
       {/* Toolbar */}
-      <div className="flex items-center justify-between border-b border-border bg-card/40 px-4 py-2 md:px-6">
+      <div className="flex flex-col gap-3 border-b border-border bg-card/40 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Button asChild variant="ghost" size="icon" className="h-8 w-8">
             <Link to={`/app/challenges/${c.slug}`}>
@@ -1002,7 +1080,7 @@ function EditorPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
           <Select value={lang} onValueChange={handleLangChange}>
             <SelectTrigger className="h-8 w-[130px]">
               <SelectValue />
@@ -1015,7 +1093,7 @@ function EditorPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={handleRun} disabled={c?.locked || isRunning || isSubmitting}>
+          <Button variant="outline" size="sm" onClick={handleRun} disabled={c?.locked || isRunning || isSubmitting} className="flex-1 sm:flex-none">
             {isRunning ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -1023,7 +1101,7 @@ function EditorPage() {
             )}
             Run
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={c?.locked || isRunning || isSubmitting}>
+          <Button size="sm" onClick={handleSubmit} disabled={c?.locked || isRunning || isSubmitting} className="flex-1 sm:flex-none">
             {isSubmitting ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -1036,7 +1114,7 @@ function EditorPage() {
               <Button
                 variant="outline"
                 size="icon"
-                className="xl:hidden"
+                className="xl:hidden h-8 w-8"
                 aria-label="Open browser preview"
               >
                 <Globe className="h-4 w-4" />
@@ -1258,32 +1336,67 @@ function EditorPage() {
           </aside>
 
           {/* DRAG: left | center */}
-          <DragHandle onDelta={onDragLeft} />
+          <div className="hidden md:block flex-shrink-0">
+            <DragHandle onDelta={onDragLeft} />
+          </div>
 
           {/* CENTER: editor + bottom tabs */}
           <div className="flex min-w-0 flex-1 flex-col">
             {/* File tab bar */}
-            <div className="flex items-center gap-1 border-b border-border bg-background/60 px-2 py-1.5">
-              <div className="flex items-center gap-2 rounded-t border-b-2 border-primary bg-card px-3 py-1 font-mono text-xs text-foreground">
-                <FileCode2 className="h-3 w-3" /> {fileName}
-              </div>
+            <div className="flex items-center gap-1 border-b border-border bg-background/60 px-2 py-1.5 overflow-x-auto">
+              {c?.domain === "Frontend" ? (
+                <>
+                  {["index.html", "index.css", "index.js"].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setActiveFile(f)}
+                      className={`flex items-center gap-2 rounded px-3 py-1 font-mono text-xs transition-colors ${
+                        activeFile === f
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      }`}
+                    >
+                      <FileCode2 className="h-3 w-3" /> {f}
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <div className="flex items-center gap-2 rounded-t border-b-2 border-primary bg-card px-3 py-1 font-mono text-xs text-foreground">
+                  <FileCode2 className="h-3 w-3" /> {fileName}
+                </div>
+              )}
             </div>
 
             {/* Monaco editor */}
             <div className="min-h-0 flex-1 overflow-hidden bg-[#1E1E1E]">
-              <MonacoEditor value={code} language={lang} onChange={setCode} />
+              <MonacoEditor
+                value={c?.domain === "Frontend" ? frontendFiles[activeFile] : code}
+                language={
+                  c?.domain === "Frontend"
+                    ? activeFile === "index.html"
+                      ? "html"
+                      : activeFile === "index.css"
+                      ? "css"
+                      : "js"
+                    : lang
+                }
+                onChange={handleCodeChange}
+              />
             </div>
 
             {/* Bottom panel */}
             <div className="border-t border-border bg-background/60">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
                 <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
-                  <TabsList className="h-8 bg-transparent p-0">
+                  <TabsList className="h-8 bg-transparent p-0 flex flex-wrap gap-1">
+                    <TabsTrigger value="description" className="h-7 px-3 text-xs md:hidden">
+                      Description
+                    </TabsTrigger>
                     <TabsTrigger value="testcase" className="h-7 px-3 text-xs">
                       Testcase
                     </TabsTrigger>
                     <TabsTrigger value="result" className="h-7 px-3 text-xs">
-                      Test Result
+                      Result
                     </TabsTrigger>
                     <TabsTrigger value="console" className="h-7 px-3 text-xs">
                       <TerminalIcon className="mr-1 h-3 w-3" /> Console
@@ -1318,6 +1431,31 @@ function EditorPage() {
                     </Badge>
                   </div>
                 </div>
+
+                {/* Description tab for mobile */}
+                <TabsContent value="description" className="m-0 max-h-80 overflow-auto p-4 space-y-3 md:hidden">
+                  <div className="space-y-3 font-sans text-xs">
+                    <h3 className="text-sm font-semibold text-white">{c.title}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <DifficultyPill d={c.difficulty} />
+                      <DomainTag d={c.domain} />
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5" /> {c.minutes}m
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Sparkles className="h-3.5 w-3.5" /> {c.xp} XP
+                      </span>
+                    </div>
+                    <div className="mt-2 text-zinc-300 leading-relaxed space-y-3">
+                      <p>{c.summary}</p>
+                      {c.description && (
+                        <div className="mt-4 space-y-1 text-muted-foreground prose prose-invert max-w-none text-xs">
+                          {renderMarkdown(c.description)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
 
                 <TabsContent value="testcase" className="m-0 max-h-80 overflow-auto p-4 space-y-4">
                   {/* Case buttons */}
@@ -1446,7 +1584,9 @@ function EditorPage() {
           </div>
 
           {/* DRAG: center | right */}
-          <DragHandle onDelta={onDragRight} />
+          <div className="hidden xl:block flex-shrink-0">
+            <DragHandle onDelta={onDragRight} />
+          </div>
 
           {/* RIGHT: browser preview */}
           <aside
@@ -1498,7 +1638,7 @@ const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execS
       <div className="flex flex-1 flex-col overflow-hidden bg-white">
         <iframe
           title={`${title} preview`}
-          srcDoc={code || getFrontendSrcDoc(slug, title)}
+          srcDoc={compileFrontendCode(code, slug, title)}
           sandbox="allow-scripts"
           className="h-full w-full flex-1 border-0 bg-white"
         />
@@ -1682,6 +1822,38 @@ function getFrontendSrcDoc(slug, title) {
     default:
       return `<!doctype html><html><head>${base}</head><body><h2>${title}</h2><p style="color:#525252">Interactive preview for this challenge will render here.</p></body></html>`;
   }
+}
+
+function compileFrontendCode(code, slug, title) {
+  if (!code) return getFrontendSrcDoc(slug, title);
+  try {
+    const files = JSON.parse(code);
+    if (files && typeof files === "object" && "index.html" in files) {
+      let html = files["index.html"] || "";
+      const css = files["index.css"] || "";
+      const js = files["index.js"] || "";
+
+      // Inject css
+      const styleTag = `<style>\\n${css}\\n</style>`;
+      if (html.includes("</head>")) {
+        html = html.replace("</head>", `${styleTag}\\n</head>`);
+      } else {
+        html = `${styleTag}\\n${html}`;
+      }
+
+      // Inject js
+      const scriptTag = `<script>\\n${js}\\n</script>`;
+      if (html.includes("</body>")) {
+        html = html.replace("</body>", `${scriptTag}\\n</body>`);
+      } else {
+        html = `${html}\\n${scriptTag}`;
+      }
+
+      return html;
+    }
+  } catch (e) {}
+
+  return code;
 }
 
 export default EditorPage;

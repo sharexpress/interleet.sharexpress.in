@@ -404,6 +404,7 @@ class PlatformController:
             "devops_rating": user_doc.get("devops_rating", 0),
             "overall_rating": user_doc.get("overall_rating", rating),
             "streak_count": user_doc.get("streak_count", 0),
+            "is_premium": user_doc.get("is_premium", False),
         }
 
         return {
@@ -486,7 +487,7 @@ class PlatformController:
     @staticmethod
     async def leaderboard(page: int = 1, limit: int = 25, q: str | None = None):
         # Query users from MongoDB users collection
-        cursor = db.users.find({})
+        cursor = db.users.find({"is_active": {"$ne": False}})
         users = await cursor.to_list(length=1000)
         
         # If only 1 or 2 users exist in the DB, seed other participants to make the arena active
@@ -501,7 +502,7 @@ class PlatformController:
             ]
             for su in seed_users:
                 await db.users.update_one({"username": su["username"]}, {"$set": su}, upsert=True)
-            cursor = db.users.find({})
+            cursor = db.users.find({"is_active": {"$ne": False}})
             users = await cursor.to_list(length=1000)
             
         items = []
@@ -562,7 +563,8 @@ class PlatformController:
                 "country": u.get("country") or "GLOBAL",
                 "delta": u.get("delta", 0),
                 "badges": badges,
-                "avatar": u.get("avatar")
+                "avatar": u.get("avatar"),
+                "is_premium": u.get("is_premium", False)
             })
             
         # Sort by rating, then by xp
@@ -787,6 +789,7 @@ class PlatformController:
                 "country": user_doc.get("country", ""),
                 "linkedin_url": user_doc.get("linkedin_url", ""),
                 "portfolio_url": user_doc.get("portfolio_url", ""),
+                "is_premium": user_doc.get("is_premium", False),
             },
             "challenges": solved_challenges_list,
             "interviews_history": interview_history,

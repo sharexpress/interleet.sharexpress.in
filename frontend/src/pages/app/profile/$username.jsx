@@ -221,28 +221,40 @@ function ProfilePage() {
         <div className="grid-bg absolute inset-0 opacity-30" />
         <div className="pointer-events-none absolute -top-20 left-1/3 h-[300px] w-[500px] rounded-full bg-primary/10 blur-3xl" />
         <div className="relative mx-auto flex max-w-6xl flex-col gap-5 px-4 py-8 md:flex-row md:items-end md:px-8">
-          <Avatar className="h-20 w-20 border-2 border-border bg-card">
-            {user.avatar && (
-              <AvatarImage
-                src={user.avatar}
-                alt={user.name}
-                className="object-cover"
-              />
+          <div className="relative flex-shrink-0">
+            <Avatar className={`h-20 w-20 border-2 bg-card ${user.is_premium ? "border-[#FF6500]" : "border-border"}`}>
+              {user.avatar && (
+                <AvatarImage
+                  src={user.avatar}
+                  alt={user.name}
+                  className="object-cover"
+                />
+              )}
+              <AvatarFallback className="text-xl font-bold bg-zinc-800 text-white">
+                {user.name
+                  ?.split(" ")
+                  ?.map((n) => n[0])
+                  ?.join("")
+                  ?.slice(0, 2)
+                  ?.toUpperCase() || "?"}
+              </AvatarFallback>
+            </Avatar>
+            {user.is_premium && (
+              <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#FF6500] text-[10px] font-black text-white border-2 border-background shadow-md">
+                ★
+              </span>
             )}
-            <AvatarFallback className="text-xl font-bold bg-zinc-800 text-white">
-              {user.name
-                ?.split(" ")
-                ?.map((n) => n[0])
-                ?.join("")
-                ?.slice(0, 2)
-                ?.toUpperCase() || "?"}
-            </AvatarFallback>
-          </Avatar>
+          </div>
           <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-semibold tracking-tight text-white">
                 {user.name}
               </h1>
+              {user.is_premium && (
+                <Badge variant="outline" className="bg-[#FF6500]/10 border-[#FF6500]/30 text-[#FF6500] text-xs font-black uppercase tracking-wider px-2 py-0.5">
+                  Pro
+                </Badge>
+              )}
               <Badge className="gap-1 bg-success/15 text-success border border-success/30">
                 <ShieldCheck className="h-3 w-3" />
                 Verified

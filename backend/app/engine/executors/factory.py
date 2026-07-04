@@ -14,6 +14,7 @@ from app.engine.executors.javascript_executor import JavaScriptExecutor
 from app.engine.executors.python_executor import PythonExecutor
 from app.engine.executors.rust_executor import RustExecutor
 from app.engine.executors.typescript_executor import TypeScriptExecutor
+from app.engine.executors.html_executor import HtmlExecutor
 
 _REGISTRY: dict[Language, type[BaseExecutor]] = {
     Language.PYTHON: PythonExecutor,
@@ -23,6 +24,7 @@ _REGISTRY: dict[Language, type[BaseExecutor]] = {
     Language.CPP: CppExecutor,
     Language.RUST: RustExecutor,
     Language.JAVA: JavaExecutor,
+    Language.HTML: HtmlExecutor,
 }
 
 # Language metadata for API responses / UI
@@ -34,6 +36,7 @@ LANGUAGE_META: dict[Language, dict] = {
     Language.CPP: {"name": "C++17 (g++)", "extension": "cpp", "compiled": True},
     Language.RUST: {"name": "Rust 1.78", "extension": "rs", "compiled": True},
     Language.JAVA: {"name": "Java 21 (JDK)", "extension": "java", "compiled": True},
+    Language.HTML: {"name": "HTML/CSS/JS", "extension": "html", "compiled": False},
 }
 
 
