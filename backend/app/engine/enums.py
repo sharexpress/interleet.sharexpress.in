@@ -54,6 +54,8 @@ class ComparisonMode(str, Enum):
     UNORDERED = "unordered"    # Order-independent comparison (sets, dicts)
     JSON = "json"              # Direct JSON structural validation
     CUSTOM = "custom"          # Specialized validation logic for complex challenges
+    DOM = "dom"                # Semantic HTML DOM diffing
+    VISUAL = "visual"          # Pixel-by-pixel screenshot comparison
 
 
 class TestCaseCategory(str, Enum):

@@ -78,6 +78,8 @@ class JudgeEngine:
             peak_memory_mb=sandbox_result.peak_memory_mb,
             exit_code=sandbox_result.exit_code,
             weight=testcase.weight,
+            screenshot_actual=sandbox_result.screenshot_base64,
+            screenshot_expected=testcase.expected_output if effective_mode == ComparisonMode.VISUAL else None,
         )
 
         # Check Memory Limit Exceeded
@@ -105,12 +107,14 @@ class JudgeEngine:
             return result
 
         # Compare output using the layered comparison pipeline
-        output_matches = JudgeEngine._compare(
-            actual=sandbox_result.stdout,
+        output_matches, dom_diff = JudgeEngine._compare(
+            sandbox_result=sandbox_result,
             expected=testcase.expected_output,
             mode=effective_mode,
             problem_slug=testcase.problem_slug,
         )
+        
+        result.dom_diff = dom_diff
 
         if output_matches:
             result.verdict = Verdict.ACCEPTED
@@ -199,59 +203,66 @@ class JudgeEngine:
     # ─── Core Comparison Pipeline ──────────────────────────────────────────
 
     @staticmethod
-    def _compare(actual: str, expected: str, mode: ComparisonMode, problem_slug: Optional[str] = None) -> bool:
+    def _compare(sandbox_result: SandboxResult, expected: str, mode: ComparisonMode, problem_slug: Optional[str] = None) -> tuple[bool, Optional[dict]]:
         """
         Layered comparison pipeline. Each layer is progressively more lenient.
-        Short-circuits on the first match.
-
-        For EXACT/TRIMMED/TOKEN modes: uses the strict pipeline only.
-        For SEMANTIC mode: uses all layers including structured data parsing.
-        For UNORDERED mode: treats output lines as an unordered set.
+        Short-circuits on the first match. Returns (is_match, diff_data).
         """
+        actual = sandbox_result.stdout
+
         # ── Custom Comparator Match ───────────────────────────────────
         if mode == ComparisonMode.CUSTOM and problem_slug:
             custom_comp = get_custom_comparator(problem_slug)
             if custom_comp:
                 try:
-                    return custom_comp(actual, expected)
+                    return custom_comp(actual, expected), None
                 except Exception as exc:
                     logger.warning("Custom comparator error for %s: %s", problem_slug, exc)
                     # fall back to standard semantic pipeline if custom fails
 
+        # ── DOM Structural Match ──────────────────────────────────────
+        if mode == ComparisonMode.DOM:
+            if not sandbox_result.dom_content:
+                return False, {"error": "No DOM content captured"}
+            return _dom_match(sandbox_result.dom_content, expected)
+            
+        # ── Visual Pixel Match ────────────────────────────────────────
+        if mode == ComparisonMode.VISUAL:
+            if not sandbox_result.screenshot_base64:
+                return False, {"error": "No screenshot captured"}
+            return _visual_match(sandbox_result.screenshot_base64, expected)
+
         # ── JSON Structural Match ─────────────────────────────────────
         if mode == ComparisonMode.JSON:
-            return _json_match(actual, expected)
+            return _json_match(actual, expected), None
 
         # ── Layer 1: Exact Match ──────────────────────────────────────
         if actual == expected:
-            return True
+            return True, None
 
         if mode == ComparisonMode.EXACT:
-            return False  # Exact mode stops here
+            return False, None
 
         # ── Layer 2: Trimmed Match ────────────────────────────────────
         if _trimmed_match(actual, expected):
-            return True
+            return True, None
 
         if mode == ComparisonMode.TRIMMED:
-            # For TRIMMED mode, still try semantic as a fallback
-            # This ensures backward compatibility with challenges that
-            # were written before SEMANTIC mode existed
-            return _semantic_pipeline(actual, expected)
+            return _semantic_pipeline(actual, expected), None
 
         # ── Layer 3: Token Match ──────────────────────────────────────
         if _token_match(actual, expected):
-            return True
+            return True, None
 
         if mode == ComparisonMode.TOKEN:
-            return _semantic_pipeline(actual, expected)
+            return _semantic_pipeline(actual, expected), None
 
         # ── SEMANTIC & UNORDERED: Full pipeline ───────────────────────
         if mode == ComparisonMode.UNORDERED:
             if _unordered_match(actual, expected):
-                return True
+                return True, None
 
-        return _semantic_pipeline(actual, expected)
+        return _semantic_pipeline(actual, expected), None
 
     @staticmethod
     def _aggregate_verdict(
@@ -561,3 +572,104 @@ def _normalize_string(s: str) -> str:
 def _normalized_match(actual: str, expected: str) -> bool:
     """Layer 7: Aggressively normalize and compare."""
     return _normalize_string(actual) == _normalize_string(expected)
+
+
+# ─── Visual & DOM Matchers ──────────────────────────────────────────────────
+
+def _dom_match(actual_html: str, expected_html: str) -> tuple[bool, Optional[dict]]:
+    try:
+        from bs4 import BeautifulSoup
+        act_soup = BeautifulSoup(actual_html, "html.parser")
+        exp_soup = BeautifulSoup(expected_html, "html.parser")
+        
+        # Strip all whitespace strings
+        for text in act_soup.find_all(string=True):
+            if text.strip() == "":
+                text.extract()
+        for text in exp_soup.find_all(string=True):
+            if text.strip() == "":
+                text.extract()
+
+        def _canonicalize_element(el):
+            if getattr(el, 'name', None) is None:
+                return str(el).strip()
+            # Sort classes
+            if 'class' in el.attrs:
+                el.attrs['class'].sort()
+            # Sort all attributes
+            attrs = sorted([(k, str(v)) for k, v in el.attrs.items()])
+            children = [_canonicalize_element(c) for c in el.contents]
+            return {"tag": el.name, "attrs": attrs, "children": children}
+        
+        # If we expect just the body or a specific fragment, we should compare only the body if present.
+        act_node = act_soup.body if act_soup.body else act_soup
+        exp_node = exp_soup.body if exp_soup.body else exp_soup
+
+        act_canon = _canonicalize_element(act_node)
+        exp_canon = _canonicalize_element(exp_node)
+        
+        # Compare canonicalized trees
+        if act_canon == exp_canon:
+            return True, None
+        return False, {"actual_structure": act_canon, "expected_structure": exp_canon}
+    except ImportError:
+        logger.warning("BeautifulSoup not installed. Cannot perform DOM match.")
+        return False, {"error": "DOM comparison not available."}
+    except Exception as e:
+        logger.error("DOM match error: %s", e)
+        return False, {"error": str(e)}
+
+
+def _visual_match(actual_b64: str, expected_b64: str) -> tuple[bool, Optional[dict]]:
+    try:
+        import base64
+        import io
+        from PIL import Image
+        import pixelmatch
+
+        # Remove data URI prefixes if present
+        if actual_b64.startswith("data:image"):
+            actual_b64 = actual_b64.split(",", 1)[1]
+        if expected_b64.startswith("data:image"):
+            expected_b64 = expected_b64.split(",", 1)[1]
+
+        act_bytes = base64.b64decode(actual_b64)
+        exp_bytes = base64.b64decode(expected_b64)
+
+        act_img = Image.open(io.BytesIO(act_bytes)).convert("RGBA")
+        exp_img = Image.open(io.BytesIO(exp_bytes)).convert("RGBA")
+
+        # Must be same size for pixelmatch
+        if act_img.size != exp_img.size:
+            return False, {
+                "error": "Size mismatch", 
+                "actual_size": act_img.size, 
+                "expected_size": exp_img.size
+            }
+
+        diff_img = Image.new("RGBA", act_img.size)
+        mismatch_pixels = pixelmatch.pixelmatch(
+            act_img, exp_img, diff_img,
+            act_img.width, act_img.height,
+            threshold=0.1, includeAA=True
+        )
+
+        total_pixels = act_img.width * act_img.height
+        mismatch_percentage = mismatch_pixels / total_pixels
+
+        # Allow 1% difference
+        success = mismatch_percentage <= 0.01
+        
+        return success, {
+            "mismatch_pixels": mismatch_pixels,
+            "mismatch_percentage": round(mismatch_percentage * 100, 2),
+            "threshold": 1.0,
+            "passed": success
+        }
+
+    except ImportError:
+        logger.warning("Pillow or pixelmatch not installed. Cannot perform VISUAL match.")
+        return False, {"error": "Visual comparison not available."}
+    except Exception as e:
+        logger.error("Visual match error: %s", e)
+        return False, {"error": str(e)}

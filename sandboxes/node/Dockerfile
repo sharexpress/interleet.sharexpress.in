@@ -8,6 +8,9 @@ FROM node:20-alpine
 ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
     NODE_ENV=production
 
+# Install sqlite and redis for Phase 4.1 Database Mocking
+RUN apk add --no-cache sqlite redis
+
 # Install common modules in the root /node_modules via a temp directory
 WORKDIR /tmp/deps
 RUN npm init -y && \
@@ -23,6 +26,10 @@ RUN chown -R judge:judge /node_modules
 
 WORKDIR /workspace
 RUN chown judge:judge /workspace
+
+# Copy the service runner for Phase 4 Backend execution
+COPY service_runner.js /app/service_runner.js
+RUN chown -R judge:judge /app
 
 USER judge
 

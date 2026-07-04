@@ -4,7 +4,7 @@
 # ═══════════════════════════════════════════════════════════════════
 
 .PHONY: help dev build-sandboxes build-python build-node build-typescript \
-        build-go build-cpp build-rust build-java \
+        build-go build-cpp build-rust build-java build-browser \
         run-worker install clean logs
 
 # Default target
@@ -30,6 +30,7 @@ help:
 	@echo "    make build-cpp"
 	@echo "    make build-rust"
 	@echo "    make build-java"
+	@echo "    make build-browser"
 	@echo ""
 	@echo "  Docker Compose:"
 	@echo "    make up                Start full stack"
@@ -73,7 +74,11 @@ build-java:
 	@echo "☕ Building Java sandbox..."
 	docker build -t interleet-java:latest sandboxes/java/
 
-build-sandboxes: build-python build-node build-typescript build-go build-cpp build-rust build-java
+build-browser:
+	@echo "🌐 Building Browser sandbox..."
+	docker build -t interleet-browser:latest sandboxes/browser/
+
+build-sandboxes: build-python build-node build-typescript build-go build-cpp build-rust build-java build-browser
 	@echo ""
 	@echo "✅ All sandbox images built successfully!"
 	@docker images | grep "interleet-" | awk '{printf "   %-30s %s\n", $$1, $$7}'
@@ -106,7 +111,7 @@ clean:
 	-docker rmi interleet-python:latest interleet-node:latest \
 	            interleet-typescript:latest interleet-go:latest \
 	            interleet-cpp:latest interleet-rust:latest \
-	            interleet-java:latest 2>/dev/null || true
+	            interleet-java:latest interleet-browser:latest 2>/dev/null || true
 	@echo "🧹 Cleaning workspaces..."
 	-rm -rf /tmp/interleet_workspaces
 	@echo "Done."

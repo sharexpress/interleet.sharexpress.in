@@ -35,6 +35,7 @@ class ExecuteRequest(BaseModel):
     time_limit: float = Field(default=5.0, ge=0.5, le=30.0, description="Seconds")
     memory_limit: int = Field(default=256, ge=32, le=1024, description="MB")
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
+    execution_mode: str = "cli"  # "cli", "http", "browser"
 
 
 class InlineTestCase(BaseModel):
@@ -54,6 +55,7 @@ class RunRequest(BaseModel):
     time_limit: float = Field(default=5.0, ge=0.5, le=30.0, description="Seconds")
     memory_limit: int = Field(default=256, ge=32, le=1024, description="MB")
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
+    execution_mode: str = "cli"
 
 
 class SubmissionRequest(ExecuteRequest):
@@ -81,6 +83,10 @@ class SandboxResult(BaseModel):
     peak_memory_mb: float = 0.0
     timed_out: bool = False
     oom_killed: bool = False
+    
+    # Visual / DOM Sandbox properties (populated by Browser Runtime)
+    screenshot_base64: Optional[str] = None
+    dom_content: Optional[str] = None
 
 
 class CompileResult(BaseModel):
@@ -101,6 +107,7 @@ class TestCaseSchema(BaseModel):
     problem_slug: str = ""
     stdin: str = ""
     expected_output: str = ""
+    files: Optional[dict[str, str]] = None
     hidden: bool = False
     weight: float = 1.0
     category: Optional[TestCaseCategory] = None  # Test case classification
@@ -131,6 +138,11 @@ class TestCaseResult(BaseModel):
     weight: float = 1.0
     revealed_input: Optional[str] = None
     revealed_expected: Optional[str] = None
+    
+    # Visual / DOM diff properties
+    screenshot_actual: Optional[str] = None
+    screenshot_expected: Optional[str] = None
+    dom_diff: Optional[dict] = None
 
 
 
@@ -184,6 +196,7 @@ class ExecutionJob(BaseModel):
     time_limit: float = 5.0
     memory_limit: int = 256
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
+    execution_mode: str = "cli"
     problem_slug: Optional[str] = None
     challenge_id: Optional[str] = None
     user_id: Optional[str] = None

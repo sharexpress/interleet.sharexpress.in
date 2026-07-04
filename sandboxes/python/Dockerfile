@@ -10,10 +10,17 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# Install sqlite and redis for Phase 4.1 Database Mocking
+RUN apk add --no-cache sqlite redis
+
 # Create a non-root judge user
 RUN addgroup -S judge && adduser -S -G judge -H -s /bin/false judge
 
 WORKDIR /workspace
+
+# Copy the service runner for Phase 4 Backend execution
+COPY service_runner.py /app/service_runner.py
+RUN chown -R judge:judge /app
 
 # Fix ownership
 RUN chown judge:judge /workspace

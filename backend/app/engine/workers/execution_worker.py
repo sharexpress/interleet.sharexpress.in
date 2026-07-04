@@ -80,7 +80,7 @@ class ExecutionWorker:
             await self._update_status(submission_id, ExecutionStatus.QUEUED)
             await self._broadcast(submission_id, WebSocketEventType.QUEUED, ExecutionStatus.QUEUED)
 
-            executor = ExecutorFactory.get(job.language)
+            executor = ExecutorFactory.get(job.language, job.execution_mode)
 
             # Determine testcases
             testcases = job.testcases

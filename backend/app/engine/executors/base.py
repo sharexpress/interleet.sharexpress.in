@@ -310,9 +310,17 @@ class BaseExecutor(ABC):
             # Write code ONCE
             await self._write_code(workspace, code)
 
-            # Run each testcase in sequence, swapping only stdin
+            # Run each testcase in sequence, swapping stdin and writing specific files
             for tc in testcases:
                 await self._write_stdin(workspace, tc.stdin)
+                
+                if hasattr(tc, 'files') and tc.files:
+                    for fname, content in tc.files.items():
+                        # Ensure no directory traversal exploits
+                        safe_name = os.path.basename(fname)
+                        async with aiofiles.open(workspace / safe_name, "w", encoding="utf-8") as f:
+                            await f.write(content)
+                        (workspace / safe_name).chmod(0o644)
 
                 tc_time_limit = tc.time_limit or time_limit
                 tc_memory = tc.memory_limit or memory_limit

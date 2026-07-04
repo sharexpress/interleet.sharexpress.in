@@ -14,7 +14,7 @@ from app.engine.executors.javascript_executor import JavaScriptExecutor
 from app.engine.executors.python_executor import PythonExecutor
 from app.engine.executors.rust_executor import RustExecutor
 from app.engine.executors.typescript_executor import TypeScriptExecutor
-from app.engine.executors.html_executor import HtmlExecutor
+from app.engine.executors.browser_executor import BrowserExecutor
 
 _REGISTRY: dict[Language, type[BaseExecutor]] = {
     Language.PYTHON: PythonExecutor,
@@ -24,7 +24,7 @@ _REGISTRY: dict[Language, type[BaseExecutor]] = {
     Language.CPP: CppExecutor,
     Language.RUST: RustExecutor,
     Language.JAVA: JavaExecutor,
-    Language.HTML: HtmlExecutor,
+    Language.HTML: BrowserExecutor,
 }
 
 # Language metadata for API responses / UI
@@ -44,13 +44,17 @@ class ExecutorFactory:
     """Registry-based factory for language executors."""
 
     @staticmethod
-    def get(language: Language | str) -> BaseExecutor:
-        """Return an executor instance for the given language."""
+    def get(language: Language | str, execution_mode: str = "cli") -> BaseExecutor:
+        """Return an executor instance for the given language and mode."""
         if isinstance(language, str):
             try:
                 language = Language(language.lower())
             except ValueError:
                 raise ValueError(f"Unsupported language: {language!r}") from None
+
+        if execution_mode == "http":
+            from app.engine.executors.service_executor import ServiceExecutor
+            return ServiceExecutor(language)
 
         executor_cls = _REGISTRY.get(language)
         if executor_cls is None:
