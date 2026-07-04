@@ -20,7 +20,7 @@ class DevOpsExecutor(BaseExecutor):
         # But we must satisfy BaseExecutor signature.
         super().__init__(language)
         # Force bash image
-        self.docker_image = "interleet-ubuntu:latest"
+        self.docker_image = "interleet-devops:latest"
         self.run_command = ["bash", "solution.sh"]
         self.filename = "solution.sh"
 
