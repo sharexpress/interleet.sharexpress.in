@@ -56,6 +56,11 @@ class ExecutorFactory:
         if execution_mode == "devops":
             from app.engine.executors.devops_executor import DevOpsExecutor
             return DevOpsExecutor()
+            
+        # 3. Docker Compose / Multi-Container Mode
+        if execution_mode == "compose":
+            from app.engine.executors.compose_executor import ComposeExecutor
+            return ComposeExecutor()
 
         # 3. HTTP/Service Evaluation Mode
         if execution_mode == "http":
