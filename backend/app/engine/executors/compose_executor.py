@@ -61,7 +61,7 @@ class ComposeExecutor(BaseExecutor):
             passed_testcases=scoring.passed,
             total_testcases=scoring.total,
             score=scoring.score,
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.datetime.utcnow(),
         )
 
     async def run_batch_testcases(
