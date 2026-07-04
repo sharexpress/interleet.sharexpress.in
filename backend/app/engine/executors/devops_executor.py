@@ -6,7 +6,6 @@ import aiofiles
 from app.engine.enums import Language, Verdict
 from app.engine.schemas import SandboxResult, TestCaseSchema, TestCaseResult
 from app.engine.executors.base import BaseExecutor
-from app.engine.comparators import compare_outputs
 from app.engine.docker.sandbox import DockerSandbox
 
 class DevOpsExecutor(BaseExecutor):
