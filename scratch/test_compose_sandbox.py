@@ -14,16 +14,16 @@ version: '3.8'
 services:
   web:
     image: python:3.12-alpine
-    command: sh -c "echo 'hello from compose' > index.html && python -m http.server 8080"
+    command: sh -c "echo 'hello from compose' > index.html && python -m http.server 8081"
     ports:
-      - "8080:8080"
+      - "8081:8081"
 """
 
     # Verification script: wait for server, curl it, assert output
     verification_script = """#!/bin/bash
 # Wait for the service to be up
 for i in {1..10}; do
-    curl -s http://localhost:8080 > output.txt
+    curl -s http://localhost:8081 > output.txt
     if [ $? -eq 0 ]; then
         break
     fi
