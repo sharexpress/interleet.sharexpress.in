@@ -529,6 +529,12 @@ const MonacoEditor = memo(function MonacoEditor({ value, language, onChange }) {
   const subRef = useRef(null);
   const prevLang = useRef(language);
 
+  // Store latest onChange callback in a ref to avoid stale closures in Monaco listeners
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
   useEffect(() => {
     let alive = true;
     loadMonaco().then((monaco) => {
@@ -559,7 +565,7 @@ const MonacoEditor = memo(function MonacoEditor({ value, language, onChange }) {
       });
 
       editorRef.current = editor;
-      subRef.current = editor.onDidChangeModelContent(() => onChange?.(editor.getValue()));
+      subRef.current = editor.onDidChangeModelContent(() => onChangeRef.current?.(editor.getValue()));
     });
 
     return () => {
@@ -813,7 +819,7 @@ function EditorPage() {
       } catch (e) {}
 
       // Fallback for legacy plain text starter code
-      setFrontendFiles({
+      const fallback = {
         "index.html": `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -847,7 +853,12 @@ body {
         "index.js": code || `// Write your JavaScript behavior here
 console.log("DOM loaded successfully!");
 `
-      });
+      };
+      setFrontendFiles(fallback);
+      
+      // Auto-serialize to JSON string so that preview and submissions are immediately synced
+      isLocalChange.current = true;
+      setCode(JSON.stringify(fallback));
     }
   }, [code, c?.domain]);
 
@@ -1834,19 +1845,19 @@ function compileFrontendCode(code, slug, title) {
       const js = files["index.js"] || "";
 
       // Inject css
-      const styleTag = `<style>\\n${css}\\n</style>`;
+      const styleTag = `<style>\n${css}\n</style>`;
       if (html.includes("</head>")) {
-        html = html.replace("</head>", `${styleTag}\\n</head>`);
+        html = html.replace("</head>", `${styleTag}\n</head>`);
       } else {
-        html = `${styleTag}\\n${html}`;
+        html = `${styleTag}\n${html}`;
       }
 
       // Inject js
-      const scriptTag = `<script>\\n${js}\\n</script>`;
+      const scriptTag = `<script>\n${js}\n</script>`;
       if (html.includes("</body>")) {
-        html = html.replace("</body>", `${scriptTag}\\n</body>`);
+        html = html.replace("</body>", `${scriptTag}\n</body>`);
       } else {
-        html = `${html}\\n${scriptTag}`;
+        html = `${html}\n${scriptTag}`;
       }
 
       return html;
