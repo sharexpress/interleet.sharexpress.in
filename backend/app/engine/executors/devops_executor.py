@@ -17,12 +17,13 @@ class DevOpsExecutor(BaseExecutor):
     
     def __init__(self, language: Language = Language.PYTHON):
         # We ignore language because devops always uses bash/sh.
-        # But we must satisfy BaseExecutor signature.
-        super().__init__(language)
+        self.language = language
         # Force bash image
         self.docker_image = "interleet-devops:latest"
         self.run_command = ["bash", "solution.sh"]
         self.filename = "solution.sh"
+        self.requires_compile = False
+        self.compile_command = None
 
     async def _write_code(self, workspace: Path, code: str) -> None:
         """Write the user's shell script."""
