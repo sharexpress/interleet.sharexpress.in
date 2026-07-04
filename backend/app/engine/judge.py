@@ -28,6 +28,7 @@ from app.engine.schemas import (
     TestCaseResult,
     TestCaseSchema,
 )
+from app.engine.comparators import get_custom_comparator
 
 logger = logging.getLogger(__name__)
 
@@ -55,17 +56,25 @@ class JudgeEngine:
         # Per-testcase comparison_mode override takes priority
         effective_mode = testcase.comparison_mode or comparison_mode
 
+        # Determine display stdout — show explicit message when empty
+        display_stdout = sandbox_result.stdout
+        if not testcase.hidden and not display_stdout.strip() and sandbox_result.exit_code != 0:
+            display_stdout = "(no output produced)"
+        elif not testcase.hidden and not display_stdout.strip() and sandbox_result.stderr.strip():
+            display_stdout = "(no output produced — see stderr below)"
+
         # Build base result
         result = TestCaseResult(
             testcase_id=testcase.id,
             name=testcase.name,
             hidden=testcase.hidden,
             category=testcase.category.value if testcase.category else None,
-            stdout="" if testcase.hidden else sandbox_result.stdout,
+            stdout="" if testcase.hidden else display_stdout,
             expected_output="" if testcase.hidden else testcase.expected_output,
-            stderr=sandbox_result.stderr,
+            stderr=sandbox_result.stderr,  # Always preserve stderr (even for hidden)
             compile_output=compile_output,
             wall_time_ms=sandbox_result.wall_time_ms,
+            runtime_ms=sandbox_result.wall_time_ms,  # Frontend-friendly alias
             peak_memory_mb=sandbox_result.peak_memory_mb,
             exit_code=sandbox_result.exit_code,
             weight=testcase.weight,
@@ -100,6 +109,7 @@ class JudgeEngine:
             actual=sandbox_result.stdout,
             expected=testcase.expected_output,
             mode=effective_mode,
+            problem_slug=testcase.problem_slug,
         )
 
         if output_matches:
@@ -189,7 +199,7 @@ class JudgeEngine:
     # ─── Core Comparison Pipeline ──────────────────────────────────────────
 
     @staticmethod
-    def _compare(actual: str, expected: str, mode: ComparisonMode) -> bool:
+    def _compare(actual: str, expected: str, mode: ComparisonMode, problem_slug: Optional[str] = None) -> bool:
         """
         Layered comparison pipeline. Each layer is progressively more lenient.
         Short-circuits on the first match.
@@ -198,6 +208,20 @@ class JudgeEngine:
         For SEMANTIC mode: uses all layers including structured data parsing.
         For UNORDERED mode: treats output lines as an unordered set.
         """
+        # ── Custom Comparator Match ───────────────────────────────────
+        if mode == ComparisonMode.CUSTOM and problem_slug:
+            custom_comp = get_custom_comparator(problem_slug)
+            if custom_comp:
+                try:
+                    return custom_comp(actual, expected)
+                except Exception as exc:
+                    logger.warning("Custom comparator error for %s: %s", problem_slug, exc)
+                    # fall back to standard semantic pipeline if custom fails
+
+        # ── JSON Structural Match ─────────────────────────────────────
+        if mode == ComparisonMode.JSON:
+            return _json_match(actual, expected)
+
         # ── Layer 1: Exact Match ──────────────────────────────────────
         if actual == expected:
             return True
@@ -257,6 +281,26 @@ class JudgeEngine:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Comparison Helpers (module-level for testability)
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _json_match(actual: str, expected: str) -> bool:
+    """Compare raw strings as parsed JSON objects or arrays."""
+    try:
+        act_val = json.loads(actual.strip())
+        exp_val = json.loads(expected.strip())
+        return _deep_equals(act_val, exp_val)
+    except Exception:
+        # Fallback: extract json from stdout if debug prints are included
+        try:
+            act_clean = actual.strip()
+            match = re.search(r'(\{.*\}|\[.*\])', act_clean, re.DOTALL)
+            if match:
+                act_val = json.loads(match.group(1))
+                exp_val = json.loads(expected.strip())
+                return _deep_equals(act_val, exp_val)
+        except Exception:
+            pass
+    return False
 
 
 def _trimmed_match(actual: str, expected: str) -> bool:

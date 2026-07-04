@@ -189,6 +189,15 @@ class ExecutionWorker:
             await self._update_status(submission_id, ExecutionStatus.JUDGING)
             await self._broadcast(submission_id, WebSocketEventType.JUDGING, ExecutionStatus.JUDGING)
 
+            # If in practice mode (no contest_id) and failure occurred, reveal one hidden test case details
+            contest_id = getattr(job, "contest_id", None)
+            if not contest_id and testcase_results:
+                for tc, res in zip(testcases, testcase_results):
+                    if res and not res.passed and res.hidden:
+                        res.revealed_input = tc.stdin
+                        res.revealed_expected = tc.expected_output
+                        break
+
             scoring = JudgeEngine.score(testcase_results)
 
             # Category-aware scoring for anti-overfitting detection

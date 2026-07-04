@@ -10,6 +10,7 @@ const LANG_MAP = {
   cpp: 'cpp',
   rs: 'rust',
   java: 'java',
+  html: 'html',
 };
 
 // ─── Thunk: Run (against visible sample test cases) ─────────────────────────
@@ -42,7 +43,7 @@ export const runCode = createAsyncThunk(
 // ─── Thunk: Submit (against all test cases including hidden) ─────────────────
 export const submitCode = createAsyncThunk(
   'challengeExecution/submit',
-  async ({ code, language, slug, userId, contestId }, { rejectWithValue }) => {
+  async ({ code, language, slug, userId, contestId }, { dispatch, rejectWithValue }) => {
     const backendLang = LANG_MAP[language] || language;
     try {
       // Step 1: Enqueue submission
@@ -61,8 +62,7 @@ export const submitCode = createAsyncThunk(
       if (!submission_id) throw new Error('No submission_id returned');
 
       // Step 2: Poll with active backoff until result is ready (max 60s)
-      // 404 = "not yet done" → keep polling. Only error on 5xx or other issues.
-      const INTERVALS = [200, 400, 600, 800, 1200, 1500, 2000, 2000, 2000]; // faster checks
+      const INTERVALS = [200, 400, 600, 800, 1200, 1500, 2000, 2000, 2000];
       const DEFAULT_INTERVAL = 2000;
       const MAX_WAIT_MS = 60_000;
       const start = Date.now();
@@ -74,18 +74,21 @@ export const submitCode = createAsyncThunk(
         attempt++;
 
         try {
-          const resRes = await API.get(`/api/v1/results/${submission_id}`);
-          if (resRes.data && (resRes.data.verdict || resRes.data.status === 'COMPLETED')) {
-            return { ...resRes.data, submission_id };
+          const resRes = await API.get(`/api/v1/submissions/${submission_id}`);
+          if (resRes.data) {
+            if (resRes.data.verdict || resRes.data.status === 'COMPLETED') {
+              dispatch(updateActiveStatus('COMPLETED'));
+              return { ...resRes.data, submission_id };
+            }
+            if (resRes.data.status) {
+              dispatch(updateActiveStatus(resRes.data.status));
+            }
           }
-          // Result returned but no verdict yet — worker still judging
           continue;
         } catch (pollErr) {
           if (pollErr.response?.status === 404) {
-            // Worker hasn't finished yet — keep polling
             continue;
           }
-          // Real error (500, network, etc.)
           throw pollErr;
         }
       }
@@ -110,6 +113,7 @@ const initialState = {
   submitResult: null,
   submitError: null,
   submissionId: null,
+  activeStatus: null,  // 'QUEUED' | 'COMPILING' | 'RUNNING' | 'JUDGING' | 'COMPLETED'
 };
 
 const challengeExecutionSlice = createSlice({
@@ -124,6 +128,10 @@ const challengeExecutionSlice = createSlice({
       state.submitResult = null;
       state.submitError = null;
       state.submissionId = null;
+      state.activeStatus = null;
+    },
+    updateActiveStatus(state, action) {
+      state.activeStatus = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -163,7 +171,7 @@ const challengeExecutionSlice = createSlice({
   },
 });
 
-export const { resetExecution } = challengeExecutionSlice.actions;
+export const { resetExecution, updateActiveStatus } = challengeExecutionSlice.actions;
 export default challengeExecutionSlice.reducer;
 
 // ─── Selectors ───────────────────────────────────────────────────────────────

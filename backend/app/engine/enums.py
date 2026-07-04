@@ -52,6 +52,8 @@ class ComparisonMode(str, Enum):
     TOKEN = "token"
     SEMANTIC = "semantic"      # Smart structured comparison (JSON/Python literals)
     UNORDERED = "unordered"    # Order-independent comparison (sets, dicts)
+    JSON = "json"              # Direct JSON structural validation
+    CUSTOM = "custom"          # Specialized validation logic for complex challenges
 
 
 class TestCaseCategory(str, Enum):

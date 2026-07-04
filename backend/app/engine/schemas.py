@@ -125,9 +125,13 @@ class TestCaseResult(BaseModel):
     stderr: str = ""
     compile_output: str = ""
     wall_time_ms: float = 0.0
+    runtime_ms: float = 0.0  # Frontend-friendly alias for wall_time_ms
     peak_memory_mb: float = 0.0
     exit_code: int = 0
     weight: float = 1.0
+    revealed_input: Optional[str] = None
+    revealed_expected: Optional[str] = None
+
 
 
 # ─────────────────────────────────────────────

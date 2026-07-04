@@ -89,6 +89,43 @@ const BACKEND_LANG_TO_SHORT = {
   java: "ts",
 };
 
+const EnvironmentInfo = memo(function EnvironmentInfo({ domain, lang }) {
+  const isFrontend = domain === "Frontend";
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-background/35 p-3 space-y-2 font-sans text-xs">
+      <div className="flex items-center gap-1.5 border-b border-border/60 pb-1.5 text-[9px] uppercase font-mono tracking-wider text-muted-foreground">
+        <span>⚙️ Execution Environment</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-[10px]">
+        <div>
+          <span className="text-zinc-500 block">Preview / Runtime</span>
+          <span className="text-zinc-300 font-medium truncate block">
+            {isFrontend ? "Live Browser Preview" : lang === "py" ? "Python 3.12 (Docker)" : lang === "js" ? "Node.js 20 (Docker)" : lang === "ts" ? "Node.js 20 (TS-Node)" : lang === "go" ? "Go 1.22 (Docker)" : "Docker Sandbox"}
+          </span>
+        </div>
+        <div>
+          <span className="text-zinc-500 block">Network Access</span>
+          <span className="text-red-400 font-medium">Disabled (Isolated)</span>
+        </div>
+        <div>
+          <span className="text-zinc-500 block">Memory Limit</span>
+          <span className="text-zinc-300 font-medium">256 MB Hard Cap</span>
+        </div>
+        <div>
+          <span className="text-zinc-500 block">Time Limit</span>
+          <span className="text-zinc-300 font-medium">10.0 seconds</span>
+        </div>
+      </div>
+      <div className="text-[9px] text-zinc-500 border-t border-border/60 pt-1.5 flex flex-wrap gap-1.5 items-center">
+        <span>Preinstalled:</span>
+        <span className="bg-secondary/40 px-1 py-0.5 rounded text-zinc-400 font-mono">lodash</span>
+        <span className="bg-secondary/40 px-1 py-0.5 rounded text-zinc-400 font-mono">axios</span>
+        {isFrontend && <span className="bg-secondary/40 px-1 py-0.5 rounded text-zinc-400 font-mono">jsdom</span>}
+      </div>
+    </div>
+  );
+});
+
 // ─── Starter code ─────────────────────────────────────────────────────────────
 
 const STARTERS = {
@@ -1278,11 +1315,23 @@ console.log("DOM loaded successfully!");
             </div>
             <div className="flex-1 overflow-auto px-4 py-4 text-sm leading-relaxed text-foreground/90">
               <p>{c.summary}</p>
+              
+              {c.function_signature && (
+                <div className="mt-4 space-y-1.5">
+                  <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">Function Signature</p>
+                  <pre className="bg-zinc-950 p-2.5 rounded border border-border font-mono text-[11px] text-emerald-400 overflow-x-auto select-all">
+                    {c.function_signature}
+                  </pre>
+                </div>
+              )}
+
               {c.description && (
                 <div className="mt-4 space-y-1 text-muted-foreground">
                   {renderMarkdown(c.description)}
                 </div>
               )}
+
+              <EnvironmentInfo domain={c.domain} lang={lang} />
               {c.test_cases?.filter((t) => !t.hidden).length > 0 && (
                 <>
                   <h3 className="mt-5 text-sm font-semibold">Examples</h3>
@@ -1459,11 +1508,23 @@ console.log("DOM loaded successfully!");
                     </div>
                     <div className="mt-2 text-zinc-300 leading-relaxed space-y-3">
                       <p>{c.summary}</p>
+
+                      {c.function_signature && (
+                        <div className="mt-4 space-y-1.5">
+                          <p className="text-[9px] uppercase font-mono tracking-wider text-muted-foreground">Function Signature</p>
+                          <pre className="bg-zinc-950 p-2 rounded border border-border font-mono text-[10px] text-emerald-400 overflow-x-auto select-all">
+                            {c.function_signature}
+                          </pre>
+                        </div>
+                      )}
+
                       {c.description && (
                         <div className="mt-4 space-y-1 text-muted-foreground prose prose-invert max-w-none text-xs">
                           {renderMarkdown(c.description)}
                         </div>
                       )}
+
+                      <EnvironmentInfo domain={c.domain} lang={lang} />
                     </div>
                   </div>
                 </TabsContent>
@@ -1550,6 +1611,17 @@ console.log("DOM loaded successfully!");
                           rows={2}
                           className="w-full rounded-md border border-zinc-850 bg-zinc-950/40 p-2.5 font-mono text-[11px] text-white focus:outline-none focus:border-primary resize-y"
                         />
+                      </div>
+                      <div className="flex gap-2 border-t border-border/60 pt-3 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRun}
+                          disabled={isRunning || isSubmitting}
+                          className="h-7 px-3 text-[10px] bg-background/50 border-border text-zinc-300 hover:text-white"
+                        >
+                          <Play className="mr-1 h-3 w-3" /> Run Custom Cases
+                        </Button>
                       </div>
                     </div>
                   ) : (
@@ -1664,10 +1736,71 @@ const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execS
   const isSubmitting = execState?.submitStatus === "loading";
 
   if (isRunning || isSubmitting) {
+    const activeStatus = execState?.activeStatus;
+    const stages = [
+      { key: "QUEUED", label: "Queued", desc: "Waiting for container sandbox..." },
+      { key: "COMPILING", label: "Compiling", desc: "Analyzing syntax and structure..." },
+      { key: "RUNNING", label: "Running", desc: "Executing sandbox test suite..." },
+      { key: "JUDGING", label: "Judging", desc: "Validating output against expectations..." },
+    ];
+
+    const activeIdx = stages.findIndex((s) => s.key === activeStatus);
+    const currentIdx = activeIdx !== -1 ? activeIdx : isRunning ? 2 : 0;
+
     return (
-      <div className="flex flex-1 flex-col items-center justify-center bg-[#0A0A0A] p-6 text-zinc-500 italic text-xs">
-        <Loader2 className="h-5 w-5 animate-spin text-primary mb-2" />
-        {isRunning ? "Running test cases on backend sandbox..." : "Submitting solution to judge..."}
+      <div className="flex flex-1 flex-col items-center justify-center bg-[#0A0A0A] p-6 font-sans">
+        <div className="max-w-xs w-full space-y-6">
+          <div className="flex flex-col items-center text-center space-y-1.5">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <h4 className="text-zinc-200 text-xs font-semibold uppercase tracking-wider">
+              {isSubmitting ? "Async Submitting" : "Executing Code"}
+            </h4>
+            <p className="text-zinc-500 text-[11px] italic min-h-[16px]">
+              {stages[currentIdx]?.desc || "Running test cases on backend sandbox..."}
+            </p>
+          </div>
+
+          <div className="relative px-2">
+            <div className="absolute top-2.5 left-0 w-full h-[2px] bg-zinc-800 rounded-full" />
+            <div
+              className="absolute top-2.5 left-0 h-[2px] bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${(currentIdx / (stages.length - 1)) * 100}%` }}
+            />
+            <div className="relative flex justify-between">
+              {stages.map((stage, idx) => {
+                const isPassed = idx < currentIdx;
+                const isActive = idx === currentIdx;
+                
+                return (
+                  <div key={stage.key} className="flex flex-col items-center">
+                    <div
+                      className={`h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-bold border transition-all duration-300 ${
+                        isPassed
+                          ? "bg-emerald-950 border-emerald-500 text-emerald-400"
+                          : isActive
+                          ? "bg-primary/20 border-primary text-primary animate-pulse font-extrabold"
+                          : "bg-zinc-900 border-zinc-800 text-zinc-600"
+                      }`}
+                    >
+                      {isPassed ? "✓" : idx + 1}
+                    </div>
+                    <span
+                      className={`text-[9px] mt-1.5 font-mono ${
+                        isActive
+                          ? "text-primary font-bold animate-pulse"
+                          : isPassed
+                          ? "text-emerald-400"
+                          : "text-zinc-600"
+                      }`}
+                    >
+                      {stage.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1695,97 +1828,192 @@ const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execS
     );
   }
 
-  // Actual results!
-  if (runResult) {
-    const sumRuntime = (results) => results.reduce((acc, curr) => acc + (curr.runtime_ms || 0), 0);
-    const hasCompileError = !!runResult.compile_output;
-    return (
-      <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 font-mono text-[11px] leading-relaxed text-zinc-300 space-y-4">
-        <div className="rounded-lg border border-border bg-card/65 p-4 space-y-2">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans">Sandbox Statistics</p>
-          <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-xs">
-            <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
-              <p className="text-muted-foreground text-[10px] uppercase">Passed</p>
-              <p className="font-mono font-bold text-white text-sm">
-                {runResult.passed_testcases} / {runResult.total_testcases}
-              </p>
-            </div>
-            <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
-              <p className="text-muted-foreground text-[10px] uppercase">Runtime</p>
-              <p className="font-mono font-bold text-emerald-400 text-sm">
-                {runResult.testcase_results?.[0]?.runtime_ms ? `${sumRuntime(runResult.testcase_results).toFixed(0)} ms` : "N/A"}
-              </p>
-            </div>
-          </div>
+  // ── Shared result renderer for both Run and Submit ──
+  const activeResult = runResult || submitResult;
+  const isSubmitResult = !!submitResult && !runResult;
+  const verdictStr = activeResult.verdict || "UNKNOWN";
+  const tcResults = activeResult.testcase_results || [];
+  const hasCompileError = !!activeResult.compile_output;
+
+  const sumRuntime = (results) => results.reduce((acc, curr) => acc + (curr.runtime_ms || curr.wall_time_ms || 0), 0);
+  const maxMemory = (results) => results.reduce((max, curr) => Math.max(max, curr.peak_memory_mb || 0), 0);
+
+  // Verdict → styling map
+  const VERDICT_STYLES = {
+    ACCEPTED:              { bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-400", label: "Accepted", icon: "✓" },
+    WRONG_ANSWER:          { bg: "bg-red-500/10",     border: "border-red-500/20",     text: "text-red-400",     label: "Wrong Answer", icon: "✗" },
+    RUNTIME_ERROR:         { bg: "bg-orange-500/10",   border: "border-orange-500/20",  text: "text-orange-400",  label: "Runtime Error", icon: "!" },
+    TIME_LIMIT_EXCEEDED:   { bg: "bg-yellow-500/10",   border: "border-yellow-500/20",  text: "text-yellow-400",  label: "Time Limit Exceeded", icon: "⏱" },
+    MEMORY_LIMIT_EXCEEDED: { bg: "bg-purple-500/10",   border: "border-purple-500/20",  text: "text-purple-400",  label: "Memory Limit Exceeded", icon: "💾" },
+    COMPILATION_ERROR:     { bg: "bg-red-500/10",      border: "border-red-500/20",     text: "text-red-400",     label: "Compilation Error", icon: "⚠" },
+    INTERNAL_ERROR:        { bg: "bg-zinc-500/10",     border: "border-zinc-500/20",    text: "text-zinc-400",    label: "Internal Error", icon: "⚙" },
+  };
+
+  const vs = VERDICT_STYLES[verdictStr] || VERDICT_STYLES.INTERNAL_ERROR;
+
+  return (
+    <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 font-sans text-xs space-y-3">
+
+      {/* ── Verdict Banner ── */}
+      <div className={`p-4 rounded-xl border flex items-center gap-3 ${vs.bg} ${vs.border}`}>
+        <span className={`text-2xl ${vs.text}`}>{vs.icon}</span>
+        <div className="flex-1 min-w-0">
+          <h4 className={`font-bold text-sm tracking-tight uppercase ${vs.text}`}>{vs.label}</h4>
+          <p className="text-[11px] text-zinc-400 mt-0.5">
+            Passed {activeResult.passed_testcases ?? 0} / {activeResult.total_testcases ?? 0} test cases
+            {activeResult.score != null && activeResult.score < 100 && ` · Score: ${activeResult.score}%`}
+          </p>
         </div>
-
-        {hasCompileError && (
-          <div className="rounded-lg border border-red-500/20 bg-red-950/15 p-4 space-y-2">
-            <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold">Compilation Errors</p>
-            <pre className="whitespace-pre-wrap text-red-300 bg-black/40 p-2.5 rounded border border-red-500/10 text-[10px]">{runResult.compile_output}</pre>
-          </div>
-        )}
-
-        {runResult.testcase_results?.map((tc, idx) => (
-          <div key={idx} className="rounded-lg border border-border bg-card/45 p-4 space-y-2">
-            <div className="flex justify-between items-center border-b border-border pb-1.5">
-              <span className="font-bold text-white">Test Case #{idx + 1}: {tc.name}</span>
-              <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${tc.passed ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
-                {tc.passed ? "PASSED" : "FAILED"}
-              </span>
-            </div>
-            {tc.stdout && (
-              <div className="space-y-1">
-                <span className="text-zinc-500 text-[10px] block font-sans">Standard Output:</span>
-                <pre className="bg-black/50 p-2 rounded text-zinc-350 text-[10px] overflow-x-auto whitespace-pre-wrap">{tc.stdout}</pre>
-              </div>
-            )}
-            {tc.stderr && (
-              <div className="space-y-1">
-                <span className="text-red-400 text-[10px] block font-sans">Error Output (stderr):</span>
-                <pre className="bg-red-950/10 p-2 rounded text-red-350 text-[10px] overflow-x-auto whitespace-pre-wrap">{tc.stderr}</pre>
-              </div>
-            )}
-            {!tc.passed && (
-              <div className="grid grid-cols-2 gap-2 mt-1 font-sans text-xs">
-                <div>
-                  <span className="text-zinc-500 text-[10px]">Actual</span>
-                  <pre className="bg-zinc-950 p-2 rounded text-zinc-400 font-mono text-[10px] overflow-x-auto">{tc.actual_output || tc.stdout || "Empty"}</pre>
-                </div>
-                <div>
-                  <span className="text-zinc-500 text-[10px]">Expected</span>
-                  <pre className="bg-zinc-950 p-2 rounded text-zinc-400 font-mono text-[10px] overflow-x-auto">{tc.expected_output || "Empty"}</pre>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+        {isSubmitResult && <span className="text-[9px] text-zinc-500 uppercase font-mono">Submission</span>}
       </div>
-    );
-  }
 
-  if (submitResult) {
-    return (
-      <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 font-mono text-[11px] leading-relaxed text-zinc-300 space-y-4">
-        <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${submitResult.success ? "bg-emerald-950/20 border-emerald-500/20 text-emerald-400" : "bg-red-950/20 border-red-500/20 text-red-400"
-          }`}>
-          <div className="space-y-1 font-sans">
-            <h4 className="font-bold text-sm tracking-tight text-white uppercase">{submitResult.verdict}</h4>
-            <p className="text-[11px] text-zinc-400">
-              Passed {submitResult.passed_testcases} / {submitResult.total_testcases} testcases.
+      {/* ── Execution Summary Card ── */}
+      <div className="rounded-lg border border-border bg-card/60 p-3.5 space-y-2">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Execution Diagnostics</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
+          <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
+            <p className="text-muted-foreground text-[10px] uppercase">Compilation</p>
+            <p className={`font-mono font-bold text-sm ${hasCompileError ? "text-red-400" : "text-emerald-400"}`}>
+              {hasCompileError ? "Failed" : "Success"}
             </p>
           </div>
-        </div>
-
-        {submitResult.compile_output && (
-          <div className="rounded-lg border border-red-500/20 bg-red-950/15 p-4 space-y-2">
-            <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold font-sans">Compilation Failure Details</p>
-            <pre className="whitespace-pre-wrap text-red-300 bg-black/40 p-2.5 rounded border border-red-500/10 text-[10px]">{submitResult.compile_output}</pre>
+          <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
+            <p className="text-muted-foreground text-[10px] uppercase">Exit Code</p>
+            <p className={`font-mono font-bold text-sm ${(activeResult.exit_code || 0) !== 0 ? "text-orange-400" : "text-emerald-400"}`}>
+              {activeResult.exit_code ?? 0}
+            </p>
           </div>
-        )}
+          <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
+            <p className="text-muted-foreground text-[10px] uppercase">Total Runtime</p>
+            <p className="font-mono font-bold text-emerald-400 text-sm">
+              {tcResults.length > 0 ? `${sumRuntime(tcResults).toFixed(0)} ms` : `${((activeResult.time || 0) * 1000).toFixed(0)} ms`}
+            </p>
+          </div>
+          <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
+            <p className="text-muted-foreground text-[10px] uppercase">Peak Memory</p>
+            <p className="font-mono font-bold text-sky-400 text-sm">
+              {tcResults.length > 0 ? `${maxMemory(tcResults).toFixed(1)} MB` : `${(activeResult.memory || 0).toFixed(1)} MB`}
+            </p>
+          </div>
+          <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
+            <p className="text-muted-foreground text-[10px] uppercase">Passed</p>
+            <p className="font-mono font-bold text-white text-sm">
+              {activeResult.passed_testcases ?? 0} / {activeResult.total_testcases ?? 0}
+            </p>
+          </div>
+          <div className="rounded border border-border bg-background/40 px-2.5 py-1.5">
+            <p className="text-muted-foreground text-[10px] uppercase">Verdict</p>
+            <p className={`font-mono font-bold text-sm ${vs.text}`}>{vs.label}</p>
+          </div>
+        </div>
       </div>
-    );
-  }
+
+      {/* ── Compilation Error Details ── */}
+      {hasCompileError && (
+        <div className="rounded-lg border border-red-500/20 bg-red-950/15 p-4 space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-red-400 font-bold font-mono">Compilation Error</p>
+          <pre className="whitespace-pre-wrap text-red-300 bg-black/40 p-2.5 rounded border border-red-500/10 text-[10px]">{activeResult.compile_output}</pre>
+        </div>
+      )}
+
+      {/* ── Global stderr (if present at top level) ── */}
+      {activeResult.stderr && !hasCompileError && (
+        <div className="rounded-lg border border-orange-500/20 bg-orange-950/10 p-4 space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold font-mono">Standard Error (stderr)</p>
+          <pre className="whitespace-pre-wrap text-orange-300 bg-black/40 p-2.5 rounded border border-orange-500/10 text-[10px]">{activeResult.stderr}</pre>
+        </div>
+      )}
+
+      {/* ── Internal Error Message ── */}
+      {activeResult.error && (
+        <div className="rounded-lg border border-zinc-500/20 bg-zinc-900/40 p-4 space-y-2">
+          <p className="text-[10px] uppercase tracking-wider text-zinc-400 font-bold font-mono">Internal Error</p>
+          <pre className="whitespace-pre-wrap text-zinc-300 bg-black/40 p-2.5 rounded border border-zinc-500/10 text-[10px]">{activeResult.error}</pre>
+        </div>
+      )}
+
+      {/* ── Per-Testcase Breakdown ── */}
+      {tcResults.map((tc, idx) => {
+        const tcVerdict = tc.verdict || (tc.passed ? "ACCEPTED" : "WRONG_ANSWER");
+        const tcVs = VERDICT_STYLES[tcVerdict] || VERDICT_STYLES.INTERNAL_ERROR;
+        const tcRuntime = tc.runtime_ms || tc.wall_time_ms || 0;
+        const tcMemory = tc.peak_memory_mb || 0;
+
+        return (
+          <div key={idx} className="rounded-lg border border-border bg-card/45 p-4 space-y-2.5">
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-border pb-1.5">
+              <span className="font-bold text-white text-xs">
+                Test Case #{idx + 1}{tc.name ? `: ${tc.name}` : ""}
+                {tc.hidden && <span className="ml-1.5 text-[9px] text-zinc-500 font-normal">(hidden)</span>}
+              </span>
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${tcVs.bg} ${tcVs.text}`}>
+                {tcVs.icon} {tcVs.label}
+              </span>
+            </div>
+
+            {/* Testcase diagnostics row */}
+            <div className="flex flex-wrap gap-3 text-[10px] text-zinc-500 font-mono">
+              {tc.exit_code !== 0 && <span>Exit: <span className="text-orange-400">{tc.exit_code}</span></span>}
+              {tcRuntime > 0 && <span>Runtime: <span className="text-zinc-300">{tcRuntime.toFixed(0)} ms</span></span>}
+              {tcMemory > 0 && <span>Memory: <span className="text-zinc-300">{tcMemory.toFixed(1)} MB</span></span>}
+            </div>
+
+            {/* stderr (always show if present) */}
+            {tc.stderr && (
+              <div className="space-y-1">
+                <span className="text-orange-400 text-[10px] block font-sans font-semibold">stderr:</span>
+                <pre className="bg-orange-950/20 border border-orange-500/10 p-2 rounded text-orange-300 text-[10px] overflow-x-auto whitespace-pre-wrap">{tc.stderr}</pre>
+              </div>
+            )}
+
+            {/* stdout (always show, even when empty) */}
+            {!tc.hidden && (
+              <div className="space-y-1">
+                <span className="text-zinc-500 text-[10px] block font-sans">Your Output:</span>
+                <pre className={`bg-black/50 p-2 rounded text-[10px] overflow-x-auto whitespace-pre-wrap ${
+                  tc.stdout && !tc.stdout.startsWith("(no output") ? "text-zinc-300" : "text-zinc-600 italic"
+                }`}>{tc.stdout || "(empty)"}</pre>
+              </div>
+            )}
+
+            {/* Revealed diagnostic for hidden testcase */}
+            {tc.hidden && tc.revealed_input && (
+              <div className="space-y-2 border border-yellow-500/10 bg-yellow-500/5 p-3 rounded mt-2">
+                <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider block font-sans">Failing Hidden Case Diagnostics:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                  <div>
+                    <span className="text-zinc-500 text-[9px] font-sans">Input:</span>
+                    <pre className="bg-zinc-950 p-2 rounded border border-border text-zinc-300 font-mono text-[10px] overflow-x-auto whitespace-pre-wrap select-all">{tc.revealed_input}</pre>
+                  </div>
+                  {tc.revealed_expected && (
+                    <div>
+                      <span className="text-zinc-500 text-[9px] font-sans">Expected Output:</span>
+                      <pre className="bg-zinc-950 p-2 rounded border border-border text-emerald-400 font-mono text-[10px] overflow-x-auto whitespace-pre-wrap select-all">{tc.revealed_expected}</pre>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Expected vs Actual on failure (non-hidden only) */}
+            {!tc.passed && !tc.hidden && (
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <div>
+                  <span className="text-zinc-500 text-[10px] font-sans">Expected:</span>
+                  <pre className="bg-zinc-950 p-2 rounded text-emerald-400/70 font-mono text-[10px] overflow-x-auto whitespace-pre-wrap">{tc.expected_output || "(empty)"}</pre>
+                </div>
+                <div>
+                  <span className="text-zinc-500 text-[10px] font-sans">Actual:</span>
+                  <pre className="bg-zinc-950 p-2 rounded text-red-400/70 font-mono text-[10px] overflow-x-auto whitespace-pre-wrap">{tc.stdout || "(empty)"}</pre>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 });
 
 function getProgramOutput(slug) {
