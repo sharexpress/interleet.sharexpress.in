@@ -38,12 +38,12 @@ class DevOpsExecutor(BaseExecutor):
         testcases: list[TestCaseSchema],
         time_limit: float,
         memory_limit: int,
-    ) -> list[TestCaseResult]:
+    ) -> list[SandboxResult]:
         """
         Run testcases in completely isolated containers.
         """
         workspace = await self._create_workspace()
-        results: list[TestCaseResult] = []
+        results: list[SandboxResult] = []
 
         try:
             # Write user code
@@ -87,46 +87,7 @@ class DevOpsExecutor(BaseExecutor):
                 )
 
                 # The actual stdout we evaluate is from the verification script!
-                
-                passed = False
-                verdict = Verdict.INTERNAL_ERROR
-                
-                if sandbox_result.timed_out:
-                    verdict = Verdict.TIME_LIMIT_EXCEEDED
-                elif sandbox_result.oom_killed:
-                    verdict = Verdict.MEMORY_LIMIT_EXCEEDED
-                elif sandbox_result.exit_code != 0 and not verification_script:
-                    # If no verification script and user script fails
-                    verdict = Verdict.RUNTIME_ERROR
-                else:
-                    # Evaluate standard out against expected output
-                    passed = compare_outputs(sandbox_result.stdout, tc.expected_output, tc.comparison_mode)
-                    if passed:
-                        verdict = Verdict.ACCEPTED
-                    else:
-                        verdict = Verdict.WRONG_ANSWER
-                        
-                results.append(
-                    TestCaseResult(
-                        testcase_id=tc.id,
-                        name=tc.name,
-                        hidden=tc.hidden,
-                        passed=passed,
-                        verdict=verdict,
-                        category=tc.category,
-                        stdout=sandbox_result.stdout if not tc.hidden else "",
-                        expected_output=tc.expected_output if not tc.hidden else "",
-                        stderr=sandbox_result.stderr if not tc.hidden else "",
-                        compile_output="",
-                        wall_time_ms=sandbox_result.wall_time_ms,
-                        runtime_ms=sandbox_result.wall_time_ms,
-                        peak_memory_mb=sandbox_result.peak_memory_mb,
-                        exit_code=sandbox_result.exit_code,
-                        weight=tc.weight,
-                        revealed_input=tc.stdin if not tc.hidden else None,
-                        revealed_expected=tc.expected_output if not tc.hidden else None,
-                    )
-                )
+                results.append(sandbox_result)
 
         finally:
             await self._cleanup_workspace(workspace)

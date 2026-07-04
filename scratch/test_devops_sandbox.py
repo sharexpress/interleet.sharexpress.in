@@ -33,18 +33,22 @@ fi
         verification_script=verification_script
     )
 
-    results = await executor.run_batch_testcases(
+    from app.engine.schemas import ExecuteRequest
+    
+    req = ExecuteRequest(
+        language=Language.PYTHON,
         code=code,
-        testcases=[tc],
-        time_limit=5.0,
-        memory_limit=256
+        execution_mode="devops",
+        comparison_mode="exact"
     )
 
-    result = results[0]
-    print(f"Passed: {result.passed}")
-    print(f"Verdict: {result.verdict}")
-    print(f"Exit Code: {result.exit_code}")
-    print(f"Output (Verification Script): {result.stdout}")
+    result = await executor.execute("sub-123", req, [tc])
+    
+    tc_result = result.testcase_results[0]
+    print(f"Passed: {tc_result.passed}")
+    print(f"Verdict: {tc_result.verdict}")
+    print(f"Exit Code: {tc_result.exit_code}")
+    print(f"Output (Verification Script): {tc_result.stdout}")
 
 if __name__ == "__main__":
     asyncio.run(main())
