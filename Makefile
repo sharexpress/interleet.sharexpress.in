@@ -62,6 +62,10 @@ build-go:
 	@echo "🐹 Building Go sandbox..."
 	docker build -t interleet-go:latest sandboxes/go/
 
+build-ubuntu:
+	@echo "🐧 Building Ubuntu DevOps sandbox..."
+	docker build -t interleet-ubuntu:latest sandboxes/ubuntu/
+
 build-cpp:
 	@echo "⚙️  Building C++ sandbox..."
 	docker build -t interleet-cpp:latest sandboxes/cpp/

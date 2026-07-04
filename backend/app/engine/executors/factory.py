@@ -52,10 +52,17 @@ class ExecutorFactory:
             except ValueError:
                 raise ValueError(f"Unsupported language: {language!r}") from None
 
+        # 2. DevOps/SysAdmin Evaluation Mode
+        if execution_mode == "devops":
+            from app.engine.executors.devops_executor import DevOpsExecutor
+            return DevOpsExecutor()
+
+        # 3. HTTP/Service Evaluation Mode
         if execution_mode == "http":
             from app.engine.executors.service_executor import ServiceExecutor
             return ServiceExecutor(language)
 
+        # 4. Standard CLI Evaluation Mode
         executor_cls = _REGISTRY.get(language)
         if executor_cls is None:
             raise ValueError(f"No executor registered for language: {language}")

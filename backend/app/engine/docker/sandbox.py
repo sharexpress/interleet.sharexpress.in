@@ -274,6 +274,29 @@ class DockerSandbox:
             memory_limit_mb,
         )
 
+    @staticmethod
+    async def run_isolated(
+        image: str,
+        command: list[str],
+        workspace: Path,
+        time_limit: float,
+        memory_limit_mb: int,
+    ) -> SandboxResult:
+        """
+        Run the execution command inside a completely isolated, single-use container.
+        This is required for DevOps challenges where side-effects must not leak.
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            _DOCKER_THREAD_POOL,
+            DockerSandbox._run_isolated_sync,
+            image,
+            command,
+            workspace,
+            time_limit,
+            memory_limit_mb,
+        )
+
     # ─── Sync implementations (run in dedicated thread pool) ───────────────
 
     @staticmethod
@@ -406,6 +429,92 @@ class DockerSandbox:
             logger.exception("Docker run error: %s", exc)
             # Invalidate cache on unexpected errors
             _container_cache.pop(image, None)
+            return SandboxResult(stderr=str(exc), exit_code=1)
+
+    @staticmethod
+    def _run_isolated_sync(
+        image: str,
+        command: list[str],
+        workspace: Path,
+        time_limit: float,
+        memory_limit_mb: int,
+    ) -> SandboxResult:
+        start = time.monotonic()
+        client = get_docker_client()
+
+        workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
+        try:
+            rel = workspace.relative_to(workspace_base)
+            container_workspace = f"/workspace/{rel}"
+        except Exception:
+            container_workspace = "/workspace"
+
+        cmd_str = " ".join(command)
+        # Timeout at the docker run level is hard, we'll wrap the command in timeout
+        wrapped_command = ["sh", "-c", f"timeout {time_limit} {cmd_str}"]
+
+        try:
+            container = client.containers.run(
+                image=image,
+                command=wrapped_command,
+                volumes={
+                    workspace_base: {"bind": "/workspace", "mode": "rw"}
+                },
+                working_dir=container_workspace,
+                network_disabled=True,
+                mem_limit=f"{memory_limit_mb}m",
+                memswap_limit=f"{memory_limit_mb}m",
+                nano_cpus=2_000_000_000,
+                pids_limit=256,
+                security_opt=["no-new-privileges"],
+                cap_drop=["ALL"],
+                detach=True,
+                remove=False,
+            )
+
+            # Wait for completion or timeout
+            try:
+                # Docker timeout just to be safe, but sh -c timeout handles the real timeout
+                result = container.wait(timeout=int(time_limit + 5))
+                exit_code = result["StatusCode"]
+            except Exception:
+                # Fallback if wait throws
+                container.kill()
+                exit_code = 124
+
+            stdout_bytes = container.logs(stdout=True, stderr=False)
+            stderr_bytes = container.logs(stdout=False, stderr=True)
+            
+            container.remove(force=True)
+
+            stdout = _decode_output(stdout_bytes)
+            stderr = _decode_output(stderr_bytes)
+
+            timed_out = (exit_code == 124)
+            oom_killed = (exit_code == 137)
+            wall_time_ms = (time.monotonic() - start) * 1000
+
+            if len(stdout.encode()) > MAX_OUTPUT_BYTES:
+                stdout = stdout[:MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
+                stderr += "\\n[Output truncated: exceeded 10MB limit]"
+
+            return SandboxResult(
+                stdout=stdout,
+                stderr=stderr,
+                exit_code=exit_code,
+                wall_time_ms=round(wall_time_ms, 2),
+                peak_memory_mb=0.0,
+                timed_out=timed_out,
+                oom_killed=oom_killed,
+            )
+
+        except docker.errors.ImageNotFound:
+            return SandboxResult(
+                stderr=f"Docker image not found: {image}. Run 'make build-sandboxes'.",
+                exit_code=127,
+            )
+        except Exception as exc:
+            logger.exception("Docker run_isolated error: %s", exc)
             return SandboxResult(stderr=str(exc), exit_code=1)
 
     @staticmethod

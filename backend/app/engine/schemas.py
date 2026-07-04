@@ -35,7 +35,7 @@ class ExecuteRequest(BaseModel):
     time_limit: float = Field(default=5.0, ge=0.5, le=30.0, description="Seconds")
     memory_limit: int = Field(default=256, ge=32, le=1024, description="MB")
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
-    execution_mode: str = "cli"  # "cli", "http", "browser"
+    execution_mode: str = "cli"  # "cli", "http", "browser", "devops"
 
 
 class InlineTestCase(BaseModel):
@@ -55,7 +55,7 @@ class RunRequest(BaseModel):
     time_limit: float = Field(default=5.0, ge=0.5, le=30.0, description="Seconds")
     memory_limit: int = Field(default=256, ge=32, le=1024, description="MB")
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
-    execution_mode: str = "cli"
+    execution_mode: str = "cli"  # "cli", "http", "browser", "devops"
 
 
 class SubmissionRequest(ExecuteRequest):
@@ -107,6 +107,7 @@ class TestCaseSchema(BaseModel):
     problem_slug: str = ""
     stdin: str = ""
     expected_output: str = ""
+    verification_script: Optional[str] = None
     files: Optional[dict[str, str]] = None
     hidden: bool = False
     weight: float = 1.0
