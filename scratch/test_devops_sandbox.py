@@ -29,7 +29,7 @@ fi
 
     tc = TestCaseSchema(
         stdin="",
-        expected_output="OK\\n",
+        expected_output="OK\n",
         verification_script=verification_script
     )
 
