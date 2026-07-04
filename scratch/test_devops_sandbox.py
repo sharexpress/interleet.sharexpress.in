@@ -42,7 +42,7 @@ fi
         comparison_mode="exact"
     )
 
-    result = await executor.execute("sub-123", req, [tc])
+    result = await executor.execute(req, [tc])
     
     tc_result = result.testcase_results[0]
     print(f"Passed: {tc_result.passed}")
