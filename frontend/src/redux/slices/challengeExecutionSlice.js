@@ -16,7 +16,7 @@ const LANG_MAP = {
 // ─── Thunk: Run (against visible sample test cases) ─────────────────────────
 export const runCode = createAsyncThunk(
   'challengeExecution/run',
-  async ({ code, language, testCases = [] }, { rejectWithValue }) => {
+  async ({ code, language, testCases = [], executionMode = 'cli' }, { rejectWithValue }) => {
     const backendLang = LANG_MAP[language] || language;
     try {
       const response = await API.post('/api/v1/run', {
@@ -31,6 +31,7 @@ export const runCode = createAsyncThunk(
         })),
         time_limit: 10,
         memory_limit: 256,
+        execution_mode: executionMode,
       });
       return response.data;
     } catch (err) {
@@ -43,7 +44,7 @@ export const runCode = createAsyncThunk(
 // ─── Thunk: Submit (against all test cases including hidden) ─────────────────
 export const submitCode = createAsyncThunk(
   'challengeExecution/submit',
-  async ({ code, language, slug, userId, contestId }, { dispatch, rejectWithValue }) => {
+  async ({ code, language, slug, userId, contestId, executionMode = 'cli' }, { dispatch, rejectWithValue }) => {
     const backendLang = LANG_MAP[language] || language;
     try {
       // Step 1: Enqueue submission
@@ -56,6 +57,7 @@ export const submitCode = createAsyncThunk(
         mode: 'submit',
         time_limit: 10,
         memory_limit: 256,
+        execution_mode: executionMode,
       });
 
       const { submission_id } = queueRes.data;

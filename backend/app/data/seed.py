@@ -66,15 +66,65 @@ CHALLENGES = [
     },
     {
         "id": "3",
-        "slug": "ci-pipeline-from-scratch",
-        "title": "Design a CI Pipeline From Scratch",
+        "slug": "configure-nginx-proxy",
+        "title": "Configure Nginx Reverse Proxy",
         "domain": "DevOps",
         "difficulty": "Medium",
         "minutes": 60,
         "xp": 380,
         "completion": 52,
-        "tags": ["GitHub Actions", "Docker", "Caching"],
-        "summary": "Build a multi-stage pipeline with caching, parallel jobs, and artifact promotion.",
+        "tags": ["Nginx", "Linux", "Networking"],
+        "summary": "Configure Nginx to reverse proxy traffic to a local backend on port 3000.",
+        "execution_mode": "devops",
+        "starter_code": {
+            "python": "# Write a bash script that installs nginx and creates the configuration\n#!/bin/bash\n\n# Your code here\n"
+        },
+        "test_cases": [
+            {
+                "id": "nginx-proxy-1",
+                "problem_slug": "configure-nginx-proxy",
+                "name": "Nginx responds with proxy pass",
+                "stdin": "",
+                "expected_output": "OK\\n",
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "exact",
+                "verification_script": "#!/bin/bash\n# Mock backend on port 3000\npython3 -m http.server 3000 &> /dev/null &\nsleep 2\ncurl -s http://localhost/ > /dev/null\nif [ $? -eq 0 ]; then echo \"OK\"; else echo \"FAIL\"; fi\n"
+            }
+        ]
+    },
+    {
+        "id": "101",
+        "slug": "orchestrate-redis-node",
+        "title": "Orchestrate Redis + Node API",
+        "domain": "System Design",
+        "difficulty": "Hard",
+        "minutes": 120,
+        "xp": 600,
+        "completion": 25,
+        "tags": ["Docker Compose", "Redis", "Node.js"],
+        "summary": "Write a docker-compose.yml to orchestrate a Node.js API and a Redis cache.",
+        "execution_mode": "compose",
+        "starter_code": {
+            "python": "version: '3.8'\nservices:\n  # Add your services here\n"
+        },
+        "test_cases": [
+            {
+                "id": "compose-redis-1",
+                "problem_slug": "orchestrate-redis-node",
+                "name": "Services are up and responding",
+                "stdin": "",
+                "expected_output": "OK\\n",
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "exact",
+                "verification_script": "#!/bin/bash\n# Wait for services\nsleep 5\ncurl -s http://localhost:8080/health > /dev/null\nif [ $? -eq 0 ]; then echo \"OK\"; else echo \"FAIL\"; fi\n",
+                "files": {
+                    "server.js": "const http = require('http');\nhttp.createServer((req, res) => { res.writeHead(200); res.end('OK'); }).listen(8080);\n",
+                    "Dockerfile": "FROM node:20-alpine\nWORKDIR /app\nCOPY server.js .\nCMD [\"node\", \"server.js\"]\n"
+                }
+            }
+        ]
     },
 
     {

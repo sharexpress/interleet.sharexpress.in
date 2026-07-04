@@ -78,6 +78,7 @@ class EngineSubmissionController:
             time_limit=request.time_limit,
             memory_limit=request.memory_limit,
             comparison_mode=request.comparison_mode,
+            execution_mode=request.execution_mode,
             mode="run",
             testcases=[testcase] if testcase else [],
         )
@@ -149,6 +150,7 @@ class EngineSubmissionController:
             time_limit=request.time_limit,
             memory_limit=request.memory_limit,
             comparison_mode=request.comparison_mode,
+            execution_mode=request.execution_mode,
             mode="run",
             testcases=testcases,
         )
@@ -203,6 +205,8 @@ class EngineSubmissionController:
                     memory_limit=tc.get("memory_limit"),
                     name=tc.get("name"),
                     comparison_mode=tc.get("comparison_mode"),
+                    verification_script=tc.get("verification_script"),
+                    files=tc.get("files"),
                 )
                 for tc in raw_testcases
             ]
@@ -229,6 +233,7 @@ class EngineSubmissionController:
             time_limit=request.time_limit,
             memory_limit=request.memory_limit,
             comparison_mode=request.comparison_mode,
+            execution_mode=request.execution_mode,
             problem_slug=request.problem_slug,
             challenge_id=request.challenge_id,
             user_id=request.user_id,
@@ -248,6 +253,7 @@ class EngineSubmissionController:
                 "language": request.language.value,
                 "code": request.code,
                 "mode": request.mode,
+                "execution_mode": request.execution_mode,
                 "total_testcases": len(testcases),
                 "contest_id": getattr(request, "contest_id", None),
             },

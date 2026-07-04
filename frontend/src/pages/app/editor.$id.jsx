@@ -1029,16 +1029,16 @@ console.log("DOM loaded successfully!");
     dispatch(resetExecution());
     setActiveTab("result");
     const executionLang = c?.domain === "Frontend" ? "html" : lang;
-    dispatch(runCode({ code, language: executionLang, testCases: customTestCases }));
-  }, [code, lang, customTestCases, dispatch, c?.domain]);
+    dispatch(runCode({ code, language: executionLang, testCases: customTestCases, executionMode: c?.execution_mode || "cli" }));
+  }, [code, lang, customTestCases, dispatch, c?.domain, c?.execution_mode]);
 
   // Submit — runs against all test cases (including hidden) via backend DB
   const handleSubmit = useCallback(() => {
     dispatch(resetExecution());
     setActiveTab("result");
     const executionLang = c?.domain === "Frontend" ? "html" : lang;
-    dispatch(submitCode({ code, language: executionLang, slug, userId: user?.user_id }));
-  }, [code, lang, slug, dispatch, user, c?.domain]);
+    dispatch(submitCode({ code, language: executionLang, slug, userId: user?.user_id, executionMode: c?.execution_mode || "cli" }));
+  }, [code, lang, slug, dispatch, user, c?.domain, c?.execution_mode]);
 
   // Reset editor to default starter code, dismissing previous submission
   const handleResetToStarter = useCallback(() => {
