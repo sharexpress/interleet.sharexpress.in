@@ -15,7 +15,7 @@ def main():
     logs = []
     start_time = time.time()
     
-    workspace_dir = os.environ.get("WORKSPACE_DIR", "/workspace")
+    workspace_dir = os.environ.get("WORKSPACE_DIR", ".")
     try:
         with open(f"{workspace_dir}/runtime.json") as f:
             config = json.load(f)

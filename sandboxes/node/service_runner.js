@@ -128,7 +128,7 @@ async function main() {
   const logs = [];
   const startTime = Date.now();
   let config;
-  const workspaceDir = process.env.WORKSPACE_DIR || '/workspace';
+  const workspaceDir = process.env.WORKSPACE_DIR || '.';
 
   try {
     const raw = fs.readFileSync(`${workspaceDir}/runtime.json`, 'utf8');
