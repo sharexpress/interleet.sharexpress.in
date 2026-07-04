@@ -6,6 +6,7 @@ import aiofiles
 from app.engine.enums import Language, Verdict
 from app.engine.schemas import SandboxResult, TestCaseSchema, TestCaseResult
 from app.engine.executors.base import BaseExecutor
+from app.engine.comparators import compare_outputs
 from app.engine.docker.sandbox import DockerSandbox
 
 class DevOpsExecutor(BaseExecutor):
@@ -99,7 +100,7 @@ class DevOpsExecutor(BaseExecutor):
                     verdict = Verdict.RUNTIME_ERROR
                 else:
                     # Evaluate standard out against expected output
-                    passed = self._compare_output(sandbox_result.stdout, tc.expected_output, tc.comparison_mode)
+                    passed = compare_outputs(sandbox_result.stdout, tc.expected_output, tc.comparison_mode)
                     if passed:
                         verdict = Verdict.ACCEPTED
                     else:
