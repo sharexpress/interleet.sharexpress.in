@@ -449,7 +449,8 @@ class DockerSandbox:
         except Exception:
             container_workspace = "/workspace"
 
-        cmd_str = " ".join(command)
+        import shlex
+        cmd_str = shlex.join(command)
         # Timeout at the docker run level is hard, we'll wrap the command in timeout
         wrapped_command = ["sh", "-c", f"timeout {time_limit} {cmd_str}"]
 
