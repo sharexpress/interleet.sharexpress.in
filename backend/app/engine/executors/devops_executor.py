@@ -114,7 +114,7 @@ class DevOpsExecutor(BaseExecutor):
                 # all in one isolated execution to capture side-effects accurately.
                 if verification_script:
                     # Run user script, then capture output of verification script
-                    combined_cmd = f"bash solution.sh >/dev/null 2>&1 ; bash verify.sh"
+                    combined_cmd = f"bash solution.sh ; bash verify.sh"
                 else:
                     combined_cmd = f"bash solution.sh"
 
