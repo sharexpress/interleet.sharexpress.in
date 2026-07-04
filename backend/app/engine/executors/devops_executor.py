@@ -25,6 +25,49 @@ class DevOpsExecutor(BaseExecutor):
         self.requires_compile = False
         self.compile_command = None
 
+    async def execute(
+        self,
+        request,
+        testcase = None,
+    ):
+        from app.engine.schemas import ExecutionResult, ExecutionStatus, Verdict
+        import datetime
+        import uuid
+        submission_id = str(uuid.uuid4())
+        
+        tc = testcase
+        if not tc:
+            from app.engine.schemas import TestCaseSchema
+            tc = TestCaseSchema(
+                stdin=request.stdin,
+                expected_output=request.expected_output or "",
+            )
+            
+        results = await self.run_batch_testcases(request.code, [tc], request.time_limit, request.memory_limit)
+        sandbox_res = results[0]
+        
+        from app.engine.judge import JudgeEngine
+        tc_result = JudgeEngine.evaluate(sandbox_res, tc, "", request.comparison_mode)
+        
+        scoring = JudgeEngine.score([tc_result])
+        return ExecutionResult(
+            success=tc_result.passed,
+            submission_id=submission_id,
+            status=ExecutionStatus.COMPLETED,
+            verdict=scoring.verdict,
+            stdout=sandbox_res.stdout,
+            stderr=sandbox_res.stderr,
+            compile_output="",
+            memory=sandbox_res.peak_memory_mb,
+            time=sandbox_res.wall_time_ms / 1000,
+            exit_code=sandbox_res.exit_code,
+            testcase_results=[tc_result],
+            passed_testcases=scoring.passed,
+            total_testcases=scoring.total,
+            score=scoring.score,
+            completed_at=datetime.datetime.utcnow(),
+        )
+
     async def _write_code(self, workspace: Path, code: str) -> None:
         """Write the user's shell script."""
         async with aiofiles.open(workspace / self.filename, "w", encoding="utf-8") as f:
