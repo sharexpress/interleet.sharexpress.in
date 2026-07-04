@@ -161,9 +161,11 @@ async function main() {
   }
 
   // 2. SQLite
-  if (config.sqlite) {
-    const dbFile = config.sqlite.db_file || "db.sqlite";
-    const seedFile = config.sqlite.seed_file;
+  const sqliteConfig = config.sqlite || {};
+  const defaultSeedPath = path.join(workspaceDir, 'seed.sql');
+  if (Object.keys(sqliteConfig).length > 0 || fs.existsSync(defaultSeedPath)) {
+    const dbFile = sqliteConfig.db_file || 'db.sqlite';
+    const seedFile = sqliteConfig.seed_file || 'seed.sql';
     const dbPath = `${workspaceDir}/${dbFile}`;
     
     env.DATABASE_URL = `sqlite:///${dbPath}`;

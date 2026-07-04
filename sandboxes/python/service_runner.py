@@ -52,9 +52,9 @@ def main():
 
     # 2. SQLite
     sqlite_config = config.get("sqlite", {})
-    if sqlite_config:
+    if sqlite_config or os.path.exists(f"{workspace_dir}/seed.sql"):
         db_file = sqlite_config.get("db_file", "db.sqlite")
-        seed_file = sqlite_config.get("seed_file")
+        seed_file = sqlite_config.get("seed_file", "seed.sql")
         
         db_path = f"{workspace_dir}/{db_file}"
         env["DATABASE_URL"] = f"sqlite:///{db_path}"
