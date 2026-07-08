@@ -15,7 +15,7 @@ RUN apk add --no-cache gcc musl-dev
 # Pre-cache Gin and pure Go SQLite module for APIs challenges
 WORKDIR /tmp/warmup
 RUN go mod init warmup && \
-    go get github.com/gin-gonic/gin && \
+    go get github.com/gin-gonic/gin@v1.10.0 && \
     go get github.com/glebarez/go-sqlite && \
     cd / && rm -rf /tmp/warmup
 
