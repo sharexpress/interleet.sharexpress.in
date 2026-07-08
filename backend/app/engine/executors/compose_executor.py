@@ -93,19 +93,40 @@ class ComposeExecutor(BaseExecutor):
 
         try:
             import json
+            import socket
+            import re
+
+            # Find a free port to avoid conflicts with host services like Jenkins (port 8080)
+            def get_free_port():
+                s = socket.socket()
+                s.bind(('', 0))
+                port = s.getsockname()[1]
+                s.close()
+                return port
+            
+            free_port = get_free_port()
+
             try:
                 files = json.loads(code)
                 if isinstance(files, dict):
                     for fname, content in files.items():
+                        if fname == "docker-compose.yml":
+                            content = re.sub(r'["\']8080:(\d+)["\']', f'"{free_port}:\\1"', content)
+                            content = re.sub(r'\b8080:(\d+)\b', f'{free_port}:\\1', content)
+                        
                         safe_name = os.path.basename(fname)
                         async with aiofiles.open(workspace / safe_name, "w", encoding="utf-8") as f:
                             await f.write(content)
                         if safe_name.endswith(".sh"):
                             (workspace / safe_name).chmod(0o755)
                 else:
+                    code = re.sub(r'["\']8080:(\d+)["\']', f'"{free_port}:\\1"', code)
+                    code = re.sub(r'\b8080:(\d+)\b', f'{free_port}:\\1', code)
                     async with aiofiles.open(workspace / self.filename, "w", encoding="utf-8") as f:
                         await f.write(code)
             except json.JSONDecodeError:
+                code = re.sub(r'["\']8080:(\d+)["\']', f'"{free_port}:\\1"', code)
+                code = re.sub(r'\b8080:(\d+)\b', f'{free_port}:\\1', code)
                 async with aiofiles.open(workspace / self.filename, "w", encoding="utf-8") as f:
                     await f.write(code)
 
@@ -121,6 +142,7 @@ class ComposeExecutor(BaseExecutor):
                 # Write verification script
                 verification_script = getattr(tc, "verification_script", None)
                 if verification_script:
+                    verification_script = verification_script.replace("8080", str(free_port))
                     async with aiofiles.open(workspace / "verify.sh", "w", encoding="utf-8") as f:
                         await f.write(verification_script)
                     (workspace / "verify.sh").chmod(0o755)
