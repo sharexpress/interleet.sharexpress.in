@@ -389,6 +389,13 @@ func main() {
 
 function getStarter(slug, lang, dbChallenge) {
   if (dbChallenge?.starter_code) {
+    // For multi-file domains (DevOps, Frontend filesystem), use the "multi" or "html" key directly
+    if (lang === "multi" && dbChallenge.starter_code.multi) {
+      return dbChallenge.starter_code.multi;
+    }
+    if (lang === "html" && dbChallenge.starter_code.html) {
+      return dbChallenge.starter_code.html;
+    }
     const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
     if (dbChallenge.starter_code[backendKey]) {
       return dbChallenge.starter_code[backendKey];
@@ -859,16 +866,23 @@ function EditorPage() {
 
   const getInitialState = () => {
     let initialLang = "ts";
-    if (c?.starter_code) {
+    // If the runtime config specifies an execution language (e.g. "multi" for DevOps, "html" for Frontend),
+    // use that first — it takes priority over starter_code key inference.
+    if (runtimeEditor?.executionLanguage) {
+      initialLang = runtimeEditor.executionLanguage;
+    } else if (c?.starter_code) {
       const keys = Object.keys(c.starter_code);
-      if (keys.includes("javascript") && !keys.includes("typescript")) {
+      if (keys.includes("multi")) {
+        initialLang = "multi";
+      } else if (keys.includes("html")) {
+        initialLang = "html";
+      } else if (keys.includes("javascript") && !keys.includes("typescript")) {
         initialLang = "js";
       } else if (keys.length > 0) {
-        const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).find(k => ["ts", "js", "py", "go", "multi"].includes(k));
+        const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).find(k => ["ts", "js", "py", "go"].includes(k));
         if (matched) initialLang = matched;
       }
     }
-    if (runtimeEditor?.executionLanguage) initialLang = runtimeEditor.executionLanguage;
     return {
       lang: initialLang,
       code: getStarter(slug, initialLang, c)
@@ -1148,6 +1162,15 @@ function EditorPage() {
   useEffect(() => {
     if (c && !usingPrevCode) {
       const keys = Object.keys(c.starter_code || {});
+
+      // For multi-file domains (DevOps, Frontend filesystem), skip the lang selection logic
+      if (isMultiFileDomain || keys.includes("multi") || keys.includes("html")) {
+        const multiLang = runtimeEditor?.executionLanguage || (keys.includes("multi") ? "multi" : keys.includes("html") ? "html" : lang);
+        setLang(multiLang);
+        setCode(getStarter(slug, multiLang, c));
+        return;
+      }
+
       const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).filter(k => ["ts", "js", "py", "go"].includes(k));
       
       const allowedLangs = c.domain === "Frontend"
