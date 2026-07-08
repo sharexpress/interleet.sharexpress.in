@@ -990,13 +990,20 @@ function EditorPage() {
     xtermInstance.current = term;
 
     // 3. Connect WebSocket
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    let wsHost = window.location.host;
-    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-      wsHost = "localhost:8000";
+    const apiBase = API.defaults.baseURL || "";
+    let wsUrl;
+    if (apiBase.startsWith("http")) {
+      const wsProtocol = apiBase.startsWith("https") ? "wss:" : "ws:";
+      const cleanUrl = apiBase.replace(/^https?:\/\//, "");
+      wsUrl = `${wsProtocol}//${cleanUrl}/api/v1/devops/session/${devopsSessionId}/ws`;
+    } else {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      let wsHost = window.location.host;
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        wsHost = "localhost:8000";
+      }
+      wsUrl = `${protocol}//${wsHost}/api/v1/devops/session/${devopsSessionId}/ws`;
     }
-
-    const wsUrl = `${protocol}//${wsHost}/api/v1/devops/session/${devopsSessionId}/ws`;
     const ws = new WebSocket(wsUrl);
     wsInstance.current = ws;
 
