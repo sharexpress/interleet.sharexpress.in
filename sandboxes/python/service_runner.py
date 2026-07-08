@@ -98,7 +98,7 @@ def main():
 
     # Health check polling
     is_ready = False
-    for _ in range(50): # 5 seconds max
+    for _ in range(150): # 15 seconds max
         try:
             if health_type == "tcp":
                 with socket.create_connection(("127.0.0.1", port), timeout=1.0):
@@ -124,7 +124,7 @@ def main():
     if not is_ready:
         process.terminate()
         stdout, stderr = process.communicate()
-        logs.append(f"Server failed to start or pass health check within 5 seconds.")
+        logs.append(f"Server failed to start or pass health check within 15 seconds.")
         
         for p in db_processes:
             try:

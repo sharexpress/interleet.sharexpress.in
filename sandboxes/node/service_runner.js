@@ -221,7 +221,7 @@ async function main() {
   });
 
   let isReady = false;
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 150; i++) {
     if (processExited) break;
     
     if (healthType === 'tcp') {
@@ -241,7 +241,7 @@ async function main() {
     for (const p of dbProcesses) {
       try { p.kill(); } catch(e){}
     }
-    logs.push(`Server failed to start or pass health check within 5 seconds.`);
+    logs.push(`Server failed to start or pass health check within 15 seconds.`);
     console.log(JSON.stringify({
       status: 'error',
       startupTime: startupTime,
