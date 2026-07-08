@@ -247,7 +247,7 @@ function EditorPage() {
   const [customTestCases, setCustomTestCases] = useState([]);
   const [selectedTestCaseIdx, setSelectedTestCaseIdx] = useState(0);
 
-  const isMultiFileDomain = c?.runtime_config?.editor?.mode === "files";
+  const isMultiFileDomain = c?.runtime_config?.capabilities?.filesystem || false;
 
   // Multi-file states
   const [activeFile, setActiveFile] = useState("index.html");
