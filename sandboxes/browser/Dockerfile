@@ -1,10 +1,19 @@
-FROM mcr.microsoft.com/playwright:v1.61.1-jammy
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
 # Install dependencies for the runner
 COPY package.json ./
+
+# Install npm packages without downloading browsers by default
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm install
+
+# Download only Chromium and install its required OS library dependencies
+RUN npx playwright install chromium --with-deps
+
+# Clean up caches and lists to minimize image size
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /root/.npm
 
 # Copy the runner script
 COPY runner.js ./
