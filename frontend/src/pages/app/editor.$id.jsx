@@ -714,11 +714,19 @@ function EditorPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {availableLangs.map((v) => (
-                <SelectItem key={v} value={v}>
-                  {LANG_LABEL[v]}
-                </SelectItem>
-              ))}
+              {availableLangs.map((v) => {
+                let label = LANG_LABEL[v];
+                if (c?.domain === "APIs") {
+                  if (v === "js") label = "Express.js (Node.js)";
+                  if (v === "py") label = "FastAPI (Python)";
+                  if (v === "go") label = "Gin (Go)";
+                }
+                return (
+                  <SelectItem key={v} value={v}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
           )}
