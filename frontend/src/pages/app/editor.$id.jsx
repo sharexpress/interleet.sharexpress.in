@@ -233,14 +233,14 @@ function EditorPage() {
         const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k === "cpp" ? "cpp" : k === "rust" ? "rust" : k === "java" ? "java" : k).find(k => ["ts", "js", "py", "go", "java", "cpp", "rust"].includes(k));
         if (matched) initialLang = matched;
       }
-    }
     return {
       lang: initialLang,
-      code: getStarter(slug, initialLang, c)
+      code: getStarter(slug, initialLang, c, "sqlite")
     };
   };
 
   const [lang, setLang] = useState(() => getInitialState().lang);
+  const [selectedDb, setSelectedDb] = useState("sqlite");
   const [code, setCode] = useState(() => getInitialState().code);
   const [consoleResult, setResult] = useState(null);
   const [activeTab, setActiveTab] = useState(() => typeof window !== "undefined" && window.innerWidth < 768 ? "description" : "testcase");
@@ -509,6 +509,7 @@ function EditorPage() {
     const initialState = getInitialState();
     setLang(initialState.lang);
     setCode(initialState.code);
+    setSelectedDb("sqlite");
     setResult(null);
     setPrevSubmission(null);
     setUsingPrevCode(false);
@@ -526,7 +527,7 @@ function EditorPage() {
       if (isMultiFileDomain || keys.includes("multi") || keys.includes("html")) {
         const multiLang = runtimeEditor?.executionLanguage || (keys.includes("multi") ? "multi" : keys.includes("html") ? "html" : lang);
         setLang(multiLang);
-        setCode(getStarter(slug, multiLang, c));
+        setCode(getStarter(slug, multiLang, c, selectedDb));
         return;
       }
 
@@ -546,7 +547,7 @@ function EditorPage() {
         nextLang = dbLang || allowedLangs[0];
         setLang(nextLang);
       }
-      setCode(getStarter(slug, nextLang, c));
+      setCode(getStarter(slug, nextLang, c, selectedDb));
     }
   }, [c, slug, usingPrevCode]);
 
@@ -583,10 +584,19 @@ function EditorPage() {
   const handleLangChange = useCallback(
     (l) => {
       setLang(l);
-      setCode(getStarter(slug, l, c));
+      setCode(getStarter(slug, l, c, selectedDb));
       setResult(null);
     },
-    [slug, c],
+    [slug, c, selectedDb],
+  );
+
+  const handleDbChange = useCallback(
+    (dbName) => {
+      setSelectedDb(dbName);
+      setCode(getStarter(slug, lang, c, dbName));
+      setResult(null);
+    },
+    [slug, c, lang],
   );
 
   const handleCodeChange = useCallback((newValue) => {
@@ -712,7 +722,7 @@ function EditorPage() {
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
           {(!isMultiFileDomain || c?.domain === "APIs") && (
             <Select value={lang} onValueChange={handleLangChange}>
-            <SelectTrigger className="h-8 w-[130px]">
+            <SelectTrigger className="h-8 w-[150px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -731,6 +741,19 @@ function EditorPage() {
               })}
             </SelectContent>
           </Select>
+          )}
+          {c?.domain === "APIs" && (
+            <Select value={selectedDb} onValueChange={handleDbChange}>
+              <SelectTrigger className="h-8 w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sqlite">SQLite</SelectItem>
+                <SelectItem value="postgres">PostgreSQL</SelectItem>
+                <SelectItem value="mongodb">MongoDB</SelectItem>
+                <SelectItem value="mysql">MySQL</SelectItem>
+              </SelectContent>
+            </Select>
           )}
           <Button variant="outline" size="sm" onClick={handleRun} disabled={c?.locked || isRunning || isSubmitting} className="flex-1 sm:flex-none">
             {isRunning ? (
