@@ -435,7 +435,7 @@ app.get('/health', (req, res) => {
 app.get('/tasks', (req, res) => {
   db.all('SELECT * FROM tasks', [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
+    res.json(rows.map(r => ({ ...r, completed: !!r.completed })));
   });
 });
 
@@ -628,7 +628,7 @@ def get_tasks():
     cursor.execute('SELECT * FROM tasks')
     rows = cursor.fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+    return [{**dict(r), 'completed': bool(r['completed'])} for r in rows]
 
 @app.post('/tasks', status_code=201)
 def create_task(task: TaskCreate):
