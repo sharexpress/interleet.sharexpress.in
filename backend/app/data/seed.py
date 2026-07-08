@@ -361,7 +361,7 @@ CHALLENGES = [
         "runtime": "api",
         "starter_code": {
             "js": json.dumps({
-                "app.js": (
+                "solution.js": (
                     "const express = require('express');\n"
                     "const sqlite3 = require('sqlite3').verbose();\n"
                     "const app = express();\n"
@@ -396,7 +396,7 @@ CHALLENGES = [
                 )
             }),
             "py": json.dumps({
-                "main.py": (
+                "solution.py": (
                     "from fastapi import FastAPI, HTTPException\n"
                     "from pydantic import BaseModel\n"
                     "import sqlite3\n"
