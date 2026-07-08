@@ -38,7 +38,7 @@ class ServiceExecutor(BaseExecutor):
         else:
             self.run_command = ["python3", "/app/service_runner.py"]
 
-    async def _write_code(self, workspace: Path, code: str) -> None:
+    async def _write_code(self, workspace: Path, code: str, time_limit: float = 5.0) -> None:
         """Write the user's code, package.json (if any), and runtime.json."""
         # Check if code is a dictionary representing multiple files
         if code.strip().startswith("{"):
@@ -51,12 +51,12 @@ class ServiceExecutor(BaseExecutor):
                             await f.write(content)
                         (workspace / fname).chmod(0o644)
                 else:
-                    await super()._write_code(workspace, code)
+                    await super()._write_code(workspace, code, time_limit=time_limit)
             except Exception:
-                await super()._write_code(workspace, code)
+                await super()._write_code(workspace, code, time_limit=time_limit)
         else:
             # Plain code string
-            await super()._write_code(workspace, code)
+            await super()._write_code(workspace, code, time_limit=time_limit)
 
         # Build runtime.json configuration
         # Extract the user command array into a string or pass as array
