@@ -46,6 +46,8 @@ class InlineTestCase(BaseModel):
     expected_output: str = ""
     name: Optional[str] = None
     hidden: bool = False
+    verification_script: Optional[str] = None
+    files: Optional[dict[str, str]] = None
 
 
 class RunRequest(BaseModel):

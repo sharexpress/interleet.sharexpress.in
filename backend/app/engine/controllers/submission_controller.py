@@ -127,6 +127,8 @@ class EngineSubmissionController:
                 weight=1.0,
                 time_limit=request.time_limit,
                 memory_limit=request.memory_limit,
+                verification_script=tc.verification_script,
+                files=tc.files,
             )
             for tc in request.test_cases
         ]
