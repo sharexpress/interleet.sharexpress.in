@@ -18,6 +18,9 @@ RUN addgroup -S judge && adduser -S -G judge -H -s /bin/false judge
 
 WORKDIR /workspace
 
+# Pre-install FastAPI and Uvicorn for APIs challenges
+RUN pip install --no-cache-dir fastapi uvicorn
+
 # Copy the service runner for Phase 4 Backend execution
 COPY service_runner.py /app/service_runner.py
 RUN chown -R judge:judge /app

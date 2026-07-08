@@ -14,7 +14,7 @@ RUN apk add --no-cache sqlite redis
 # Install common modules in the root /node_modules via a temp directory
 WORKDIR /tmp/deps
 RUN npm init -y && \
-    npm install lodash axios redis ws uuid jsdom && \
+    npm install lodash axios redis ws uuid jsdom express sqlite3 && \
     mv node_modules /node_modules && \
     cd / && rm -rf /tmp/deps
 
