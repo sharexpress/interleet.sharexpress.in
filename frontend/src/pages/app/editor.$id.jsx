@@ -427,6 +427,8 @@ function EditorPage() {
   }, [activeTab, devopsSessionId, terminalMounted]);
 
   useEffect(() => {
+    if (!c) return;
+
     if (isLocalChange.current) {
       isLocalChange.current = false;
       return;
@@ -463,7 +465,7 @@ function EditorPage() {
         setCode(JSON.stringify(fallback));
       }
     }
-  }, [code, isMultiFileDomain, runtimeEditor?.entryFile, runtimeEditor?.executionLanguage]);
+  }, [c, code, isMultiFileDomain, runtimeEditor?.entryFile, runtimeEditor?.executionLanguage]);
 
   useEffect(() => {
     if (c && c.test_cases) {
