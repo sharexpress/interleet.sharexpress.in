@@ -1512,15 +1512,15 @@ function EditorPage() {
             {/* Monaco editor */}
             <div className="min-h-0 flex-1 overflow-hidden bg-[#1E1E1E]">
               <MonacoEditor
-                value={isMultiFileDomain ? multiFiles[activeFile] : code}
+                value={(isMultiFileDomain ? multiFiles[activeFile] : code) || ""}
                 language={
                   isMultiFileDomain
-                    ? activeFile.endsWith(".html") ? "html"
-                      : activeFile.endsWith(".css") ? "css"
-                      : activeFile.endsWith(".js") ? "javascript"
-                      : activeFile.endsWith(".ts") ? "typescript"
-                      : activeFile.endsWith(".yml") || activeFile.endsWith(".yaml") ? "yaml"
-                      : activeFile.endsWith(".sh") || activeFile.endsWith(".conf") ? "shell"
+                    ? (activeFile || "").endsWith(".html") ? "html"
+                      : (activeFile || "").endsWith(".css") ? "css"
+                      : (activeFile || "").endsWith(".js") ? "javascript"
+                      : (activeFile || "").endsWith(".ts") ? "typescript"
+                      : (activeFile || "").endsWith(".yml") || (activeFile || "").endsWith(".yaml") ? "yaml"
+                      : (activeFile || "").endsWith(".sh") || (activeFile || "").endsWith(".conf") ? "shell"
                       : activeFile === "Dockerfile" ? "dockerfile"
                       : "plaintext"
                     : lang
