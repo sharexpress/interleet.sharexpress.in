@@ -2381,6 +2381,10 @@ function compileFrontendCode(code, slug, title) {
       const css = files["index.css"] || "";
       const js = files["index.js"] || "";
 
+      // Strip external stylesheet links and script tags for index.css/index.js to prevent 404 resource requests
+      html = html.replace(/<link[^>]*href=["']\/?index\.css["'][^>]*>/gi, "");
+      html = html.replace(/<script[^>]*src=["']\/?index\.js["'][^>]*><\/script>/gi, "");
+
       // Inject css
       const styleTag = `<style>\n${css}\n</style>`;
       if (html.includes("</head>")) {
