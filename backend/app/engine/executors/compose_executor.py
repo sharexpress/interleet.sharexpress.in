@@ -127,55 +127,56 @@ class ComposeExecutor(BaseExecutor):
 
                 start_time = time.time()
                 
-                # Bring up docker-compose stack
-                up_proc = await asyncio.create_subprocess_exec(
-                    "docker", "compose", "up", "-d", "--build",
-                    cwd=str(workspace),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-                up_stdout, up_stderr = await up_proc.communicate()
+                try:
+                    # Bring up docker-compose stack
+                    up_proc = await asyncio.create_subprocess_exec(
+                        "docker", "compose", "up", "-d", "--build",
+                        cwd=str(workspace),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                    up_stdout, up_stderr = await up_proc.communicate()
 
-                exit_code = 0
-                stdout_result = ""
-                stderr_result = up_stderr.decode('utf-8', errors='replace')
+                    exit_code = 0
+                    stdout_result = ""
+                    stderr_result = up_stderr.decode('utf-8', errors='replace')
 
-                if up_proc.returncode != 0:
-                    exit_code = up_proc.returncode
-                    stdout_result = "docker compose up failed:\n" + up_stdout.decode('utf-8', errors='replace')
-                else:
-                    # Give services a buffer to initialize
-                    await asyncio.sleep(2)
-                    
-                    if verification_script:
-                        # Run verification script on the host, targeting exposed ports or using docker exec
-                        verify_proc = await asyncio.create_subprocess_exec(
-                            "bash", "verify.sh",
-                            cwd=str(workspace),
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE
-                        )
-                        tc_time_limit = tc.time_limit or time_limit
-                        try:
-                            v_stdout, v_stderr = await asyncio.wait_for(verify_proc.communicate(), timeout=tc_time_limit)
-                            exit_code = verify_proc.returncode
-                            stdout_result = v_stdout.decode('utf-8', errors='replace')
-                            stderr_result += "\n" + v_stderr.decode('utf-8', errors='replace')
-                        except asyncio.TimeoutError:
-                            verify_proc.kill()
-                            exit_code = 124
-                            stdout_result = "Verification script timed out."
+                    if up_proc.returncode != 0:
+                        exit_code = up_proc.returncode
+                        stdout_result = "docker compose up failed:\n" + up_stdout.decode('utf-8', errors='replace')
                     else:
-                        stdout_result = "OK"
-
-                # ALWAYS bring down the stack
-                down_proc = await asyncio.create_subprocess_exec(
-                    "docker", "compose", "down", "-v", "--remove-orphans",
-                    cwd=str(workspace),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-                await down_proc.communicate()
+                        # Give services a buffer to initialize
+                        await asyncio.sleep(2)
+                        
+                        if verification_script:
+                            # Run verification script on the host, targeting exposed ports or using docker exec
+                            verify_proc = await asyncio.create_subprocess_exec(
+                                "bash", "verify.sh",
+                                cwd=str(workspace),
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE
+                            )
+                            tc_time_limit = tc.time_limit or time_limit
+                            try:
+                                v_stdout, v_stderr = await asyncio.wait_for(verify_proc.communicate(), timeout=tc_time_limit)
+                                exit_code = verify_proc.returncode
+                                stdout_result = v_stdout.decode('utf-8', errors='replace')
+                                stderr_result += "\n" + v_stderr.decode('utf-8', errors='replace')
+                            except asyncio.TimeoutError:
+                                verify_proc.kill()
+                                exit_code = 124
+                                stdout_result = "Verification script timed out."
+                        else:
+                            stdout_result = "OK"
+                finally:
+                    # ALWAYS bring down the stack
+                    down_proc = await asyncio.create_subprocess_exec(
+                        "docker", "compose", "down", "-v", "--remove-orphans",
+                        cwd=str(workspace),
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                    await down_proc.communicate()
 
                 wall_time_ms = int((time.time() - start_time) * 1000)
 
