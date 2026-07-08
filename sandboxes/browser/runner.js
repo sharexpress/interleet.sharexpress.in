@@ -52,7 +52,13 @@ async function main() {
         // Not perfectly enforced by playwright args alone, but Docker handles the real network isolation.
     }
 
-    const browser = await chromium.launch({ args: browserArgs });
+    const launchOptions = { args: browserArgs };
+    if (fs.existsSync('/usr/bin/chromium')) {
+        launchOptions.executablePath = '/usr/bin/chromium';
+    } else if (fs.existsSync('/usr/bin/chromium-browser')) {
+        launchOptions.executablePath = '/usr/bin/chromium-browser';
+    }
+    const browser = await chromium.launch(launchOptions);
     const context = await browser.newContext();
     const page = await context.newPage();
 
