@@ -206,6 +206,9 @@ function EditorPage() {
     if (runtimeEditor?.mode === "files") {
       return [runtimeEditor.executionLanguage || "multi"];
     }
+    if (c?.domain === "APIs") {
+      return ["js", "py", "go"];
+    }
     if (c?.domain === "Backend") {
       return ["ts", "js", "py", "go", "java", "cpp", "rust"];
     }
@@ -705,7 +708,7 @@ function EditorPage() {
           </div>
         </div>
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-          {!isMultiFileDomain && (
+          {(!isMultiFileDomain || c?.domain === "APIs") && (
             <Select value={lang} onValueChange={handleLangChange}>
             <SelectTrigger className="h-8 w-[130px]">
               <SelectValue />

@@ -1,0 +1,32 @@
+{
+  "id": "api",
+  "version": "2.0",
+  "name": "API Service Sandbox",
+  "executionMode": "http",
+  "editor": {
+    "mode": "code"
+  },
+  "os": "Alpine Linux",
+  "capabilities": {
+    "filesystem": true,
+    "docker": false,
+    "dockerCompose": false,
+    "network": "bridge",
+    "browser": false
+  },
+  "services": [
+    "Alpine Linux",
+    "FastAPI (Python)",
+    "Express.js (Node.js)",
+    "Go net/http",
+    "SQLite Database",
+    "Localhost Networking"
+  ],
+  "limits": {
+    "timeoutSeconds": 30,
+    "memoryMb": 512,
+    "network": "bridge"
+  },
+  "artifacts": ["stdout", "stderr", "logs"],
+  "pipeline": ["Workspace Ready", "Database Seeded", "Server Started", "Health Checked", "HTTP Requests Evaluated", "Cleanup"]
+}

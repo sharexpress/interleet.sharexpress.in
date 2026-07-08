@@ -346,6 +346,273 @@ CHALLENGES = [
                 }
             }
         ]
+    },
+    {
+        "id": "8",
+        "slug": "task-manager-api",
+        "title": "Build a Task Manager API",
+        "domain": "APIs",
+        "difficulty": "Medium",
+        "minutes": 45,
+        "xp": 300,
+        "completion": 65,
+        "tags": ["REST", "Express.js", "FastAPI", "SQLite"],
+        "summary": "Configure and build a RESTful CRUD Task API using your chosen backend framework (Express.js or FastAPI) with SQLite database integration.",
+        "runtime": "api",
+        "starter_code": {
+            "js": json.dumps({
+                "app.js": (
+                    "const express = require('express');\n"
+                    "const sqlite3 = require('sqlite3').verbose();\n"
+                    "const app = express();\n"
+                    "app.use(express.json());\n\n"
+                    "const db = new sqlite3.Database('db.sqlite');\n\n"
+                    "// Health check (required by sandbox)\n"
+                    "app.get('/health', (req, res) => {\n"
+                    "  res.json({ status: 'ok' });\n"
+                    "});\n\n"
+                    "// GET /tasks - Get all tasks\n"
+                    "app.get('/tasks', (req, res) => {\n"
+                    "  db.all('SELECT * FROM tasks', [], (err, rows) => {\n"
+                    "    if (err) return res.status(500).json({ error: err.message });\n"
+                    "    res.json(rows);\n"
+                    "  });\n"
+                    "});\n\n"
+                    "// POST /tasks - Create a task\n"
+                    "app.post('/tasks', (req, res) => {\n"
+                    "  const { title, description } = req.body;\n"
+                    "  if (!title) return res.status(400).json({ error: 'Title is required' });\n"
+                    "  \n"
+                    "  db.run('INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)', [title, description], function(err) {\n"
+                    "    if (err) return res.status(500).json({ error: err.message });\n"
+                    "    res.status(201).json({ id: this.lastID, title, description, completed: false });\n"
+                    "  });\n"
+                    "});\n\n"
+                    "// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id\n\n"
+                    "const PORT = process.env.PORT || 3000;\n"
+                    "app.listen(PORT, () => {\n"
+                    "  console.log(`Server running on port ${PORT}`);\n"
+                    "});\n"
+                )
+            }),
+            "py": json.dumps({
+                "main.py": (
+                    "from fastapi import FastAPI, HTTPException\n"
+                    "from pydantic import BaseModel\n"
+                    "import sqlite3\n"
+                    "import os\n\n"
+                    "app = FastAPI()\n\n"
+                    "def get_db():\n"
+                    "    conn = sqlite3.connect('db.sqlite')\n"
+                    "    conn.row_factory = sqlite3.Row\n"
+                    "    return conn\n\n"
+                    "@app.get('/health')\n"
+                    "def health():\n"
+                    "    return {'status': 'ok'}\n\n"
+                    "class TaskCreate(BaseModel):\n"
+                    "    title: str\n"
+                    "    description: str | None = None\n\n"
+                    "@app.get('/tasks')\n"
+                    "def get_tasks():\n"
+                    "    conn = get_db()\n"
+                    "    cursor = conn.cursor()\n"
+                    "    cursor.execute('SELECT * FROM tasks')\n"
+                    "    rows = cursor.fetchall()\n"
+                    "    conn.close()\n"
+                    "    return [dict(r) for r in rows]\n\n"
+                    "@app.post('/tasks', status_code=201)\n"
+                    "def create_task(task: TaskCreate):\n"
+                    "    if not task.title:\n"
+                    "        raise HTTPException(status_code=400, detail='Title is required')\n"
+                    "    conn = get_db()\n"
+                    "    cursor = conn.cursor()\n"
+                    "    cursor.execute('INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)', (task.title, task.description))\n"
+                    "    conn.commit()\n"
+                    "    task_id = cursor.lastrowid\n"
+                    "    conn.close()\n"
+                    "    return {'id': task_id, 'title': task.title, 'description': task.description, 'completed': False}\n\n"
+                    "# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}\n\n"
+                    "if __name__ == '__main__':\n"
+                    "    import uvicorn\n"
+                    "    port = int(os.environ.get('PORT', 3000))\n"
+                    "    uvicorn.run(app, host='127.0.0.1', port=port)\n"
+                )
+            }),
+            "go": json.dumps({
+                "main.go": (
+                    "package main\n\n"
+                    "import (\n"
+                    "	\"database/sql\"\n"
+                    "	\"encoding/json\"\n"
+                    "	\"fmt\"\n"
+                    "	\"net/http\"\n"
+                    "	\"os\"\n"
+                    "	_ \"github.com/glebarez/go-sqlite\"\n"
+                    ")\n\n"
+                    "type Task struct {\n"
+                    "	ID          int    `json:\"id\"`\n"
+                    "	Title       string `json:\"title\"`\n"
+                    "	Description string `json:\"description\"`\n"
+                    "	Completed   bool   `json:\"completed\"`\n"
+                    "}\n\n"
+                    "var db *sql.DB\n\n"
+                    "func getTasks(w http.ResponseWriter, r *http.Request) {\n"
+                    "	rows, err := db.Query(\"SELECT id, title, description, completed FROM tasks\")\n"
+                    "	if err != nil {\n"
+                    "		http.Error(w, err.Error(), http.StatusInternalServerError)\n"
+                    "		return\n"
+                    "	}\n"
+                    "	defer rows.Close()\n\n"
+                    "	var tasks []Task\n"
+                    "	for rows.Next() {\n"
+                    "		var t Task\n"
+                    "		var completed int\n"
+                    "		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &completed); err != nil {\n"
+                    "			http.Error(w, err.Error(), http.StatusInternalServerError)\n"
+                    "			return\n"
+                    "		}\n"
+                    "		t.Completed = completed == 1\n"
+                    "		tasks = append(tasks, t)\n"
+                    "	}\n"
+                    "	w.Header().Set(\"Content-Type\", \"application/json\")\n"
+                    "	json.NewEncoder(w).Encode(tasks)\n"
+                    "}\n\n"
+                    "func createTask(w http.ResponseWriter, r *http.Request) {\n"
+                    "	var t Task\n"
+                    "	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {\n"
+                    "		http.Error(w, err.Error(), http.StatusBadRequest)\n"
+                    "		return\n"
+                    "	}\n"
+                    "	if t.Title == \"\" {\n"
+                    "		http.Error(w, \"Title is required\", http.StatusBadRequest)\n"
+                    "		return\n"
+                    "	}\n"
+                    "	res, err := db.Exec(\"INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)\", t.Title, t.Description)\n"
+                    "	if err != nil {\n"
+                    "		http.Error(w, err.Error(), http.StatusInternalServerError)\n"
+                    "		return\n"
+                    "	}\n"
+                    "	id, _ := res.LastInsertId()\n"
+                    "	t.ID = int(id)\n"
+                    "	t.Completed = false\n"
+                    "	w.Header().Set(\"Content-Type\", \"application/json\")\n"
+                    "	w.WriteHeader(http.StatusCreated)\n"
+                    "	json.NewEncoder(w).Encode(t)\n"
+                    "}\n\n"
+                    "func health(w http.ResponseWriter, r *http.Request) {\n"
+                    "	w.Header().Set(\"Content-Type\", \"application/json\")\n"
+                    "	json.NewEncoder(w).Encode(map[string]string{\"status\": \"ok\"})\n"
+                    "}\n\n"
+                    "func main() {\n"
+                    "	var err error\n"
+                    "	db, err = sql.Open(\"sqlite\", \"db.sqlite\")\n"
+                    "	if err != nil {\n"
+                    "		panic(err)\n"
+                    "	}\n"
+                    "	defer db.Close()\n\n"
+                    "	http.HandleFunc(\"/health\", health)\n"
+                    "	http.HandleFunc(\"/tasks\", func(w http.ResponseWriter, r *http.Request) {\n"
+                    "		if r.Method == \"GET\" {\n"
+                    "			getTasks(w, r)\n"
+                    "		} else if r.Method == \"POST\" {\n"
+                    "			createTask(w, r)\n"
+                    "		} else {\n"
+                    "			http.Error(w, \"Method not allowed\", http.StatusMethodNotAllowed)\n"
+                    "		}\n"
+                    "	})\n"
+                    "	// TODO: Implement GET /tasks/{id}, PUT /tasks/{id}, and DELETE /tasks/{id}\n\n"
+                    "	port := os.Getenv(\"PORT\")\n"
+                    "	if port == \"\" {\n"
+                    "		port = \"3000\"\n"
+                    "	}\n"
+                    "	fmt.Printf(\"Server running on port %s\\n\", port)\n"
+                    "	http.ListenAndServe(\"127.0.0.1:\"+port, nil)\n"
+                    "}\n"
+                )
+            })
+        },
+        "description": "### Task Manager API\n\nBuild a RESTful CRUD Task API inside the sandbox. Your server must perform basic operations on a local SQLite database file `db.sqlite`.\n\n### Requirements:\n\n1. **Health Check Endpoint**:\n   * `GET /health` must respond with `200 OK` and `{\"status\": \"ok\"}`.\n\n2. **Get All Tasks**:\n   * `GET /tasks` must retrieve all task entries from the database.\n\n3. **Create Task**:\n   * `POST /tasks` must accept a JSON body with `title` (required) and `description` (optional). Return the created task summary with status code `201`.",
+        "test_cases": [
+            {
+                "id": "task-api-1",
+                "problem_slug": "task-manager-api",
+                "name": "Health check responds with ok",
+                "stdin": json.dumps([
+                    {
+                        "method": "GET",
+                        "path": "/health"
+                    }
+                ]),
+                "expected_output": json.dumps([
+                    {
+                        "request": {
+                            "method": "GET",
+                            "path": "/health"
+                        },
+                        "response": {
+                            "status": 200,
+                            "headers": {},
+                            "body": {
+                                "status": "ok"
+                            }
+                        }
+                    }
+                ]),
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "json",
+                "files": {
+                    "seed.sql": "CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT, completed INTEGER DEFAULT 0);\n"
+                }
+            },
+            {
+                "id": "task-api-2",
+                "problem_slug": "task-manager-api",
+                "name": "GET /tasks returns active lists",
+                "stdin": json.dumps([
+                    {
+                        "method": "GET",
+                        "path": "/tasks"
+                    }
+                ]),
+                "expected_output": json.dumps([
+                    {
+                        "request": {
+                            "method": "GET",
+                            "path": "/tasks"
+                        },
+                        "response": {
+                            "status": 200,
+                            "headers": {},
+                            "body": [
+                                {
+                                    "id": 1,
+                                    "title": "Buy milk",
+                                    "description": "2% fat",
+                                    "completed": False
+                                },
+                                {
+                                    "id": 2,
+                                    "title": "Code API",
+                                    "description": "Use FastAPI",
+                                    "completed": True
+                                }
+                            ]
+                        }
+                    }
+                ]),
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "json",
+                "files": {
+                    "seed.sql": (
+                        "CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT, completed INTEGER DEFAULT 0);\n"
+                        "INSERT INTO tasks (title, description, completed) VALUES ('Buy milk', '2% fat', 0);\n"
+                        "INSERT INTO tasks (title, description, completed) VALUES ('Code API', 'Use FastAPI', 1);\n"
+                    )
+                }
+            }
+        ]
     }
 ]
 
