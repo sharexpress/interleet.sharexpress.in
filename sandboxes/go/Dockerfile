@@ -17,6 +17,9 @@ WORKDIR /tmp/warmup
 RUN go mod init warmup && \
     go get github.com/gin-gonic/gin@v1.10.0 && \
     go get github.com/glebarez/go-sqlite && \
+    go get github.com/lib/pq && \
+    go get go.mongodb.org/mongo-driver/mongo && \
+    go get github.com/go-sql-driver/mysql && \
     cd / && rm -rf /tmp/warmup
 
 # Create a non-root judge user
