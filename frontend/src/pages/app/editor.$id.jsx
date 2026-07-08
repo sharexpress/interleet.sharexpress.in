@@ -383,7 +383,8 @@ function EditorPage() {
     wsInstance.current = ws;
 
     ws.onopen = () => {
-      term.write("\r\n*** Terminal connection established. Welcome to Interleet Sandbox! ***\r\n\r\n");
+      const osName = c?.runtime_config?.os || "Linux";
+      term.write(`\r\n*** Terminal connection established. Welcome to Interleet Sandbox (${osName})! ***\r\n\r\n`);
     };
 
     ws.onmessage = (event) => {
