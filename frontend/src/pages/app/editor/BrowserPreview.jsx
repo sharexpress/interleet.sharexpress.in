@@ -210,7 +210,7 @@ const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execS
   if (!runResult && !submitResult) {
     const out = getProgramOutput(slug);
     return (
-      <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 text-xs font-sans">
+      <div className="flex flex-1 min-h-0 flex-col overflow-y-auto bg-[#0A0A0A] p-4 text-xs font-sans">
         <div className="rounded-lg border border-border bg-card/60 p-4">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
             {isMultiFileDomain ? "Infrastructure Logs" : "Backend Preview Console"}
@@ -256,7 +256,7 @@ const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execS
   const vs = VERDICT_STYLES[verdictStr] || VERDICT_STYLES.INTERNAL_ERROR;
 
   return (
-    <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 font-sans text-xs space-y-3">
+    <div className="flex flex-1 min-h-0 flex-col overflow-y-auto bg-[#0A0A0A] p-4 font-sans text-xs space-y-3">
       <div className={`p-4 rounded-xl border flex items-center gap-3 ${vs.bg} ${vs.border}`}>
         <span className={`text-2xl ${vs.icon === "✓" ? "text-emerald-400" : vs.text}`}>{vs.icon}</span>
         <div className="space-y-0.5">

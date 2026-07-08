@@ -868,7 +868,7 @@ function EditorPage() {
         <div ref={containerRef} className="flex h-[calc(100vh-56px-49px)] overflow-hidden">
           {/* LEFT: problem panel */}
           <aside
-            className="hidden flex-col overflow-hidden border-r border-border bg-card md:flex"
+            className="hidden h-full flex-col overflow-hidden border-r border-border bg-card md:flex"
             style={{ width: leftW, minWidth: MIN_COL, flexShrink: 0 }}
           >
             <div className="border-b border-border px-4 py-3">
@@ -891,7 +891,7 @@ function EditorPage() {
                 </span>
               </div>
             </div>
-            <div className="flex-1 overflow-auto px-4 py-4 text-sm leading-relaxed text-foreground/90">
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 text-sm leading-relaxed text-foreground/90">
               <p>{c.summary}</p>
               
               {c.function_signature && (
@@ -1282,7 +1282,7 @@ function EditorPage() {
 
           {/* RIGHT: browser preview */}
           <aside
-            className={`hidden flex-col overflow-hidden bg-card xl:flex ${isDraggingAny ? "pointer-events-none" : ""}`}
+            className={`hidden h-full flex-col overflow-hidden bg-card xl:flex ${isDraggingAny ? "pointer-events-none" : ""}`}
             style={{ width: rightW, minWidth: MIN_COL, flexShrink: 0 }}
           >
             <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} />

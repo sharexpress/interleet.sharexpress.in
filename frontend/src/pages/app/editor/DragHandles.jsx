@@ -36,12 +36,12 @@ export const DragHandle = memo(function DragHandle({ onDelta, onDragStart, onDra
   return (
     <div
       onMouseDown={onMouseDown}
-      className="group relative z-10 flex-shrink-0"
-      style={{ width: 4, cursor: "col-resize" }}
+      className="group relative z-10 flex-shrink-0 transition-colors duration-200"
+      style={{ width: 8, cursor: "col-resize" }}
     >
+      {/* Centered thin vertical line matching VS Code */}
       <div
-        className="absolute inset-y-0 left-0 right-0 bg-border opacity-0 transition-opacity group-hover:opacity-100"
-        style={{ margin: "0 1px" }}
+        className="absolute inset-y-0 left-1/2 w-[1px] -translate-x-1/2 bg-border/40 group-hover:bg-primary transition-colors duration-200"
       />
     </div>
   );
@@ -83,12 +83,12 @@ export const VerticalDragHandle = memo(function VerticalDragHandle({ onDelta, on
   return (
     <div
       onMouseDown={onMouseDown}
-      className="group relative z-10 flex-shrink-0"
-      style={{ height: 4, cursor: "row-resize" }}
+      className="group relative z-10 flex-shrink-0 transition-colors duration-200"
+      style={{ height: 8, cursor: "row-resize" }}
     >
+      {/* Centered thin horizontal line matching VS Code */}
       <div
-        className="absolute inset-x-0 top-0 bottom-0 bg-border opacity-0 transition-opacity group-hover:opacity-100"
-        style={{ margin: "1px 0" }}
+        className="absolute inset-x-0 top-1/2 h-[1px] -translate-y-1/2 bg-border/40 group-hover:bg-primary transition-colors duration-200"
       />
     </div>
   );
