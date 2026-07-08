@@ -247,7 +247,7 @@ function EditorPage() {
   const [customTestCases, setCustomTestCases] = useState([]);
   const [selectedTestCaseIdx, setSelectedTestCaseIdx] = useState(0);
 
-  const isMultiFileDomain = c?.runtime_config?.capabilities?.filesystem || false;
+  const isMultiFileDomain = c?.runtime_config?.editor?.mode === "files";
 
   // Multi-file states
   const [activeFile, setActiveFile] = useState("index.html");
@@ -512,6 +512,8 @@ function EditorPage() {
     setResult(null);
     setPrevSubmission(null);
     setUsingPrevCode(false);
+    setMultiFiles({});
+    setActiveFile("");
     dispatch(resetExecution());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
