@@ -30,7 +30,7 @@ from app.engine.services.submission_service import SubmissionService
 logger = logging.getLogger(__name__)
 
 # Max wait time for synchronous endpoints (reduced from 30s — overhead is lower now)
-SYNC_TIMEOUT_SECONDS = 20
+SYNC_TIMEOUT_SECONDS = 45
 
 
 class EngineSubmissionController:

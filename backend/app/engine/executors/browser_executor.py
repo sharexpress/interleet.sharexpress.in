@@ -112,8 +112,8 @@ class BrowserExecutor(BaseExecutor):
 
         runtime_config = {
             "entry": "index.html",
-            "timeout": 5000,
-            "captureScreenshot": False,  # Enable later or per-challenge
+            "timeout": max(15000, int(time_limit * 1000)),
+            "captureScreenshot": comparison_mode == ComparisonMode.VISUAL,
             "captureDOM": True,
             "captureConsole": True,
             "network": "enabled",
