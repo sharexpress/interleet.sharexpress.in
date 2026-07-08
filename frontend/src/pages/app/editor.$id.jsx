@@ -316,15 +316,21 @@ function EditorPage() {
     };
   }, [c?.id, slug]);
 
-  // Sync workspace helper
-  const syncWorkspaceFiles = useCallback(async () => {
-    if (!devopsSessionId) return;
-    try {
-      await API.post(`/api/v1/devops/session/${devopsSessionId}/sync`, { files: multiFiles });
-    } catch (e) {
-      console.error("Failed to sync files to container sandbox:", e);
-    }
-  }, [devopsSessionId, multiFiles]);
+  // Background auto-sync of workspace files to the container sandbox
+  useEffect(() => {
+    if (!devopsSessionId || !isMultiFileDomain) return;
+
+    const syncFiles = async () => {
+      try {
+        await API.post(`/api/v1/devops/session/${devopsSessionId}/sync`, { files: multiFiles });
+      } catch (e) {
+        console.error("Failed to sync files to container sandbox:", e);
+      }
+    };
+
+    const timer = setTimeout(syncFiles, 500);
+    return () => clearTimeout(timer);
+  }, [devopsSessionId, multiFiles, isMultiFileDomain]);
 
   // Dynamic WebSocket interactive terminal connector
   useEffect(() => {
@@ -332,10 +338,7 @@ function EditorPage() {
       return;
     }
 
-    // 1. Sync workspace files first so Nginx/scripts reflect latest editor state
-    syncWorkspaceFiles();
-
-    // 2. Initialize Xterm.js terminal instance
+    // Initialize Xterm.js terminal instance
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 12,
@@ -363,7 +366,7 @@ function EditorPage() {
 
     xtermInstance.current = term;
 
-    // 3. Connect WebSocket
+    // Connect WebSocket
     let wsHost;
     let wsProtocol;
 
@@ -416,7 +419,7 @@ function EditorPage() {
       xtermInstance.current = null;
       wsInstance.current = null;
     };
-  }, [activeTab, devopsSessionId, terminalMounted, syncWorkspaceFiles]);
+  }, [activeTab, devopsSessionId, terminalMounted]);
 
   useEffect(() => {
     if (isLocalChange.current) {
