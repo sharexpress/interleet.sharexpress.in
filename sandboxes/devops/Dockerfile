@@ -10,9 +10,11 @@ RUN apk add --no-cache \
     sudo \
     iproute2 \
     net-tools \
-    bind-tools
+    bind-tools \
+    nginx
 
 RUN addgroup -S judge && adduser -S -G judge -H -s /bin/bash judge
+RUN echo "judge ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
 WORKDIR /workspace
 
