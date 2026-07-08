@@ -29,6 +29,8 @@ export const runCode = createAsyncThunk(
           expected_output: tc.expected_output || '',
           name: tc.name || null,
           hidden: tc.hidden || false,
+          ...(tc.verification_script ? { verification_script: tc.verification_script } : {}),
+          ...(tc.files ? { files: tc.files } : {}),
         })),
         time_limit: 10,
         memory_limit: 256,

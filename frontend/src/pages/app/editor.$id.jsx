@@ -465,7 +465,9 @@ function EditorPage() {
           stdin: t.stdin || "",
           expected_output: t.expected_output || "",
           name: t.name || `Case ${idx + 1}`,
-          isCustom: false
+          isCustom: false,
+          ...(t.verification_script ? { verification_script: t.verification_script } : {}),
+          ...(t.files ? { files: t.files } : {}),
         }))
       );
       setSelectedTestCaseIdx(0);
