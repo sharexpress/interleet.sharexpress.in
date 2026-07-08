@@ -127,10 +127,15 @@ class ComposeExecutor(BaseExecutor):
 
                 start_time = time.time()
                 
+                # Generate a clean alphanumeric project name to prevent invalid image/tag reference formats
+                import random
+                import string
+                proj_name = "proj" + "".join(random.choices(string.ascii_lowercase + string.digits, k=12))
+
                 try:
                     # Bring up docker-compose stack
                     up_proc = await asyncio.create_subprocess_exec(
-                        "docker", "compose", "up", "-d", "--build",
+                        "docker", "compose", "-p", proj_name, "up", "-d", "--build",
                         cwd=str(workspace),
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE
@@ -171,7 +176,7 @@ class ComposeExecutor(BaseExecutor):
                 finally:
                     # ALWAYS bring down the stack
                     down_proc = await asyncio.create_subprocess_exec(
-                        "docker", "compose", "down", "-v", "--remove-orphans",
+                        "docker", "compose", "-p", proj_name, "down", "-v", "--remove-orphans",
                         cwd=str(workspace),
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE
