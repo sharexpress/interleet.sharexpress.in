@@ -593,6 +593,8 @@ async def api_ws_devops_session(websocket: WebSocket, session_id: str):
 
     import threading
     import asyncio
+    import select
+    import os
     
     try:
         exec_id = client.api.exec_create(
@@ -611,21 +613,34 @@ async def api_ws_devops_session(websocket: WebSocket, session_id: str):
         return
 
     loop = asyncio.get_running_loop()
+    stop_event = threading.Event()
+    fd = sock.fileno()
     
     def read_socket():
+        """Read from the Docker exec socket using select() to properly block
+        until data is available, avoiding premature EOF from buffered reads."""
         try:
-            while True:
-                data = sock.read(4096)
+            while not stop_event.is_set():
+                ready, _, _ = select.select([fd], [], [], 1.0)
+                if not ready:
+                    continue
+                try:
+                    data = os.read(fd, 4096)
+                except OSError:
+                    break
                 if not data:
                     break
                 asyncio.run_coroutine_threadsafe(
-                    websocket.send_text(data.decode("utf-8", errors="ignore")),
+                    websocket.send_text(data.decode("utf-8", errors="replace")),
                     loop
                 )
         except Exception:
             pass
         finally:
-            asyncio.run_coroutine_threadsafe(websocket.close(), loop)
+            try:
+                asyncio.run_coroutine_threadsafe(websocket.close(), loop)
+            except Exception:
+                pass
 
     t = threading.Thread(target=read_socket, daemon=True)
     t.start()
@@ -633,14 +648,19 @@ async def api_ws_devops_session(websocket: WebSocket, session_id: str):
     try:
         while True:
             msg = await websocket.receive_text()
-            sock.write(msg.encode("utf-8"))
+            try:
+                os.write(fd, msg.encode("utf-8"))
+            except OSError:
+                break
     except WebSocketDisconnect:
         pass
     except Exception:
         pass
     finally:
+        stop_event.set()
         try:
             sock.close()
-        except:
+        except Exception:
             pass
+
 
