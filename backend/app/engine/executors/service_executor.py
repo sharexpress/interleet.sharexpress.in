@@ -77,7 +77,7 @@ class ServiceExecutor(BaseExecutor):
         sandbox_results = await super().run_batch_testcases(code, testcases, time_limit, memory_limit)
         
         parsed_results = []
-        for sr in sandbox_results:
+        for sr, tc in zip(sandbox_results, testcases):
             if sr.exit_code != 0 and not sr.stdout.strip().startswith("{"):
                 parsed_results.append(sr)
                 continue
@@ -87,6 +87,26 @@ class ServiceExecutor(BaseExecutor):
                 status = data.get("status", "error")
                 responses = data.get("responses", [])
                 
+                # Filter headers case-insensitively based on expected testcase config
+                try:
+                    expected_data = json.loads(tc.expected_output.strip())
+                except Exception:
+                    expected_data = None
+
+                if isinstance(responses, list) and isinstance(expected_data, list):
+                    for act_res, exp_res in zip(responses, expected_data):
+                        exp_headers = exp_res.get("response", {}).get("headers", {})
+                        act_headers = act_res.get("response", {}).get("headers", {})
+                        
+                        filtered_headers = {}
+                        for k in exp_headers.keys():
+                            val = next((act_headers[ah] for ah in act_headers if ah.lower() == k.lower()), None)
+                            if val is not None:
+                                filtered_headers[k] = val
+                        
+                        if "response" in act_res:
+                            act_res["response"]["headers"] = filtered_headers
+
                 # We format the 'stdout' as a JSON string of the responses so JudgeEngine can compare it semantically
                 sr.stdout = json.dumps(responses)
                 
