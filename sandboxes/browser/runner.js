@@ -53,12 +53,7 @@ async function main() {
     }
 
     const launchOptions = { args: browserArgs };
-    if (fs.existsSync('/usr/bin/chromium')) {
-        launchOptions.executablePath = '/usr/bin/chromium';
-    } else if (fs.existsSync('/usr/bin/chromium-browser')) {
-        launchOptions.executablePath = '/usr/bin/chromium-browser';
-    }
-    const browser = await chromium.launch(launchOptions);
+    const browser = await chromium.launch({ args: browserArgs });
     const context = await browser.newContext();
     const page = await context.newPage();
 
