@@ -4,7 +4,7 @@ const express = require('express');
 const { chromium } = require('playwright');
 
 // By default, workspace is mapped to /workspace
-const WORKSPACE_DIR = process.env.WORKSPACE_DIR || '/workspace';
+const WORKSPACE_DIR = process.env.WORKSPACE_DIR || process.cwd();
 
 async function main() {
     // 1. Read Runtime Config
@@ -37,6 +37,7 @@ async function main() {
 
     // 2. Start Static Server on dynamic port
     const app = express();
+    app.get('/favicon.ico', (req, res) => res.status(204).end());
     app.use(express.static(WORKSPACE_DIR));
     
     const server = await new Promise((resolve) => {
