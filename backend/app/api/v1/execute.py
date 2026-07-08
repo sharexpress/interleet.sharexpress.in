@@ -73,7 +73,7 @@ async def execute_code(
     Use for quick runs and playground-style execution.
     """
     # Security guard
-    if request.execution_mode not in ("devops", "compose"):
+    if request.execution_mode not in ("devops", "compose", "http"):
         guard = CodeGuard.check(request.code, request.language.value)
         if not guard.allowed:
             raise HTTPException(status_code=400, detail=f"Code blocked by security policy: {guard.reason}")
@@ -119,7 +119,7 @@ async def run_code(
     Returns per-testcase results immediately (synchronous, waits up to 30s).
     """
     # Security guard
-    if request.execution_mode not in ("devops", "compose"):
+    if request.execution_mode not in ("devops", "compose", "http"):
         guard = CodeGuard.check(request.code, request.language.value)
         if not guard.allowed:
             raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
@@ -168,7 +168,7 @@ async def create_submission(
     - **Polling**: `GET /api/v1/results/{submission_id}`
     """
     # Security guard
-    if request.execution_mode not in ("devops", "compose"):
+    if request.execution_mode not in ("devops", "compose", "http"):
         guard = CodeGuard.check(request.code, request.language.value)
         if not guard.allowed:
             raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
