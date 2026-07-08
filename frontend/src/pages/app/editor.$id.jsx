@@ -190,40 +190,6 @@ function renderMarkdown(text) {
   });
 }
 
-      const onMove = (ev) => {
-        if (!dragging.current) return;
-        const delta = ev.clientY - startY.current;
-        startY.current = ev.clientY;
-        onDelta(delta);
-      };
-      const onUp = () => {
-        dragging.current = false;
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        if (onDragEnd) onDragEnd();
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-      };
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    },
-    [onDelta, onDragStart, onDragEnd],
-  );
-
-  return (
-    <div
-      onMouseDown={onMouseDown}
-      className="group relative z-10 flex-shrink-0"
-      style={{ height: 4, cursor: "row-resize" }}
-    >
-      <div
-        className="absolute inset-x-0 top-0 bottom-0 bg-border opacity-0 transition-opacity group-hover:opacity-100"
-        style={{ margin: "1px 0" }}
-      />
-    </div>
-  );
-});
-
 // ─── Main EditorPage ──────────────────────────────────────────────────────────
 
 function EditorPage() {
