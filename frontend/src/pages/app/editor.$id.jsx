@@ -744,7 +744,7 @@ const ConsoleOutput = memo(function ConsoleOutput({ result, isRunning }) {
 
 // ─── Drag handle ──────────────────────────────────────────────────────────────
 
-const DragHandle = memo(function DragHandle({ onDelta }) {
+const DragHandle = memo(function DragHandle({ onDelta, onDragStart, onDragEnd }) {
   const dragging = useRef(false);
   const startX = useRef(0);
 
@@ -755,6 +755,7 @@ const DragHandle = memo(function DragHandle({ onDelta }) {
       startX.current = e.clientX;
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
+      if (onDragStart) onDragStart();
 
       const onMove = (ev) => {
         if (!dragging.current) return;
@@ -766,13 +767,14 @@ const DragHandle = memo(function DragHandle({ onDelta }) {
         dragging.current = false;
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        if (onDragEnd) onDragEnd();
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       };
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [onDelta],
+    [onDelta, onDragStart, onDragEnd],
   );
 
   return (
@@ -789,7 +791,7 @@ const DragHandle = memo(function DragHandle({ onDelta }) {
   );
 });
 
-const VerticalDragHandle = memo(function VerticalDragHandle({ onDelta }) {
+const VerticalDragHandle = memo(function VerticalDragHandle({ onDelta, onDragStart, onDragEnd }) {
   const dragging = useRef(false);
   const startY = useRef(0);
 
@@ -800,6 +802,7 @@ const VerticalDragHandle = memo(function VerticalDragHandle({ onDelta }) {
       startY.current = e.clientY;
       document.body.style.cursor = "row-resize";
       document.body.style.userSelect = "none";
+      if (onDragStart) onDragStart();
 
       const onMove = (ev) => {
         if (!dragging.current) return;
@@ -811,13 +814,14 @@ const VerticalDragHandle = memo(function VerticalDragHandle({ onDelta }) {
         dragging.current = false;
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+        if (onDragEnd) onDragEnd();
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       };
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [onDelta],
+    [onDelta, onDragStart, onDragEnd],
   );
 
   return (
@@ -884,6 +888,14 @@ function EditorPage() {
   const [activeFile, setActiveFile] = useState("index.html");
   const [multiFiles, setMultiFiles] = useState({ "index.html": "" });
   const isLocalChange = useRef(false);
+
+  // Resizing drag tracking
+  const [isDraggingAny, setIsDraggingAny] = useState(false);
+  const handleDragStart = useCallback(() => setIsDraggingAny(true), []);
+  const handleDragEnd = useCallback(() => setIsDraggingAny(false), []);
+
+  // DevOps terminal mount state
+  const [terminalMounted, setTerminalMounted] = useState(false);
 
   // Vertical dragging state
   const [bottomHeight, setBottomHeight] = useState(280);
@@ -954,7 +966,7 @@ function EditorPage() {
 
   // Dynamic WebSocket interactive terminal connector
   useEffect(() => {
-    if (activeTab !== "terminal" || !devopsSessionId || !terminalRef.current) {
+    if (activeTab !== "terminal" || !devopsSessionId || !terminalRef.current || !terminalMounted) {
       return;
     }
 
@@ -990,20 +1002,18 @@ function EditorPage() {
     xtermInstance.current = term;
 
     // 3. Connect WebSocket
-    const apiBase = API.defaults.baseURL || "";
-    let wsUrl;
-    if (apiBase.startsWith("http")) {
-      const wsProtocol = apiBase.startsWith("https") ? "wss:" : "ws:";
-      const cleanUrl = apiBase.replace(/^https?:\/\//, "");
-      wsUrl = `${wsProtocol}//${cleanUrl}/api/v1/devops/session/${devopsSessionId}/ws`;
+    let wsHost;
+    let wsProtocol;
+
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      wsHost = "localhost:8000";
+      wsProtocol = "ws:";
     } else {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      let wsHost = window.location.host;
-      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-        wsHost = "localhost:8000";
-      }
-      wsUrl = `${protocol}//${wsHost}/api/v1/devops/session/${devopsSessionId}/ws`;
+      wsHost = "interleet-backend.sharexpress.in";
+      wsProtocol = "wss:";
     }
+
+    const wsUrl = `${wsProtocol}//${wsHost}/api/v1/devops/session/${devopsSessionId}/ws`;
     const ws = new WebSocket(wsUrl);
     wsInstance.current = ws;
 
@@ -1044,7 +1054,7 @@ function EditorPage() {
       xtermInstance.current = null;
       wsInstance.current = null;
     };
-  }, [activeTab, devopsSessionId, syncWorkspaceFiles]);
+  }, [activeTab, devopsSessionId, terminalMounted, syncWorkspaceFiles]);
 
   useEffect(() => {
     if (isLocalChange.current) {
@@ -1591,7 +1601,7 @@ function EditorPage() {
 
           {/* DRAG: left | center */}
           <div className="hidden md:block flex-shrink-0">
-            <DragHandle onDelta={onDragLeft} />
+            <DragHandle onDelta={onDragLeft} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
           </div>
 
           {/* CENTER: editor + bottom tabs */}
@@ -1642,7 +1652,7 @@ function EditorPage() {
             </div>
 
             {/* Vertical drag handle */}
-            <VerticalDragHandle onDelta={onDragVertical} />
+            <VerticalDragHandle onDelta={onDragVertical} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
 
             {/* Bottom panel */}
             <div className="border-t border-border bg-background/60 flex-shrink-0" style={{ height: `${bottomHeight}px` }}>
@@ -1870,7 +1880,17 @@ function EditorPage() {
                 {/* DevOps Terminal tab */}
                 {c?.domain === "DevOps" && (
                   <TabsContent value="terminal" className="m-0 bg-[#0c0c0c] border-t border-zinc-800 overflow-hidden" style={{ height: "calc(100% - 36px)" }}>
-                    <div ref={terminalRef} className="w-full h-full p-2 select-text" />
+                    <div
+                      ref={(el) => {
+                        terminalRef.current = el;
+                        if (el) {
+                          setTerminalMounted(true);
+                        } else {
+                          setTerminalMounted(false);
+                        }
+                      }}
+                      className="w-full h-full p-2 select-text"
+                    />
                   </TabsContent>
                 )}
 
@@ -1880,12 +1900,12 @@ function EditorPage() {
 
           {/* DRAG: center | right */}
           <div className="hidden xl:block flex-shrink-0">
-            <DragHandle onDelta={onDragRight} />
+            <DragHandle onDelta={onDragRight} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
           </div>
 
           {/* RIGHT: browser preview */}
           <aside
-            className="hidden flex-col overflow-hidden bg-card xl:flex"
+            className={`hidden flex-col overflow-hidden bg-card xl:flex ${isDraggingAny ? "pointer-events-none" : ""}`}
             style={{ width: rightW, minWidth: MIN_COL, flexShrink: 0 }}
           >
             <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} />
