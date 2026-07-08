@@ -977,7 +977,7 @@ function EditorPage() {
           </aside>
 
           {/* DRAG: left | center */}
-          <div className="hidden md:block flex-shrink-0">
+          <div className="hidden md:block h-full flex-shrink-0">
             <DragHandle onDelta={onDragLeft} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
           </div>
 
@@ -1276,7 +1276,7 @@ function EditorPage() {
           </div>
 
           {/* DRAG: center | right */}
-          <div className="hidden xl:block flex-shrink-0">
+          <div className="hidden xl:block h-full flex-shrink-0">
             <DragHandle onDelta={onDragRight} onDragStart={handleDragStart} onDragEnd={handleDragEnd} />
           </div>
 

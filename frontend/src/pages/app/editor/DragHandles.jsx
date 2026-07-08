@@ -36,7 +36,7 @@ export const DragHandle = memo(function DragHandle({ onDelta, onDragStart, onDra
   return (
     <div
       onMouseDown={onMouseDown}
-      className="group relative z-10 flex-shrink-0 transition-colors duration-200"
+      className="group relative z-10 h-full flex-shrink-0 transition-colors duration-200"
       style={{ width: 8, cursor: "col-resize" }}
     >
       {/* Centered thin vertical line matching VS Code */}
