@@ -43,17 +43,15 @@ class BrowserExecutor(BaseExecutor):
             await f.write(html_content)
         (workspace / "index.html").chmod(0o644)
 
-        # Write index.css if present
-        if css_content:
-            async with aiofiles.open(workspace / "index.css", "w", encoding="utf-8") as f:
-                await f.write(css_content)
-            (workspace / "index.css").chmod(0o644)
+        # Write index.css (always write to avoid 404 resource requests)
+        async with aiofiles.open(workspace / "index.css", "w", encoding="utf-8") as f:
+            await f.write(css_content)
+        (workspace / "index.css").chmod(0o644)
 
-        # Write index.js if present
-        if js_content:
-            async with aiofiles.open(workspace / "index.js", "w", encoding="utf-8") as f:
-                await f.write(js_content)
-            (workspace / "index.js").chmod(0o644)
+        # Write index.js (always write to avoid 404 resource requests)
+        async with aiofiles.open(workspace / "index.js", "w", encoding="utf-8") as f:
+            await f.write(js_content)
+        (workspace / "index.js").chmod(0o644)
 
         # Build runtime.json configuration
         # The evaluationScript supports two modes:
