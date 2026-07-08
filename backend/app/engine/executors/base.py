@@ -264,7 +264,7 @@ class BaseExecutor(ABC):
                 await self._link_compiled_files(compile_workspace, workspace)
             else:
                 # Interpreted languages: write the source code directly
-                await self._write_code(workspace, code)
+                await self._write_code(workspace, code, time_limit=time_limit)
 
             # Write testcase stdin
             await self._write_stdin(workspace, testcase.stdin)
@@ -308,7 +308,7 @@ class BaseExecutor(ABC):
 
         try:
             # Write code ONCE
-            await self._write_code(workspace, code)
+            await self._write_code(workspace, code, time_limit=time_limit)
 
             # Run each testcase in sequence, swapping stdin and writing specific files
             for tc in testcases:
@@ -355,7 +355,7 @@ class BaseExecutor(ABC):
         tmp_dir.chmod(0o777)
         return tmp_dir
 
-    async def _write_code(self, workspace: Path, code: str) -> None:
+    async def _write_code(self, workspace: Path, code: str, time_limit: float = 5.0) -> None:
         """Write source code to workspace."""
         code_path = workspace / self.filename
         async with aiofiles.open(code_path, "w", encoding="utf-8") as f:

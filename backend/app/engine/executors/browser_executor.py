@@ -19,7 +19,7 @@ class BrowserExecutor(BaseExecutor):
     run_command = ["node", "/app/runner.js"]
     requires_compile = False
 
-    async def _write_code(self, workspace: Path, code: str) -> None:
+    async def _write_code(self, workspace: Path, code: str, time_limit: float = 5.0) -> None:
         """Write workspace files and the runtime.json configuration."""
         html_content = ""
         css_content = ""
@@ -113,7 +113,7 @@ class BrowserExecutor(BaseExecutor):
         runtime_config = {
             "entry": "index.html",
             "timeout": max(15000, int(time_limit * 1000)),
-            "captureScreenshot": comparison_mode == ComparisonMode.VISUAL,
+            "captureScreenshot": False,
             "captureDOM": True,
             "captureConsole": True,
             "network": "enabled",
