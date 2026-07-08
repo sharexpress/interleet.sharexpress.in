@@ -478,6 +478,9 @@ export function getStarter(slug, lang, dbChallenge) {
     if (dbChallenge.starter_code[backendKey]) {
       return dbChallenge.starter_code[backendKey];
     }
+    if (dbChallenge.starter_code[lang]) {
+      return dbChallenge.starter_code[lang];
+    }
   }
   return STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
 }
