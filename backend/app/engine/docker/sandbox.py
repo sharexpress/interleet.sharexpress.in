@@ -473,6 +473,8 @@ class DockerSandbox:
             }
             if is_devops:
                 run_kwargs["user"] = "root"
+                run_kwargs["network_disabled"] = False  # DevOps needs loopback for services (nginx, curl localhost)
+                run_kwargs["network_mode"] = "bridge"   # Provides loopback but still isolated
             else:
                 run_kwargs["security_opt"] = ["no-new-privileges"]
                 run_kwargs["cap_drop"] = ["ALL"]
