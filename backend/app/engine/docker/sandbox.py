@@ -455,23 +455,29 @@ class DockerSandbox:
         wrapped_command = ["sh", "-c", f"timeout {time_limit} {cmd_str}"]
 
         try:
-            container = client.containers.run(
-                image=image,
-                command=wrapped_command,
-                volumes={
+            is_devops = "devops" in image
+            run_kwargs = {
+                "image": image,
+                "command": wrapped_command,
+                "volumes": {
                     workspace_base: {"bind": "/workspace", "mode": "rw"}
                 },
-                working_dir=container_workspace,
-                network_disabled=True,
-                mem_limit=f"{memory_limit_mb}m",
-                memswap_limit=f"{memory_limit_mb}m",
-                nano_cpus=2_000_000_000,
-                pids_limit=256,
-                security_opt=["no-new-privileges"],
-                cap_drop=["ALL"],
-                detach=True,
-                remove=False,
-            )
+                "working_dir": container_workspace,
+                "network_disabled": True,
+                "mem_limit": f"{memory_limit_mb}m",
+                "memswap_limit": f"{memory_limit_mb}m",
+                "nano_cpus": 2_000_000_000,
+                "pids_limit": 256,
+                "detach": True,
+                "remove": False,
+            }
+            if is_devops:
+                run_kwargs["user"] = "root"
+            else:
+                run_kwargs["security_opt"] = ["no-new-privileges"]
+                run_kwargs["cap_drop"] = ["ALL"]
+
+            container = client.containers.run(**run_kwargs)
 
             # Wait for completion or timeout
             try:
