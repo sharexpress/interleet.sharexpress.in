@@ -789,6 +789,51 @@ const DragHandle = memo(function DragHandle({ onDelta }) {
   );
 });
 
+const VerticalDragHandle = memo(function VerticalDragHandle({ onDelta }) {
+  const dragging = useRef(false);
+  const startY = useRef(0);
+
+  const onMouseDown = useCallback(
+    (e) => {
+      e.preventDefault();
+      dragging.current = true;
+      startY.current = e.clientY;
+      document.body.style.cursor = "row-resize";
+      document.body.style.userSelect = "none";
+
+      const onMove = (ev) => {
+        if (!dragging.current) return;
+        const delta = ev.clientY - startY.current;
+        startY.current = ev.clientY;
+        onDelta(delta);
+      };
+      const onUp = () => {
+        dragging.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [onDelta],
+  );
+
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      className="group relative z-10 flex-shrink-0"
+      style={{ height: 4, cursor: "row-resize" }}
+    >
+      <div
+        className="absolute inset-x-0 top-0 bottom-0 bg-border opacity-0 transition-opacity group-hover:opacity-100"
+        style={{ margin: "1px 0" }}
+      />
+    </div>
+  );
+});
+
 // ─── Main EditorPage ──────────────────────────────────────────────────────────
 
 function EditorPage() {
@@ -839,6 +884,25 @@ function EditorPage() {
   const [activeFile, setActiveFile] = useState("index.html");
   const [multiFiles, setMultiFiles] = useState({ "index.html": "" });
   const isLocalChange = useRef(false);
+
+  // Vertical dragging state
+  const [bottomHeight, setBottomHeight] = useState(280);
+  const fitAddonInstance = useRef(null);
+
+  const onDragVertical = useCallback((deltaY) => {
+    setBottomHeight((prev) => {
+      const next = prev - deltaY;
+      return Math.max(150, Math.min(600, next));
+    });
+  }, []);
+
+  useEffect(() => {
+    if (fitAddonInstance.current) {
+      try {
+        fitAddonInstance.current.fit();
+      } catch (e) {}
+    }
+  }, [bottomHeight]);
 
   // DevOps Terminal states & refs
   const [devopsSessionId, setDevopsSessionId] = useState(null);
@@ -912,6 +976,7 @@ function EditorPage() {
 
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
+    fitAddonInstance.current = fitAddon;
 
     term.open(terminalRef.current);
     
@@ -1569,9 +1634,12 @@ function EditorPage() {
               />
             </div>
 
+            {/* Vertical drag handle */}
+            <VerticalDragHandle onDelta={onDragVertical} />
+
             {/* Bottom panel */}
-            <div className="border-t border-border bg-background/60">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col">
+            <div className="border-t border-border bg-background/60 flex-shrink-0" style={{ height: `${bottomHeight}px` }}>
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
                 <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
                   <TabsList className="h-8 bg-transparent p-0 flex flex-wrap gap-1">
                     <TabsTrigger value="description" className="h-7 px-3 text-xs md:hidden">
@@ -1623,7 +1691,7 @@ function EditorPage() {
                 </div>
 
                 {/* Description tab for mobile */}
-                <TabsContent value="description" className="m-0 max-h-80 overflow-auto p-4 space-y-3 md:hidden">
+                <TabsContent value="description" className="m-0 overflow-auto p-4 space-y-3 md:hidden" style={{ height: "calc(100% - 36px)" }}>
                   <div className="space-y-3 font-sans text-xs">
                     <h3 className="text-sm font-semibold text-white">{c.title}</h3>
                     <div className="flex flex-wrap items-center gap-2">
@@ -1659,7 +1727,7 @@ function EditorPage() {
                   </div>
                 </TabsContent>
 
-                <TabsContent value="testcase" className="m-0 max-h-80 overflow-auto p-4 space-y-4">
+                <TabsContent value="testcase" className="m-0 overflow-auto p-4 space-y-4" style={{ height: "calc(100% - 36px)" }}>
                   {/* Case buttons */}
                   <div className="flex flex-wrap items-center gap-1.5 border-b border-zinc-800 pb-2">
                     {customTestCases.map((tc, idx) => (
@@ -1760,7 +1828,7 @@ function EditorPage() {
                 </TabsContent>
 
                 {/* Test Result tab: shows Run OR Submit results */}
-                <TabsContent value="result" className="m-0 max-h-72 overflow-auto p-3 space-y-3">
+                <TabsContent value="result" className="m-0 overflow-auto p-3 space-y-3" style={{ height: "calc(100% - 36px)" }}>
                   {/* Run result */}
                   {(execState.runStatus !== 'idle' || execState.runResult) && (
                     <ExecutionResult
@@ -1788,13 +1856,13 @@ function EditorPage() {
                 </TabsContent>
 
                 {/* Console tab: legacy local output (JS/TS eval) */}
-                <TabsContent value="console" className="m-0 max-h-64 overflow-auto p-3">
+                <TabsContent value="console" className="m-0 overflow-auto p-3" style={{ height: "calc(100% - 36px)" }}>
                   <ConsoleOutput result={consoleResult} isRunning={false} />
                 </TabsContent>
 
                 {/* DevOps Terminal tab */}
                 {c?.domain === "DevOps" && (
-                  <TabsContent value="terminal" className="m-0 bg-[#0c0c0c] border-t border-zinc-800 overflow-hidden" style={{ height: "240px" }}>
+                  <TabsContent value="terminal" className="m-0 bg-[#0c0c0c] border-t border-zinc-800 overflow-hidden" style={{ height: "calc(100% - 36px)" }}>
                     <div ref={terminalRef} className="w-full h-full p-2 select-text" />
                   </TabsContent>
                 )}
