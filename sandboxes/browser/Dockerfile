@@ -9,7 +9,8 @@ COPY package.json ./
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm install
 
-# Download only Chromium and install its required OS library dependencies
+# Route download through fast CDN mirror and download only Chromium + dependencies
+ENV PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright/
 RUN npx playwright install chromium --with-deps
 
 # Clean up caches and lists to minimize image size
