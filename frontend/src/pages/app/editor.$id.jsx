@@ -1285,4 +1285,6 @@ function EditorPage() {
       )}
     </AppShell>
   );
+}
+
 export default EditorPage;
