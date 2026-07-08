@@ -101,12 +101,12 @@ def main():
     for _ in range(50): # 5 seconds max
         try:
             if health_type == "tcp":
-                with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                with socket.create_connection(("127.0.0.1", port), timeout=1.0):
                     is_ready = True
                     break
             else:
                 req = urllib.request.Request(f"http://127.0.0.1:{port}{health_path}", method="GET")
-                with urllib.request.urlopen(req, timeout=0.1) as res:
+                with urllib.request.urlopen(req, timeout=1.0) as res:
                     if res.status < 500:
                         is_ready = True
                         break

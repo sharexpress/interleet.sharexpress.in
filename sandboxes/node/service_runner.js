@@ -21,7 +21,7 @@ function delay(ms) {
 function checkTcp(port) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
-    socket.setTimeout(100);
+    socket.setTimeout(1000);
     socket.on('connect', () => {
       socket.destroy();
       resolve(true);
@@ -44,7 +44,7 @@ function checkHttp(port, path) {
       host: '127.0.0.1',
       port: port,
       path: path,
-      timeout: 100
+      timeout: 1000
     }, (res) => {
       if (res.statusCode < 500) {
         resolve(true);
