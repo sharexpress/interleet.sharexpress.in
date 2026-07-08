@@ -83,8 +83,8 @@ const MonacoEditor = memo(function MonacoEditor({ value, language, onChange }) {
     const model = editorRef.current.getModel();
     if (!model) return;
     window.monaco.editor.setModelLanguage(model, LANG_TO_MONACO[language] ?? "typescript");
-    if (prevLang.current !== language) {
-      model.setValue(value);
+    if (prevLang.current !== language || model.getValue() !== value) {
+      model.setValue(value || "");
       prevLang.current = language;
     }
   }, [language, value]);
