@@ -80,7 +80,7 @@ class ExecutionWorker:
             await self._update_status(submission_id, ExecutionStatus.QUEUED)
             await self._broadcast(submission_id, WebSocketEventType.QUEUED, ExecutionStatus.QUEUED)
 
-            executor = ExecutorFactory.get(job.language, job.execution_mode)
+            executor = ExecutorFactory.get(job.language, job.execution_mode, job.runtime)
 
             # Determine testcases
             testcases = job.testcases
@@ -209,7 +209,42 @@ class ExecutionWorker:
             stderr = first_result.stderr if first_result else ""
             exit_code = first_result.exit_code if first_result else 0
 
+            from app.engine.runtimes.registry import RuntimeRegistry
+            from app.engine.schemas import StepEvent
+
+            runtime_config = (
+                RuntimeRegistry.get_runtime(job.runtime)
+                if job.runtime
+                else RuntimeRegistry.runtime_for_mode(job.execution_mode)
+            )
+            pipeline = runtime_config.get("pipeline") or [
+                "Workspace Ready",
+                "Compilation",
+                "Execution",
+                "Validation",
+                "Cleanup",
+            ]
+            total_duration = max(1, int(scoring.max_time_ms))
+            steps = []
+            for index, title in enumerate(pipeline):
+                failed = scoring.verdict != Verdict.ACCEPTED and (
+                    (compilation_failed and title == "Compilation")
+                    or (not compilation_failed and index == len(pipeline) - 2)
+                )
+                steps.append(
+                    StepEvent(
+                        id=title.lower().replace(" ", "-"),
+                        title=title,
+                        status="failed" if failed else "passed",
+                        durationMs=(total_duration if index == 2 else 0),
+                        stdout=stdout if failed and not stderr else "",
+                        stderr=stderr if failed else "",
+                    )
+                )
+
             execution_result = ExecutionResult(
+                runtime=runtime_config or None,
+                steps=steps,
                 success=(scoring.verdict == Verdict.ACCEPTED),
                 submission_id=submission_id,
                 status=ExecutionStatus.COMPLETED,

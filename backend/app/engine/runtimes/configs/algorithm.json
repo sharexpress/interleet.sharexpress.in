@@ -1,0 +1,23 @@
+{
+  "id": "algorithm",
+  "version": "2.0",
+  "name": "Algorithm Sandbox",
+  "executionMode": "cli",
+  "editor": {"mode": "single", "executionLanguage": null},
+  "os": "Ubuntu 22.04",
+  "capabilities": {
+    "filesystem": false,
+    "docker": false,
+    "dockerCompose": false,
+    "network": "disabled",
+    "browser": false
+  },
+  "services": [
+    "Language Runtimes",
+    "Standard IO Pipeline",
+    "Memory/CPU Isolator"
+  ],
+  "limits": {"timeoutSeconds": 30, "memoryMb": 1024, "network": "disabled"},
+  "artifacts": ["stdout", "stderr", "compile-output"],
+  "pipeline": ["Workspace Ready", "Compilation", "Execution", "Validation", "Cleanup"]
+}

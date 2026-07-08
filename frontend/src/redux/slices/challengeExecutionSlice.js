@@ -11,12 +11,13 @@ const LANG_MAP = {
   rs: 'rust',
   java: 'java',
   html: 'html',
+  multi: 'multi',
 };
 
 // ─── Thunk: Run (against visible sample test cases) ─────────────────────────
 export const runCode = createAsyncThunk(
   'challengeExecution/run',
-  async ({ code, language, testCases = [], executionMode = 'cli' }, { rejectWithValue }) => {
+  async ({ code, language, testCases = [], executionMode = 'cli', runtime = null }, { rejectWithValue }) => {
     const backendLang = LANG_MAP[language] || language;
     try {
       const response = await API.post('/api/v1/run', {
@@ -32,10 +33,12 @@ export const runCode = createAsyncThunk(
         time_limit: 10,
         memory_limit: 256,
         execution_mode: executionMode,
+        runtime,
       });
       return response.data;
     } catch (err) {
-      const detail = err.response?.data?.detail || err.response?.data?.message || 'Execution failed';
+      let detail = err.response?.data?.detail || err.response?.data?.message || 'Execution failed';
+      if (typeof detail !== 'string') detail = JSON.stringify(detail, null, 2);
       return rejectWithValue({ message: detail });
     }
   }
@@ -44,7 +47,7 @@ export const runCode = createAsyncThunk(
 // ─── Thunk: Submit (against all test cases including hidden) ─────────────────
 export const submitCode = createAsyncThunk(
   'challengeExecution/submit',
-  async ({ code, language, slug, userId, contestId, executionMode = 'cli' }, { dispatch, rejectWithValue }) => {
+  async ({ code, language, slug, userId, contestId, executionMode = 'cli', runtime = null }, { dispatch, rejectWithValue }) => {
     const backendLang = LANG_MAP[language] || language;
     try {
       // Step 1: Enqueue submission
@@ -58,6 +61,7 @@ export const submitCode = createAsyncThunk(
         time_limit: 10,
         memory_limit: 256,
         execution_mode: executionMode,
+        runtime,
       });
 
       const { submission_id } = queueRes.data;
@@ -97,7 +101,8 @@ export const submitCode = createAsyncThunk(
 
       return rejectWithValue({ message: 'Submission timed out — the sandbox may be under load. Check back shortly.' });
     } catch (err) {
-      const detail = err.response?.data?.detail || err.response?.data?.message || 'Submission failed';
+      let detail = err.response?.data?.detail || err.response?.data?.message || 'Submission failed';
+      if (typeof detail !== 'string') detail = JSON.stringify(detail, null, 2);
       return rejectWithValue({ message: detail });
     }
   }

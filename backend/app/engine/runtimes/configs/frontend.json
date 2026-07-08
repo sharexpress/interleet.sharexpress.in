@@ -1,0 +1,23 @@
+{
+  "id": "frontend",
+  "version": "2.0",
+  "name": "Browser Runtime",
+  "executionMode": "browser",
+  "editor": {"mode": "files", "executionLanguage": "html", "entryFile": "index.html"},
+  "os": "Chromium / Node.js",
+  "capabilities": {
+    "filesystem": true,
+    "docker": false,
+    "dockerCompose": false,
+    "network": "isolated",
+    "browser": true
+  },
+  "services": [
+    "Headless Browser",
+    "DOM Renderer",
+    "Vite Dev Server"
+  ],
+  "limits": {"timeoutSeconds": 30, "memoryMb": 512, "network": "isolated"},
+  "artifacts": ["screenshot", "dom", "console", "network"],
+  "pipeline": ["Workspace Ready", "Browser Started", "Page Loaded", "Validation", "Cleanup"]
+}

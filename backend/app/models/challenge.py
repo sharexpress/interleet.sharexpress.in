@@ -37,6 +37,7 @@ class StarterCode(BaseModel):
     javascript: Optional[str] = ""
     python: Optional[str] = ""
     go: Optional[str] = ""
+    multi: Optional[str] = ""
 
 
 class ChallengeModel(BaseModel):
@@ -79,6 +80,8 @@ class ChallengeModel(BaseModel):
     supports_ai_review: bool = False
     supports_code_execution: bool = False
     supports_system_design_canvas: bool = False
+    runtime: Optional[str] = None
+    execution_mode: Optional[str] = None
 
     is_published: bool = True
     is_featured: bool = False

@@ -25,6 +25,7 @@ _REGISTRY: dict[Language, type[BaseExecutor]] = {
     Language.RUST: RustExecutor,
     Language.JAVA: JavaExecutor,
     Language.HTML: BrowserExecutor,
+    Language.MULTI: PythonExecutor,  # Fallback
 }
 
 # Language metadata for API responses / UI
@@ -37,6 +38,7 @@ LANGUAGE_META: dict[Language, dict] = {
     Language.RUST: {"name": "Rust 1.78", "extension": "rs", "compiled": True},
     Language.JAVA: {"name": "Java 21 (JDK)", "extension": "java", "compiled": True},
     Language.HTML: {"name": "HTML/CSS/JS", "extension": "html", "compiled": False},
+    Language.MULTI: {"name": "Multi-File", "extension": "", "compiled": False},
 }
 
 
@@ -44,8 +46,19 @@ class ExecutorFactory:
     """Registry-based factory for language executors."""
 
     @staticmethod
-    def get(language: Language | str, execution_mode: str = "cli") -> BaseExecutor:
+    def get(
+        language: Language | str,
+        execution_mode: str = "cli",
+        runtime: str | None = None,
+    ) -> BaseExecutor:
         """Return an executor instance for the given language and mode."""
+        if runtime:
+            from app.engine.runtimes.registry import RuntimeRegistry
+
+            runtime_config = RuntimeRegistry.get_runtime(runtime)
+            if not runtime_config:
+                raise ValueError(f"Unsupported runtime: {runtime!r}")
+            execution_mode = RuntimeRegistry.execution_mode(runtime, execution_mode)
         if isinstance(language, str):
             try:
                 language = Language(language.lower())
@@ -61,6 +74,9 @@ class ExecutorFactory:
         if execution_mode == "compose":
             from app.engine.executors.compose_executor import ComposeExecutor
             return ComposeExecutor()
+
+        if execution_mode == "browser":
+            return BrowserExecutor()
 
         # 3. HTTP/Service Evaluation Mode
         if execution_mode == "http":

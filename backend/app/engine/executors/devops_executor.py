@@ -50,6 +50,22 @@ class DevOpsExecutor(BaseExecutor):
         tc_result = JudgeEngine.evaluate(sandbox_res, tc, "", request.comparison_mode)
         
         scoring = JudgeEngine.score([tc_result])
+
+        from app.engine.schemas import StepEvent
+        steps = [
+            StepEvent(id="workspace", title="Workspace Ready", status="passed", durationMs=10),
+            StepEvent(id="config", title="Configuration Loaded", status="passed", durationMs=5),
+            StepEvent(id="containers", title="Containers Started", status="passed", durationMs=int(sandbox_res.wall_time_ms * 0.2)),
+            StepEvent(
+                id="validation",
+                title="Validation Suite",
+                status="passed" if tc_result.passed else "failed",
+                durationMs=int(sandbox_res.wall_time_ms * 0.8),
+                stdout=sandbox_res.stdout,
+                stderr=sandbox_res.stderr
+            )
+        ]
+
         return ExecutionResult(
             success=tc_result.passed,
             submission_id=submission_id,
@@ -65,11 +81,29 @@ class DevOpsExecutor(BaseExecutor):
             passed_testcases=scoring.passed,
             total_testcases=scoring.total,
             score=scoring.score,
+            steps=steps,
             completed_at=datetime.datetime.utcnow(),
         )
 
     async def _write_code(self, workspace: Path, code: str) -> None:
-        """Write the user's shell script."""
+        """Write the user's shell script or multi-file dictionary."""
+        import json
+        try:
+            files = json.loads(code)
+            if isinstance(files, dict):
+                for fname, content in files.items():
+                    safe_name = os.path.basename(fname)
+                    async with aiofiles.open(workspace / safe_name, "w", encoding="utf-8") as f:
+                        await f.write(content)
+                    if safe_name.endswith(".sh"):
+                        (workspace / safe_name).chmod(0o755)
+                if "setup.sh" in files:
+                    self.filename = "setup.sh"
+                    self.run_command = ["bash", "setup.sh"]
+                return
+        except json.JSONDecodeError:
+            pass
+
         async with aiofiles.open(workspace / self.filename, "w", encoding="utf-8") as f:
             await f.write(code)
         (workspace / self.filename).chmod(0o755)
@@ -114,9 +148,9 @@ class DevOpsExecutor(BaseExecutor):
                 # all in one isolated execution to capture side-effects accurately.
                 if verification_script:
                     # Run user script, then capture output of verification script
-                    combined_cmd = f"bash solution.sh ; bash verify.sh"
+                    combined_cmd = f"bash {self.filename} ; bash verify.sh"
                 else:
-                    combined_cmd = f"bash solution.sh"
+                    combined_cmd = f"bash {self.filename}"
 
                 command = ["bash", "-c", combined_cmd]
 

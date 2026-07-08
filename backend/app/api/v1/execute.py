@@ -33,6 +33,15 @@ logger = logging.getLogger(__name__)
 engine_router = APIRouter(prefix="/api/v1", tags=["Judge Engine v1"])
 
 
+@engine_router.get("/runtimes", summary="List execution runtimes")
+async def list_runtimes() -> dict[str, Any]:
+    """Return runtime metadata used to render execution workspaces."""
+    from app.engine.runtimes.registry import RuntimeRegistry
+
+    runtimes = RuntimeRegistry.get_all()
+    return {"data": runtimes, "total": len(runtimes)}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /api/v1/execute
 # One-shot synchronous execution. Waits up to 30s for a result.
@@ -64,9 +73,10 @@ async def execute_code(
     Use for quick runs and playground-style execution.
     """
     # Security guard
-    guard = CodeGuard.check(request.code, request.language.value)
-    if not guard.allowed:
-        raise HTTPException(status_code=400, detail=f"Code blocked by security policy: {guard.reason}")
+    if request.execution_mode not in ("devops", "compose"):
+        guard = CodeGuard.check(request.code, request.language.value)
+        if not guard.allowed:
+            raise HTTPException(status_code=400, detail=f"Code blocked by security policy: {guard.reason}")
 
     try:
         result = await EngineSubmissionController.create_execute(request)
@@ -109,9 +119,10 @@ async def run_code(
     Returns per-testcase results immediately (synchronous, waits up to 30s).
     """
     # Security guard
-    guard = CodeGuard.check(request.code, request.language.value)
-    if not guard.allowed:
-        raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
+    if request.execution_mode not in ("devops", "compose"):
+        guard = CodeGuard.check(request.code, request.language.value)
+        if not guard.allowed:
+            raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
 
     try:
         result = await EngineSubmissionController.create_run(request)
@@ -157,9 +168,10 @@ async def create_submission(
     - **Polling**: `GET /api/v1/results/{submission_id}`
     """
     # Security guard
-    guard = CodeGuard.check(request.code, request.language.value)
-    if not guard.allowed:
-        raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
+    if request.execution_mode not in ("devops", "compose"):
+        guard = CodeGuard.check(request.code, request.language.value)
+        if not guard.allowed:
+            raise HTTPException(status_code=400, detail=f"Code blocked: {guard.reason}")
 
     # Overwrite user_id with the authenticated user's ID to prevent spoofing
     user_doc = user_auth.get("user")
@@ -402,3 +414,165 @@ async def engine_health() -> dict[str, Any]:
             "count": int(__import__("os").environ.get("WORKER_COUNT", 4)),
         },
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEVOPS LIVE INTERACTIVE TERMINAL ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel
+import uuid
+import os
+import shutil
+from pathlib import Path
+from app.engine.docker.sandbox import get_docker_client
+
+WORKSPACE_BASE = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
+
+class DevOpsSessionStartRequest(BaseModel):
+    slug: str
+
+class DevOpsSessionSyncRequest(BaseModel):
+    files: dict[str, str]
+
+class DevOpsSessionExecRequest(BaseModel):
+    command: str
+
+@engine_router.post("/devops/session/start", summary="Start interactive DevOps session container")
+async def api_start_devops_session(request: DevOpsSessionStartRequest):
+    db = get_db()
+    
+    # 1. Fetch challenge details from DB to get starter code
+    challenge = await db.problems.find_one({"slug": request.slug})
+    if not challenge:
+        from app.data.seed import CHALLENGES
+        challenge = next((c for c in CHALLENGES if c.get("slug") == request.slug), None)
+        
+    if not challenge:
+        raise HTTPException(status_code=404, detail="DevOps challenge not found")
+        
+    # Get starter files
+    starter = challenge.get("starter_code", {})
+    initial_files = {}
+    if "multi" in starter:
+        try:
+            import json
+            initial_files = json.loads(starter["multi"])
+        except Exception:
+            pass
+            
+    session_id = str(uuid.uuid4())
+    client = get_docker_client()
+    
+    # Create the host workspace directory
+    workspace_dir = Path(WORKSPACE_BASE) / f"devops_{session_id}"
+    os.makedirs(workspace_dir, exist_ok=True)
+    
+    # Write initial starter files to workspace
+    for fname, content in initial_files.items():
+        safe_name = os.path.basename(fname)
+        with open(workspace_dir / safe_name, "w", encoding="utf-8") as f:
+            f.write(content)
+        if safe_name.endswith(".sh"):
+            (workspace_dir / safe_name).chmod(0o755)
+            
+    # Start persistent container specific to this session
+    container_name = f"interleet-devops-session-{session_id}"
+    
+    try:
+        # Stop and remove any pre-existing container under same name
+        old = client.containers.get(container_name)
+        old.remove(force=True)
+    except Exception:
+        pass
+        
+    try:
+        # Run container. Allow networking so the candidate can download packages, curl, etc.
+        client.containers.run(
+            image="interleet-devops:latest",
+            command=["sleep", "infinity"],
+            name=container_name,
+            volumes={
+                str(workspace_dir): {"bind": "/workspace", "mode": "rw"}
+            },
+            working_dir="/workspace",
+            network_mode="bridge",
+            detach=True,
+            remove=True,
+        )
+    except Exception as exc:
+        # Clean up workspace folder if start fails
+        shutil.rmtree(workspace_dir, ignore_errors=True)
+        raise HTTPException(status_code=500, detail=f"Failed to start sandbox container: {exc}")
+        
+    return {
+        "session_id": session_id,
+        "files": initial_files
+    }
+
+@engine_router.post("/devops/session/{session_id}/sync", summary="Sync files to DevOps container workspace")
+async def api_sync_devops_session(session_id: str, request: DevOpsSessionSyncRequest):
+    workspace_dir = Path(WORKSPACE_BASE) / f"devops_{session_id}"
+    if not workspace_dir.exists():
+        # Re-create if deleted somehow but container is still running
+        os.makedirs(workspace_dir, exist_ok=True)
+        
+    for fname, content in request.files.items():
+        safe_name = os.path.basename(fname)
+        with open(workspace_dir / safe_name, "w", encoding="utf-8") as f:
+            f.write(content)
+        if safe_name.endswith(".sh"):
+            (workspace_dir / safe_name).chmod(0o755)
+            
+    return {"success": True}
+
+@engine_router.post("/devops/session/{session_id}/exec", summary="Run shell command in DevOps container")
+async def api_exec_devops_session(session_id: str, request: DevOpsSessionExecRequest):
+    client = get_docker_client()
+    container_name = f"interleet-devops-session-{session_id}"
+    
+    try:
+        container = client.containers.get(container_name)
+    except Exception:
+        raise HTTPException(status_code=404, detail="DevOps session not found or container has exited")
+        
+    # Execute the command inside the docker container
+    try:
+        exec_res = container.exec_run(
+            cmd=["bash", "-c", request.command],
+            workdir="/workspace",
+            demux=True
+        )
+        
+        exit_code = exec_res.exit_code
+        stdout_bytes, stderr_bytes = exec_res.output or (b"", b"")
+        stdout = (stdout_bytes or b"").decode("utf-8", errors="replace")
+        stderr = (stderr_bytes or b"").decode("utf-8", errors="replace")
+        
+        return {
+            "stdout": stdout,
+            "stderr": stderr,
+            "exit_code": exit_code
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to execute command inside sandbox: {exc}")
+
+@engine_router.post("/devops/session/{session_id}/stop", summary="Stop and clean up DevOps session")
+async def api_stop_devops_session(session_id: str):
+    client = get_docker_client()
+    container_name = f"interleet-devops-session-{session_id}"
+    
+    # Remove container
+    try:
+        container = client.containers.get(container_name)
+        container.remove(force=True)
+    except Exception:
+        pass
+        
+    # Remove workspace dir
+    workspace_dir = Path(WORKSPACE_BASE) / f"devops_{session_id}"
+    if workspace_dir.exists():
+        shutil.rmtree(workspace_dir, ignore_errors=True)
+        
+    return {"success": True}
+

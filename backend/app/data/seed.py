@@ -1,4 +1,6 @@
-DOMAINS = ["Frontend", "Backend", "DevOps", "APIs", "Databases"]
+import json
+
+DOMAINS = ["Frontend", "Backend", "DevOps", "APIs", "Databases", "System Design"]
 
 
 CHALLENGES = [
@@ -63,6 +65,14 @@ CHALLENGES = [
         "tags": ["React", "Performance", "Accessibility"],
         "summary": "Render 100k rows with sticky headers, sorting, and keyboard navigation.",
         "is_premium": True,
+        "runtime": "frontend",
+        "starter_code": {
+            "html": json.dumps({
+                "index.html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Responsive Virtualized Data Table</title>\n  <link rel=\"stylesheet\" href=\"index.css\">\n</head>\n<body>\n  <div class=\"wrap\">\n    <h2>Users</h2>\n    <div class=\"toolbar\">\n      <input id=\"q\" placeholder=\"Search...\"/>\n    </div>\n    <table>\n      <thead>\n        <tr>\n          <th>Name</th>\n          <th>Email</th>\n          <th>Role</th>\n          <th>Status</th>\n        </tr>\n      </thead>\n      <tbody id=\"b\"></tbody>\n    </table>\n  </div>\n  <script src=\"index.js\"></script>\n</body>\n</html>",
+                "index.css": "body {\n  font-family: system-ui, -apple-system, sans-serif;\n  color: #fafafa;\n  background: #09090b;\n  margin: 0;\n  padding: 24px;\n}\n.wrap {\n  max-width: 720px;\n  margin: 0 auto;\n}\n.toolbar {\n  display: flex;\n  gap: 8px;\n  margin-bottom: 12px;\n}\ninput {\n  flex: 1;\n  padding: 8px 10px;\n  border: 1px solid #27272a;\n  border-radius: 8px;\n  font: inherit;\n  background: #18181b;\n  color: #fafafa;\n}\ntable {\n  width: 100%;\n  border-collapse: collapse;\n  font-size: 13px;\n}\nth, td {\n  text-align: left;\n  padding: 10px 12px;\n  border-bottom: 1px solid #27272a;\n}\nth {\n  background: #18181b;\n  color: #a1a1aa;\n}\ntr:hover td {\n  background: #18181b;\n}\n.pill {\n  display: inline-block;\n  padding: 2px 8px;\n  border-radius: 999px;\n  font-size: 11px;\n}\n.ok {\n  background: #dcfce7;\n  color: #166534;\n}\n.warn {\n  background: #fef9c3;\n  color: #854d0e;\n}\n.err {\n  background: #fee2e2;\n  color: #991b1b;\n}",
+                "index.js": "const rows = [\n  { name: \"Ada Lovelace\", email: \"ada@interleet.dev\", role: \"Admin\", status: \"ok\" },\n  { name: \"Linus Torvalds\", email: \"linus@interleet.dev\", role: \"Maintainer\", status: \"ok\" },\n  { name: \"Grace Hopper\", email: \"grace@interleet.dev\", role: \"Member\", status: \"warn\" },\n  { name: \"Alan Turing\", email: \"alan@interleet.dev\", role: \"Member\", status: \"err\" },\n  { name: \"Margaret Hamilton\", email: \"margaret@interleet.dev\", role: \"Admin\", status: \"ok\" }\n];\n\nconst b = document.getElementById(\"b\");\nconst q = document.getElementById(\"q\");\n\nfunction render(f) {\n  f = (f || \"\").toLowerCase();\n  b.innerHTML = rows\n    .filter(r => r.name.toLowerCase().includes(f) || r.email.toLowerCase().includes(f))\n    .map(r => `\n      <tr>\n        <td>${r.name}</td>\n        <td>${r.email}</td>\n        <td>${r.role}</td>\n        <td><span class=\"pill ${r.status}\">${r.status}</span></td>\n      </tr>\n    `).join(\"\");\n}\n\nq.addEventListener(\"input\", e => render(e.target.value));\nrender(\"\");"
+            })
+        },
     },
     {
         "id": "3",
@@ -75,9 +85,12 @@ CHALLENGES = [
         "completion": 52,
         "tags": ["Nginx", "Linux", "Networking"],
         "summary": "Configure Nginx to reverse proxy traffic to a local backend on port 3000.",
-        "execution_mode": "devops",
+        "runtime": "devops",
         "starter_code": {
-            "python": "# Write a bash script that installs nginx and creates the configuration\n#!/bin/bash\n\n# Your code here\n"
+            "multi": json.dumps({
+                "nginx.conf": "server {\n    listen 80;\n    # Your proxy_pass configuration here\n}",
+                "setup.sh": "#!/bin/bash\n# Install nginx and move your configuration file\n"
+            })
         },
         "test_cases": [
             {
@@ -104,9 +117,11 @@ CHALLENGES = [
         "completion": 25,
         "tags": ["Docker Compose", "Redis", "Node.js"],
         "summary": "Write a docker-compose.yml to orchestrate a Node.js API and a Redis cache.",
-        "execution_mode": "compose",
+        "runtime": "compose",
         "starter_code": {
-            "python": "version: '3.8'\nservices:\n  # Add your services here\n"
+            "multi": json.dumps({
+                "docker-compose.yml": "version: '3.8'\nservices:\n  # Add your services here\n"
+            })
         },
         "test_cases": [
             {
@@ -187,6 +202,14 @@ CHALLENGES = [
         "completion": 47,
         "tags": ["Next.js", "ISR", "Edge"],
         "summary": "Cache product pages with personalization and inventory accuracy.",
+        "runtime": "frontend",
+        "starter_code": {
+            "html": json.dumps({
+                "index.html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>SSR Cache Strategy Preview</title>\n  <link rel=\"stylesheet\" href=\"index.css\">\n</head>\n<body>\n  <h2>SSR Cache Preview</h2>\n  <div class=\"card\">\n    <div class=\"row\">\n      <span>GET /products</span>\n      <span id=\"s1\" class=\"ok\">HIT · 4ms</span>\n    </div>\n    <div class=\"row\">\n      <span>GET /products/42</span>\n      <span id=\"s2\" class=\"miss\">MISS · 218ms</span>\n    </div>\n    <div class=\"row\">\n      <span>GET /search?q=shoe</span>\n      <span id=\"s3\" class=\"ok\">HIT · 6ms</span>\n    </div>\n  </div>\n  <button onclick=\"bust()\">Bust cache</button>\n\n  <script src=\"index.js\"></script>\n</body>\n</html>",
+                "index.css": "body {\n  font-family: system-ui, -apple-system, sans-serif;\n  color: #fafafa;\n  background: #09090b;\n  margin: 0;\n  padding: 24px;\n}\n.card {\n  border: 1px solid #27272a;\n  border-radius: 10px;\n  padding: 14px;\n  margin-bottom: 10px;\n  background: #18181b;\n}\n.row {\n  display: flex;\n  justify-content: space-between;\n  font-family: monospace;\n  font-size: 12px;\n  padding: 4px 0;\n}\n.ok {\n  color: #10b981;\n}\n.miss {\n  color: #ef4444;\n}\nbutton {\n  padding: 8px 12px;\n  border: 1px solid #27272a;\n  background: #27272a;\n  color: #fff;\n  border-radius: 8px;\n  cursor: pointer;\n}\nbutton:hover {\n  background: #3f3f46;\n}",
+                "index.js": "function bust() {\n  [\"s1\", \"s2\", \"s3\"].forEach(id => {\n    const el = document.getElementById(id);\n    el.textContent = \"MISS · \" + (180 + Math.floor(Math.random() * 120)) + \"ms\";\n    el.className = \"miss\";\n  });\n}"
+            })
+        },
     },
 ]
 

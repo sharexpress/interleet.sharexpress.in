@@ -1,0 +1,24 @@
+{
+  "id": "compose",
+  "version": "2.0",
+  "name": "Docker Compose Orchestrator",
+  "executionMode": "compose",
+  "editor": {"mode": "files", "executionLanguage": "multi", "entryFile": "docker-compose.yml"},
+  "os": "Ubuntu 22.04 Host",
+  "capabilities": {
+    "filesystem": true,
+    "docker": true,
+    "dockerCompose": true,
+    "network": "bridge",
+    "browser": false
+  },
+  "services": [
+    "Docker Daemon",
+    "Docker Compose v2",
+    "Host Filesystem",
+    "Multi-Container Network"
+  ],
+  "limits": {"timeoutSeconds": 30, "memoryMb": 1024, "network": "bridge"},
+  "artifacts": ["stdout", "stderr", "service-logs", "generated-files"],
+  "pipeline": ["Workspace Ready", "Compose Parsed", "Services Started", "Integration Tests", "Cleanup"]
+}

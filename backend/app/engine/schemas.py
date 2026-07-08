@@ -36,6 +36,7 @@ class ExecuteRequest(BaseModel):
     memory_limit: int = Field(default=256, ge=32, le=1024, description="MB")
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
     execution_mode: str = "cli"  # "cli", "http", "browser", "devops"
+    runtime: Optional[str] = None
 
 
 class InlineTestCase(BaseModel):
@@ -56,6 +57,7 @@ class RunRequest(BaseModel):
     memory_limit: int = Field(default=256, ge=32, le=1024, description="MB")
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
     execution_mode: str = "cli"  # "cli", "http", "browser", "devops"
+    runtime: Optional[str] = None
 
 
 class SubmissionRequest(ExecuteRequest):
@@ -151,8 +153,21 @@ class TestCaseResult(BaseModel):
 # Full Execution Result
 # ─────────────────────────────────────────────
 
+class StepEvent(BaseModel):
+    id: str
+    title: str
+    status: str  # "passed", "failed", "pending"
+    startedAt: int = 0
+    endedAt: int = 0
+    durationMs: int = 0
+    stdout: str = ""
+    stderr: str = ""
+
 class ExecutionResult(BaseModel):
     """Final result returned to caller"""
+
+    runtime: Optional[dict] = None  # Injected from registry
+    steps: list[StepEvent] = Field(default_factory=list)
 
     success: bool
     submission_id: str = Field(default_factory=lambda: str(uuid4()))
@@ -168,7 +183,7 @@ class ExecutionResult(BaseModel):
     exit_code: int = 0
 
     # Per testcase breakdown (for submissions)
-    testcase_results: list[TestCaseResult] = []
+    testcase_results: list[TestCaseResult] = Field(default_factory=list)
     passed_testcases: int = 0
     total_testcases: int = 0
     score: float = 0.0
@@ -198,12 +213,13 @@ class ExecutionJob(BaseModel):
     memory_limit: int = 256
     comparison_mode: ComparisonMode = ComparisonMode.TRIMMED
     execution_mode: str = "cli"
+    runtime: Optional[str] = None
     problem_slug: Optional[str] = None
     challenge_id: Optional[str] = None
     user_id: Optional[str] = None
     contest_id: Optional[str] = None
     mode: str = "run"
-    testcases: list[TestCaseSchema] = []
+    testcases: list[TestCaseSchema] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -248,4 +264,4 @@ class ScoringResult(BaseModel):
 class CategoryScoringResult(BaseModel):
     """Per-category scoring breakdown for anti-overfitting detection."""
     all_categories_pass: bool = False
-    category_scores: dict[str, dict] = {}  # {category: {passed: int, total: int}}
+    category_scores: dict[str, dict] = Field(default_factory=dict)

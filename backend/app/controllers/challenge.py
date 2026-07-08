@@ -20,6 +20,13 @@ def _serialize(doc: dict) -> dict:
 
 def _to_frontend(doc: dict) -> dict:
     """Map DB/model field names → what the frontend expects."""
+    from app.engine.runtimes.registry import RuntimeRegistry
+
+    runtime_id = doc.get("runtime")
+    if not runtime_id and doc.get("domain") == "Frontend":
+        runtime_id = "frontend"
+
+    runtime_config = RuntimeRegistry.get_runtime(runtime_id)
     return {
         "id": doc.get("id") or str(doc.get("challenge_id", "")),
         "slug": doc.get("slug", ""),
@@ -38,6 +45,9 @@ def _to_frontend(doc: dict) -> dict:
         "is_featured": doc.get("is_featured", False),
         "is_published": doc.get("is_published", True),
         "is_premium": doc.get("is_premium", False) or doc.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"},
+        "runtime": runtime_id,
+        "runtime_config": runtime_config or None,
+        "execution_mode": doc.get("execution_mode") or (runtime_config.get("executionMode") if runtime_config else "cli"),
     }
 
 

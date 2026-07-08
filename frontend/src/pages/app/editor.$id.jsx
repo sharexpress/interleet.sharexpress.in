@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import EnvironmentCard from "@/components/runtime/EnvironmentCard";
+import RuntimeBadge from "@/components/runtime/RuntimeBadge";
 import { AppShell } from "@/components/layout/AppShell";
 import UpgradeModal from "@/components/UpgradeModal";
 import { Button } from "@/components/ui/button";
@@ -794,15 +796,11 @@ function EditorPage() {
   const c = useSelector(selectChallengeDetail(slug));
   const loading = useSelector(selectDetailLoading);
   const detailError = useSelector(selectDetailError);
+  const runtimeEditor = c?.runtime_config?.editor;
 
   const availableLangs = (() => {
-    if (c?.domain === "Frontend") {
-      if (c?.starter_code) {
-        const keys = Object.keys(c.starter_code);
-        const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k);
-        return ["ts", "js"].filter(k => shortKeys.includes(k));
-      }
-      return ["ts", "js"];
+    if (runtimeEditor?.mode === "files") {
+      return [runtimeEditor.executionLanguage || "multi"];
     }
     return ["ts", "js", "py", "go"];
   })();
@@ -814,10 +812,11 @@ function EditorPage() {
       if (keys.includes("javascript") && !keys.includes("typescript")) {
         initialLang = "js";
       } else if (keys.length > 0) {
-        const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).find(k => ["ts", "js", "py", "go"].includes(k));
+        const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).find(k => ["ts", "js", "py", "go", "multi"].includes(k));
         if (matched) initialLang = matched;
       }
     }
+    if (runtimeEditor?.executionLanguage) initialLang = runtimeEditor.executionLanguage;
     return {
       lang: initialLang,
       code: getStarter(slug, initialLang, c)
@@ -831,14 +830,109 @@ function EditorPage() {
   const [customTestCases, setCustomTestCases] = useState([]);
   const [selectedTestCaseIdx, setSelectedTestCaseIdx] = useState(0);
 
-  // Frontend challenges 3-tab file states
+  const isMultiFileDomain = c?.runtime_config?.capabilities?.filesystem || false;
+
+  // Multi-file states
   const [activeFile, setActiveFile] = useState("index.html");
-  const [frontendFiles, setFrontendFiles] = useState({
-    "index.html": "",
-    "index.css": "",
-    "index.js": ""
-  });
+  const [multiFiles, setMultiFiles] = useState({ "index.html": "" });
   const isLocalChange = useRef(false);
+
+  // DevOps Terminal states
+  const [devopsSessionId, setDevopsSessionId] = useState(null);
+  const [terminalHistory, setTerminalHistory] = useState([
+    { type: "system", text: "Interactive DevOps sandbox container initialized." },
+    { type: "system", text: "Type any shell commands (e.g. ls, nginx -t, curl, etc.) below." }
+  ]);
+  const [terminalInput, setTerminalInput] = useState("");
+  const [terminalLoading, setTerminalLoading] = useState(false);
+  const terminalEndRef = useRef(null);
+
+  useEffect(() => {
+    let activeSessionId = null;
+    let isAborted = false;
+
+    async function initSession() {
+      if (c && c.domain === "DevOps") {
+        try {
+          const res = await API.post("/api/v1/devops/session/start", { slug });
+          if (!isAborted) {
+            const sid = res.data.session_id;
+            setDevopsSessionId(sid);
+            activeSessionId = sid;
+            setTerminalHistory([
+              { type: "system", text: "Container sandbox ready. Working directory: /workspace" },
+              { type: "system", text: "Type shell commands to inspect, configure, or run services." }
+            ]);
+          }
+        } catch (err) {
+          console.error("Failed to start DevOps session container:", err);
+          if (!isAborted) {
+            setTerminalHistory((prev) => [
+              ...prev,
+              { type: "error", text: `Error starting session: ${err.response?.data?.detail || err.message}` }
+            ]);
+          }
+        }
+      }
+    }
+
+    initSession();
+
+    return () => {
+      isAborted = true;
+      if (activeSessionId) {
+        API.post(`/api/v1/devops/session/${activeSessionId}/stop`).catch((e) =>
+          console.error("Failed to stop DevOps session container on cleanup:", e)
+        );
+      }
+      setDevopsSessionId(null);
+      setTerminalHistory([
+        { type: "system", text: "Interactive DevOps sandbox container initialized." },
+        { type: "system", text: "Type any shell commands (e.g. ls, nginx -t, curl, etc.) below." }
+      ]);
+    };
+  }, [c?.id, slug]);
+
+  useEffect(() => {
+    if (activeTab === "terminal" && terminalEndRef.current) {
+      terminalEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [terminalHistory, activeTab]);
+
+  const handleTerminalSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    const cmd = terminalInput.trim();
+    if (!cmd || !devopsSessionId) return;
+
+    setTerminalHistory((prev) => [...prev, { type: "input", text: cmd }]);
+    setTerminalInput("");
+    setTerminalLoading(true);
+
+    try {
+      // Sync editor files to workspace first
+      await API.post(`/api/v1/devops/session/${devopsSessionId}/sync`, { files: multiFiles });
+
+      // Run command
+      const res = await API.post(`/api/v1/devops/session/${devopsSessionId}/exec`, { command: cmd });
+      const { stdout, stderr, exit_code } = res.data;
+
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          type: "output",
+          text: stdout || stderr ? `${stdout}${stderr}` : `[Command exited with code ${exit_code}]`,
+          exitCode: exit_code
+        }
+      ]);
+    } catch (err) {
+      setTerminalHistory((prev) => [
+        ...prev,
+        { type: "error", text: `Execution failed: ${err.response?.data?.detail || err.message}` }
+      ]);
+    } finally {
+      setTerminalLoading(false);
+    }
+  }, [terminalInput, devopsSessionId, multiFiles]);
 
   useEffect(() => {
     if (isLocalChange.current) {
@@ -846,58 +940,38 @@ function EditorPage() {
       return;
     }
     
-    if (c?.domain === "Frontend") {
+    if (isMultiFileDomain) {
       try {
         const parsed = JSON.parse(code);
-        if (parsed && typeof parsed === "object" && "index.html" in parsed) {
-          setFrontendFiles(parsed);
+        if (parsed && typeof parsed === "object") {
+          setMultiFiles(parsed);
+          const keys = Object.keys(parsed);
+          if (!keys.includes(activeFile) && keys.length > 0) {
+            setActiveFile(keys[0]);
+          }
           return;
         }
       } catch (e) {}
 
-      // Fallback for legacy plain text starter code
-      const fallback = {
-        "index.html": `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Interleet Preview</title>
-  <link rel="stylesheet" href="index.css">
-</head>
-<body>
-  <div id="app">
-    <!-- Write your HTML structure here -->
-  </div>
-  <script src="index.js"></script>
-</body>
-</html>`,
-        "index.css": `/* Write your CSS styling here */
-body {
-  font-family: system-ui, -apple-system, sans-serif;
-  color: #fafafa;
-  background: #09090b;
-  margin: 0;
-  padding: 24px;
-}
-#app {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
-  border: 1px solid #27272a;
-  border-radius: 8px;
-  background: #18181b;
-}`,
-        "index.js": code || `// Write your JavaScript behavior here
-console.log("DOM loaded successfully!");
-`
-      };
-      setFrontendFiles(fallback);
-      
-      // Auto-serialize to JSON string so that preview and submissions are immediately synced
-      isLocalChange.current = true;
-      setCode(JSON.stringify(fallback));
+      if (runtimeEditor?.executionLanguage === "html") {
+        // Fallback for legacy plain text starter code
+        const fallback = {
+          "index.html": `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>Interleet Preview</title>\n  <link rel="stylesheet" href="index.css">\n</head>\n<body>\n  <div id="app">\n    <!-- Write your HTML structure here -->\n  </div>\n  <script src="index.js"></script>\n</body>\n</html>`,
+          "index.css": `body {\n  font-family: system-ui, -apple-system, sans-serif;\n  color: #fafafa;\n  background: #09090b;\n  margin: 0;\n  padding: 24px;\n}\n#app {\n  max-width: 600px;\n  margin: 0 auto;\n  padding: 20px;\n  border: 1px solid #27272a;\n  border-radius: 8px;\n  background: #18181b;\n}`,
+          "index.js": code || `console.log("DOM loaded successfully!");\n`
+        };
+        setMultiFiles(fallback);
+        isLocalChange.current = true;
+        setCode(JSON.stringify(fallback));
+      } else {
+        const entryFile = runtimeEditor?.entryFile || "main.txt";
+        const fallback = { [entryFile]: code || "" };
+        setMultiFiles(fallback);
+        isLocalChange.current = true;
+        setCode(JSON.stringify(fallback));
+      }
     }
-  }, [code, c?.domain]);
+  }, [code, isMultiFileDomain, runtimeEditor?.entryFile, runtimeEditor?.executionLanguage]);
 
   useEffect(() => {
     if (c && c.test_cases) {
@@ -1012,8 +1086,8 @@ console.log("DOM loaded successfully!");
   );
 
   const handleCodeChange = useCallback((newValue) => {
-    if (c?.domain === "Frontend") {
-      setFrontendFiles((prev) => {
+    if (isMultiFileDomain) {
+      setMultiFiles((prev) => {
         const next = { ...prev, [activeFile]: newValue };
         isLocalChange.current = true;
         setCode(JSON.stringify(next));
@@ -1022,23 +1096,23 @@ console.log("DOM loaded successfully!");
     } else {
       setCode(newValue);
     }
-  }, [c?.domain, activeFile]);
+  }, [isMultiFileDomain, activeFile]);
 
   // Run — executes custom test cases or visible sample test cases
   const handleRun = useCallback(() => {
     dispatch(resetExecution());
     setActiveTab("result");
-    const executionLang = c?.domain === "Frontend" ? "html" : lang;
-    dispatch(runCode({ code, language: executionLang, testCases: customTestCases, executionMode: c?.execution_mode || "cli" }));
-  }, [code, lang, customTestCases, dispatch, c?.domain, c?.execution_mode]);
+    const executionLang = runtimeEditor?.executionLanguage || lang;
+    dispatch(runCode({ code, language: executionLang, testCases: customTestCases, executionMode: c?.execution_mode || "cli", runtime: c?.runtime }));
+  }, [code, lang, customTestCases, dispatch, runtimeEditor?.executionLanguage, c?.execution_mode, c?.runtime]);
 
   // Submit — runs against all test cases (including hidden) via backend DB
   const handleSubmit = useCallback(() => {
     dispatch(resetExecution());
     setActiveTab("result");
-    const executionLang = c?.domain === "Frontend" ? "html" : lang;
-    dispatch(submitCode({ code, language: executionLang, slug, userId: user?.user_id, executionMode: c?.execution_mode || "cli" }));
-  }, [code, lang, slug, dispatch, user, c?.domain, c?.execution_mode]);
+    const executionLang = runtimeEditor?.executionLanguage || lang;
+    dispatch(submitCode({ code, language: executionLang, slug, userId: user?.user_id, executionMode: c?.execution_mode || "cli", runtime: c?.runtime }));
+  }, [code, lang, slug, dispatch, user, runtimeEditor?.executionLanguage, c?.execution_mode, c?.runtime]);
 
   // Reset editor to default starter code, dismissing previous submission
   const handleResetToStarter = useCallback(() => {
@@ -1122,14 +1196,18 @@ console.log("DOM loaded successfully!");
             </Link>
           </Button>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{c.title}</p>
-            <p className="truncate text-xs text-muted-foreground">
+            <div className="flex items-center">
+              <p className="truncate text-sm font-semibold">{c.title}</p>
+              <RuntimeBadge runtime={c?.runtime_config} />
+            </div>
+            <p className="truncate text-xs text-muted-foreground mt-0.5">
               {c.domain} · {c.difficulty} · {c.minutes}m
             </p>
           </div>
         </div>
         <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-          <Select value={lang} onValueChange={handleLangChange}>
+          {!isMultiFileDomain && (
+            <Select value={lang} onValueChange={handleLangChange}>
             <SelectTrigger className="h-8 w-[130px]">
               <SelectValue />
             </SelectTrigger>
@@ -1141,6 +1219,7 @@ console.log("DOM loaded successfully!");
               ))}
             </SelectContent>
           </Select>
+          )}
           <Button variant="outline" size="sm" onClick={handleRun} disabled={c?.locked || isRunning || isSubmitting} className="flex-1 sm:flex-none">
             {isRunning ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -1170,7 +1249,7 @@ console.log("DOM loaded successfully!");
             </DrawerTrigger>
             <DrawerContent className="p-0">
               <div className="flex h-[85vh] flex-col overflow-hidden">
-                <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} />
+                <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} />
               </div>
             </DrawerContent>
           </Drawer>
@@ -1331,7 +1410,7 @@ console.log("DOM loaded successfully!");
                 </div>
               )}
 
-              <EnvironmentInfo domain={c.domain} lang={lang} />
+              {!isMultiFileDomain && <EnvironmentInfo domain={c.domain} lang={lang} />}
               {c.test_cases?.filter((t) => !t.hidden).length > 0 && (
                 <>
                   <h3 className="mt-5 text-sm font-semibold">Examples</h3>
@@ -1392,6 +1471,9 @@ console.log("DOM loaded successfully!");
                   </div>
                 </>
               )}
+              {c?.runtime_config && (
+                <EnvironmentCard runtime={c.runtime_config} />
+              )}
             </div>
           </aside>
 
@@ -1403,10 +1485,10 @@ console.log("DOM loaded successfully!");
           {/* CENTER: editor + bottom tabs */}
           <div className="flex min-w-0 flex-1 flex-col">
             {/* File tab bar */}
-            <div className="flex items-center gap-1 border-b border-border bg-background/60 px-2 py-1.5 overflow-x-auto">
-              {c?.domain === "Frontend" ? (
+            <div className="flex items-center gap-1 border-b border-border bg-muted/30 px-2 pt-2 overflow-x-auto">
+              {isMultiFileDomain ? (
                 <>
-                  {["index.html", "index.css", "index.js"].map((f) => (
+                  {Object.keys(multiFiles).map((f) => (
                     <button
                       key={f}
                       onClick={() => setActiveFile(f)}
@@ -1430,14 +1512,17 @@ console.log("DOM loaded successfully!");
             {/* Monaco editor */}
             <div className="min-h-0 flex-1 overflow-hidden bg-[#1E1E1E]">
               <MonacoEditor
-                value={c?.domain === "Frontend" ? frontendFiles[activeFile] : code}
+                value={isMultiFileDomain ? multiFiles[activeFile] : code}
                 language={
-                  c?.domain === "Frontend"
-                    ? activeFile === "index.html"
-                      ? "html"
-                      : activeFile === "index.css"
-                      ? "css"
-                      : "js"
+                  isMultiFileDomain
+                    ? activeFile.endsWith(".html") ? "html"
+                      : activeFile.endsWith(".css") ? "css"
+                      : activeFile.endsWith(".js") ? "javascript"
+                      : activeFile.endsWith(".ts") ? "typescript"
+                      : activeFile.endsWith(".yml") || activeFile.endsWith(".yaml") ? "yaml"
+                      : activeFile.endsWith(".sh") || activeFile.endsWith(".conf") ? "shell"
+                      : activeFile === "Dockerfile" ? "dockerfile"
+                      : "plaintext"
                     : lang
                 }
                 onChange={handleCodeChange}
@@ -1473,6 +1558,11 @@ console.log("DOM loaded successfully!");
                         </span>
                       )}
                     </TabsTrigger>
+                    {c?.domain === "DevOps" && (
+                      <TabsTrigger value="terminal" className="h-7 px-3 text-xs">
+                        <TerminalIcon className="mr-1 h-3 w-3" /> Terminal
+                      </TabsTrigger>
+                    )}
                   </TabsList>
                   <div className="flex items-center gap-2">
                     {activeTab === "console" && consoleResult && (
@@ -1487,7 +1577,7 @@ console.log("DOM loaded successfully!");
                       </Button>
                     )}
                     <Badge variant="outline" className="font-mono text-[10px]">
-                      {LANG_BADGE[lang]}
+                      {isMultiFileDomain ? c?.runtime_config?.name : LANG_BADGE[lang]}
                     </Badge>
                   </div>
                 </div>
@@ -1524,7 +1614,7 @@ console.log("DOM loaded successfully!");
                         </div>
                       )}
 
-                      <EnvironmentInfo domain={c.domain} lang={lang} />
+                      {!isMultiFileDomain && <EnvironmentInfo domain={c.domain} lang={lang} />}
                     </div>
                   </div>
                 </TabsContent>
@@ -1662,6 +1752,47 @@ console.log("DOM loaded successfully!");
                   <ConsoleOutput result={consoleResult} isRunning={false} />
                 </TabsContent>
 
+                {/* DevOps Terminal tab */}
+                {c?.domain === "DevOps" && (
+                  <TabsContent value="terminal" className="m-0 bg-black text-zinc-200 border-t border-zinc-800 flex flex-col font-mono text-xs select-text overflow-hidden" style={{ height: "240px" }}>
+                    <div id="devops-terminal-log" className="flex-1 overflow-y-auto p-3 space-y-2 select-text">
+                      {terminalHistory.map((h, i) => (
+                        <div key={i} className="whitespace-pre-wrap leading-relaxed">
+                          {h.type === "system" && (
+                            <span className="text-zinc-500 font-semibold">{h.text}</span>
+                          )}
+                          {h.type === "input" && (
+                            <span className="text-primary font-bold">/workspace # <span className="text-white font-normal">{h.text}</span></span>
+                          )}
+                          {h.type === "output" && (
+                            <span className={h.exitCode === 0 ? "text-emerald-400" : "text-zinc-300"}>{h.text}</span>
+                          )}
+                          {h.type === "error" && (
+                            <span className="text-destructive font-semibold">{h.text}</span>
+                          )}
+                        </div>
+                      ))}
+                      {terminalLoading && (
+                        <div className="text-primary animate-pulse font-semibold">Running command...</div>
+                      )}
+                      <div ref={terminalEndRef} />
+                    </div>
+
+                    <form onSubmit={handleTerminalSubmit} className="border-t border-zinc-800 bg-zinc-950 flex items-center px-3 py-2 gap-2">
+                      <span className="text-primary font-bold shrink-0">/workspace #</span>
+                      <input
+                        type="text"
+                        value={terminalInput}
+                        onChange={(e) => setTerminalInput(e.target.value)}
+                        disabled={terminalLoading || !devopsSessionId}
+                        placeholder={devopsSessionId ? "Type shell commands here and press Enter..." : "Starting container sandbox..."}
+                        className="flex-1 bg-transparent border-0 outline-none text-white font-mono text-xs focus:ring-0 placeholder:text-zinc-600"
+                        autoFocus
+                      />
+                    </form>
+                  </TabsContent>
+                )}
+
               </Tabs>
             </div>
           </div>
@@ -1676,7 +1807,7 @@ console.log("DOM loaded successfully!");
             className="hidden flex-col overflow-hidden bg-card xl:flex"
             style={{ width: rightW, minWidth: MIN_COL, flexShrink: 0 }}
           >
-            <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} />
+            <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} />
           </aside>
         </div>
       )}
@@ -1686,7 +1817,7 @@ console.log("DOM loaded successfully!");
 
 // ─── BrowserPreview ───────────────────────────────────────────────────────────
 
-const BrowserPreview = memo(function BrowserPreview({ domain, slug, title, code, execState }) {
+const BrowserPreview = memo(function BrowserPreview({ domain, slug, title, code, execState, isMultiFileDomain }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
       <div className="border-b border-border bg-background/60 px-3 py-2">
@@ -1708,14 +1839,14 @@ const BrowserPreview = memo(function BrowserPreview({ domain, slug, title, code,
           </button>
         </div>
       </div>
-      <PreviewArea domain={domain} slug={slug} title={title} code={code} execState={execState} />
+      <PreviewArea domain={domain} slug={slug} title={title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} />
     </div>
   );
 });
 
 const FRONTEND_DOMAINS = new Set(["Frontend"]);
 
-const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execState }) {
+const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execState, isMultiFileDomain }) {
   if (FRONTEND_DOMAINS.has(domain)) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden bg-white">
@@ -1811,15 +1942,21 @@ const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execS
     return (
       <div className="flex flex-1 flex-col overflow-auto bg-[#0A0A0A] p-4 text-xs font-sans">
         <div className="rounded-lg border border-border bg-card/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Backend Preview Console</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
+            {isMultiFileDomain ? "Infrastructure Logs" : "Backend Preview Console"}
+          </p>
           <p className="mt-2 text-zinc-400 leading-relaxed">
-            No active execution session. Write code and click <strong>Run</strong> or <strong>Submit</strong> to verify results here.
+            {isMultiFileDomain
+              ? "No active execution session. Write configuration and click Run or Submit to verify results here."
+              : "No active execution session. Write code and click Run or Submit to verify results here."}
           </p>
         </div>
 
         {/* Render a fallback expected output */}
         <div className="mt-3 rounded-lg border border-border bg-card/60 p-4">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">Expected Output Format</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
+            {isMultiFileDomain ? "Validation Pipeline Spec" : "Expected Output Format"}
+          </p>
           <pre className="mt-3 whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-zinc-500">
             {out.log}
           </pre>
@@ -2018,6 +2155,24 @@ const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execS
 
 function getProgramOutput(slug) {
   switch (slug) {
+    case "configure-nginx-proxy":
+      return {
+        log: "Workspace Ready\n✓\nConfiguration Loaded\n✓\nStarting Backend\n✓\nReloading Nginx\n✓\nRunning Health Checks\n✓\nValidation Passed\n\nAll HTTP checks passed successfully.",
+        stats: [
+          { label: "Nginx", value: "Running", tone: "text-success" },
+          { label: "Backend", value: "Running", tone: "text-success" },
+          { label: "Reverse Proxy", value: "Configured", tone: "text-success" },
+        ],
+      };
+    case "orchestrate-redis-node":
+      return {
+        log: "Workspace Ready\n✓\nDocker Compose File Loaded\n✓\nStarting Containers\n✓\nWaiting for redis-db\n✓\nWaiting for node-api\n✓\nHTTP Check (Port 8080)\n✓\nValidation Passed",
+        stats: [
+          { label: "Redis DB", value: "Running", tone: "text-success" },
+          { label: "Node API", value: "Running", tone: "text-success" },
+          { label: "Orchestration", value: "OK", tone: "text-success" },
+        ],
+      };
     case "build-a-rate-limiter":
       return {
         log: "> TokenBucket(3, 1)\n> b.allow() → true\n> b.allow() → true\n> b.allow() → true\n> b.allow() → false\n[waiting 1000ms...]\n> b.allow() → true\n\n✓ Run finished in 1.04s",

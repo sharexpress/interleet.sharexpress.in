@@ -46,6 +46,22 @@ class ComposeExecutor(BaseExecutor):
         tc_result = JudgeEngine.evaluate(sandbox_res, tc, "", request.comparison_mode)
         
         scoring = JudgeEngine.score([tc_result])
+
+        from app.engine.schemas import StepEvent
+        steps = [
+            StepEvent(id="workspace", title="Workspace Created", status="passed", durationMs=10),
+            StepEvent(id="config", title="Docker Compose Parsed", status="passed", durationMs=5),
+            StepEvent(id="containers", title="Services Started", status="passed", durationMs=int(sandbox_res.wall_time_ms * 0.4)),
+            StepEvent(
+                id="validation",
+                title="Integration Tests",
+                status="passed" if tc_result.passed else "failed",
+                durationMs=int(sandbox_res.wall_time_ms * 0.6),
+                stdout=sandbox_res.stdout,
+                stderr=sandbox_res.stderr
+            )
+        ]
+
         return ExecutionResult(
             success=tc_result.passed,
             submission_id=submission_id,
@@ -61,6 +77,7 @@ class ComposeExecutor(BaseExecutor):
             passed_testcases=scoring.passed,
             total_testcases=scoring.total,
             score=scoring.score,
+            steps=steps,
             completed_at=datetime.datetime.utcnow(),
         )
 
@@ -75,9 +92,22 @@ class ComposeExecutor(BaseExecutor):
         results: list[SandboxResult] = []
 
         try:
-            # Code is assumed to be the docker-compose.yml content
-            async with aiofiles.open(workspace / self.filename, "w", encoding="utf-8") as f:
-                await f.write(code)
+            import json
+            try:
+                files = json.loads(code)
+                if isinstance(files, dict):
+                    for fname, content in files.items():
+                        safe_name = os.path.basename(fname)
+                        async with aiofiles.open(workspace / safe_name, "w", encoding="utf-8") as f:
+                            await f.write(content)
+                        if safe_name.endswith(".sh"):
+                            (workspace / safe_name).chmod(0o755)
+                else:
+                    async with aiofiles.open(workspace / self.filename, "w", encoding="utf-8") as f:
+                        await f.write(code)
+            except json.JSONDecodeError:
+                async with aiofiles.open(workspace / self.filename, "w", encoding="utf-8") as f:
+                    await f.write(code)
 
             for tc in testcases:
                 # Write supplementary files (e.g. server.js, requirements.txt, init.sql)

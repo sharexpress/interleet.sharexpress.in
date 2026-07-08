@@ -1,0 +1,25 @@
+{
+  "id": "devops",
+  "version": "2.0",
+  "name": "Infrastructure Sandbox",
+  "executionMode": "devops",
+  "editor": {"mode": "files", "executionLanguage": "multi", "entryFile": "setup.sh"},
+  "os": "Alpine Linux",
+  "capabilities": {
+    "filesystem": true,
+    "docker": false,
+    "dockerCompose": false,
+    "network": "isolated",
+    "browser": false
+  },
+  "services": [
+    "Alpine Linux",
+    "Bash Shell",
+    "Nginx Engine",
+    "Localhost Networking",
+    "Isolated Filesystem"
+  ],
+  "limits": {"timeoutSeconds": 30, "memoryMb": 512, "network": "isolated"},
+  "artifacts": ["stdout", "stderr", "logs", "generated-files"],
+  "pipeline": ["Workspace Ready", "Configuration Loaded", "Execution", "Validation", "Cleanup"]
+}

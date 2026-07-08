@@ -79,6 +79,7 @@ class EngineSubmissionController:
             memory_limit=request.memory_limit,
             comparison_mode=request.comparison_mode,
             execution_mode=request.execution_mode,
+            runtime=request.runtime,
             mode="run",
             testcases=[testcase] if testcase else [],
         )
@@ -151,6 +152,7 @@ class EngineSubmissionController:
             memory_limit=request.memory_limit,
             comparison_mode=request.comparison_mode,
             execution_mode=request.execution_mode,
+            runtime=request.runtime,
             mode="run",
             testcases=testcases,
         )
@@ -234,6 +236,7 @@ class EngineSubmissionController:
             memory_limit=request.memory_limit,
             comparison_mode=request.comparison_mode,
             execution_mode=request.execution_mode,
+            runtime=request.runtime,
             problem_slug=request.problem_slug,
             challenge_id=request.challenge_id,
             user_id=request.user_id,
@@ -254,6 +257,7 @@ class EngineSubmissionController:
                 "code": request.code,
                 "mode": request.mode,
                 "execution_mode": request.execution_mode,
+                "runtime": request.runtime,
                 "total_testcases": len(testcases),
                 "contest_id": getattr(request, "contest_id", None),
             },

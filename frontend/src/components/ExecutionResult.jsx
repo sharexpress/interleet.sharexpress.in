@@ -1,6 +1,7 @@
 import React, { memo } from "react";
 import { Loader2, Check, AlertTriangle, X, Clock, Database } from "lucide-react";
 import TestCaseResultCard from "./TestCaseResultCard";
+import ExecutionTimeline from "./runtime/ExecutionTimeline";
 
 /**
  * ExecutionResult — full LeetCode-style execution result panel.
@@ -59,6 +60,7 @@ const ExecutionResult = memo(function ExecutionResult({ mode = 'run', status, re
       passed_testcases,
       total_testcases,
       score,
+      steps = [],
     } = result;
 
     const accepted = verdict === 'ACCEPTED';
@@ -120,8 +122,15 @@ const ExecutionResult = memo(function ExecutionResult({ mode = 'run', status, re
           </div>
         )}
 
+        {/* Execution Timeline (For Runtime plugins like DevOps/Compose) */}
+        {steps.length > 0 && (
+          <div className="mb-4">
+            <ExecutionTimeline steps={steps} />
+          </div>
+        )}
+
         {/* Per-testcase breakdown */}
-        {testcase_results.length > 0 ? (
+        {testcase_results.length > 0 && steps.length === 0 ? (
           <div className="space-y-2">
             {testcase_results.map((tc, i) => (
               <TestCaseResultCard
@@ -131,7 +140,7 @@ const ExecutionResult = memo(function ExecutionResult({ mode = 'run', status, re
               />
             ))}
           </div>
-        ) : (
+        ) : steps.length === 0 ? (
           /* Fallback: raw stdout/stderr when no testcase breakdown */
           <div className="space-y-2">
             {stdout && (
@@ -150,7 +159,7 @@ const ExecutionResult = memo(function ExecutionResult({ mode = 'run', status, re
               <p className="text-xs text-slate-500 italic">(no output)</p>
             )}
           </div>
-        )}
+        ) : null}
       </div>
     );
   }
