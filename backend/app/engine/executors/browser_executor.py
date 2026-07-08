@@ -56,44 +56,59 @@ class BrowserExecutor(BaseExecutor):
             (workspace / "index.js").chmod(0o644)
 
         # Build runtime.json configuration
-        # We also generate an evaluationScript to maintain backward compatibility with old challenges
-        # that define evaluators like window.processRatingEvents etc.
+        # The evaluationScript supports two modes:
+        # 1. Per-testcase evaluation: stdin JSON contains an "evaluation" field with JS code
+        #    that interacts with the DOM and returns a result string (e.g. "PASS" or "FAIL: ...")
+        # 2. Legacy evaluator functions: checks for global window functions like processRatingEvents
         evaluationScript = """
-        const evaluators = [
-          'processRatingEvents',
-          'parseMarkdown',
-          'starRatingWidget',
-          'debouncedSuggestions',
-          'customFormValidator',
-          'responsiveBreakpoint',
-          'nestedFileDirectory',
-          'virtualScrollingList',
-          'modalTransitions',
-          'cssGridAutoplacement'
-        ];
-        
-        let foundEvaluator = false;
         const stdinStr = window.STDIN_CONTENT || '';
-        if (!stdinStr) return;
+        if (!stdinStr) return 'NO_TEST_DEFINED';
         
-        for (const name of evaluators) {
-          if (typeof window[name] === 'function') {
-            foundEvaluator = true;
-            try {
-                const input = JSON.parse(stdinStr);
-                let result;
-                if (name === 'parseMarkdown') {
-                  result = window[name](input.markdown);
-                } else if (name === 'processRatingEvents') {
-                  result = window[name](input.events);
-                } else {
-                  result = window[name](input);
-                }
-                return typeof result === 'object' ? JSON.stringify(result) : result;
-            } catch(e) {
-                return 'Error executing custom evaluator: ' + e.message;
+        try {
+            const input = JSON.parse(stdinStr);
+            
+            // Mode 1: Per-testcase DOM evaluation script
+            if (input.evaluation) {
+                const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+                const fn = new AsyncFunction(input.evaluation);
+                return await fn();
             }
-          }
+            
+            // Mode 2: Legacy evaluator functions on window
+            const evaluators = [
+              'processRatingEvents',
+              'parseMarkdown',
+              'starRatingWidget',
+              'debouncedSuggestions',
+              'customFormValidator',
+              'responsiveBreakpoint',
+              'nestedFileDirectory',
+              'virtualScrollingList',
+              'modalTransitions',
+              'cssGridAutoplacement'
+            ];
+            
+            for (const name of evaluators) {
+              if (typeof window[name] === 'function') {
+                try {
+                    let result;
+                    if (name === 'parseMarkdown') {
+                      result = window[name](input.markdown);
+                    } else if (name === 'processRatingEvents') {
+                      result = window[name](input.events);
+                    } else {
+                      result = window[name](input);
+                    }
+                    return typeof result === 'object' ? JSON.stringify(result) : result;
+                } catch(e) {
+                    return 'Error executing custom evaluator: ' + e.message;
+                }
+              }
+            }
+            
+            return 'NO_EVALUATOR_FOUND';
+        } catch(e) {
+            return 'Error: ' + e.message;
         }
         """
 

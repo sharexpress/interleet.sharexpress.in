@@ -156,7 +156,33 @@ CHALLENGES = [
                   "let count = 0;\nconst countEl = document.getElementById('count');\nconst incBtn = document.getElementById('increment');\nconst resetBtn = document.getElementById('reset');\n\nincBtn.addEventListener('click', () => {\n  // TODO: Increment count and update countEl\n});\n\nresetBtn.addEventListener('click', () => {\n  // TODO: Reset count to 0 and update countEl\n});"
                 )
             })
-        }
+        },
+        "test_cases": [
+            {
+                "id": "click-counter-1",
+                "problem_slug": "simple-click-counter",
+                "name": "Increment button increases counter",
+                "stdin": json.dumps({
+                    "evaluation": "const incBtn = document.getElementById('increment'); const countSpan = document.getElementById('count'); if (!incBtn || !countSpan) return 'FAIL: missing elements'; for (let i = 0; i < 3; i++) incBtn.click(); const count = countSpan.textContent.trim(); return count === '3' ? 'PASS' : 'FAIL: expected 3 got ' + count;"
+                }),
+                "expected_output": "PASS\n",
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "exact",
+            },
+            {
+                "id": "click-counter-2",
+                "problem_slug": "simple-click-counter",
+                "name": "Reset button resets counter to 0",
+                "stdin": json.dumps({
+                    "evaluation": "const incBtn = document.getElementById('increment'); const resetBtn = document.getElementById('reset'); const countSpan = document.getElementById('count'); if (!incBtn || !resetBtn || !countSpan) return 'FAIL: missing elements'; for (let i = 0; i < 5; i++) incBtn.click(); resetBtn.click(); const count = countSpan.textContent.trim(); return count === '0' ? 'PASS' : 'FAIL: expected 0 got ' + count;"
+                }),
+                "expected_output": "PASS\n",
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "exact",
+            }
+        ]
     },
     {
         "id": "4",
@@ -176,7 +202,33 @@ CHALLENGES = [
                 "index.css": "body {\n  font-family: system-ui, -apple-system, sans-serif;\n  color: #fafafa;\n  background: #09090b;\n  margin: 0;\n  padding: 24px;\n}\n.wrap {\n  max-width: 720px;\n  margin: 0 auto;\n}\n.toolbar {\n  display: flex;\n  gap: 8px;\n  margin-bottom: 12px;\n}\ninput {\n  flex: 1;\n  padding: 8px 10px;\n  border: 1px solid #27272a;\n  border-radius: 8px;\n  font: inherit;\n  background: #18181b;\n  color: #fafafa;\n}\ntable {\n  width: 100%;\n  border-collapse: collapse;\n  font-size: 13px;\n}\nth, td {\n  text-align: left;\n  padding: 10px 12px;\n  border-bottom: 1px solid #27272a;\n}\nth {\n  background: #18181b;\n  color: #a1a1aa;\n}\ntr:hover td {\n  background: #18181b;\n}\n.pill {\n  display: inline-block;\n  padding: 2px 8px;\n  border-radius: 999px;\n  font-size: 11px;\n}\n.ok {\n  background: #dcfce7;\n  color: #166534;\n}\n.warn {\n  background: #fef9c3;\n  color: #854d0e;\n}\n.err {\n  background: #fee2e2;\n  color: #991b1b;\n}",
                 "index.js": "const rows = [\n  { name: \"Ada Lovelace\", email: \"ada@interleet.dev\", role: \"Admin\", status: \"ok\" },\n  { name: \"Linus Torvalds\", email: \"linus@interleet.dev\", role: \"Maintainer\", status: \"ok\" },\n  { name: \"Grace Hopper\", email: \"grace@interleet.dev\", role: \"Member\", status: \"warn\" },\n  { name: \"Alan Turing\", email: \"alan@interleet.dev\", role: \"Member\", status: \"err\" },\n  { name: \"Margaret Hamilton\", email: \"margaret@interleet.dev\", role: \"Admin\", status: \"ok\" }\n];\n\nconst b = document.getElementById(\"b\");\nconst q = document.getElementById(\"q\");\n\nfunction render(f) {\n  f = (f || \"\").toLowerCase();\n  b.innerHTML = rows\n    .filter(r => r.name.toLowerCase().includes(f) || r.email.toLowerCase().includes(f))\n    .map(r => `\n      <tr>\n        <td>${r.name}</td>\n        <td>${r.email}</td>\n        <td>${r.role}</td>\n        <td><span class=\"pill ${r.status}\">${r.status}</span></td>\n      </tr>\n    `).join(\"\");\n}\n\nq.addEventListener(\"input\", e => render(e.target.value));\nrender(\"\");"
             })
-        }
+        },
+        "test_cases": [
+            {
+                "id": "data-table-1",
+                "problem_slug": "responsive-data-table",
+                "name": "Initial rendering displays all 5 users",
+                "stdin": json.dumps({
+                    "evaluation": "const b = document.getElementById('b'); if (!b) return 'FAIL: missing table body'; const rows = b.querySelectorAll('tr'); return rows.length === 5 ? 'PASS' : 'FAIL: expected 5 rows, got ' + rows.length;"
+                }),
+                "expected_output": "PASS\n",
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "exact",
+            },
+            {
+                "id": "data-table-2",
+                "problem_slug": "responsive-data-table",
+                "name": "Search input filters user list correctly",
+                "stdin": json.dumps({
+                    "evaluation": "const q = document.getElementById('q'); const b = document.getElementById('b'); if (!q || !b) return 'FAIL: missing elements'; q.value = 'linus'; q.dispatchEvent(new Event('input')); const rows = b.querySelectorAll('tr'); if (rows.length !== 1) return 'FAIL: expected 1 row, got ' + rows.length; const text = rows[0].textContent; return text.includes('Linus') ? 'PASS' : 'FAIL: incorrect row content';"
+                }),
+                "expected_output": "PASS\n",
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "exact",
+            }
+        ]
     },
     {
         "id": "5",
