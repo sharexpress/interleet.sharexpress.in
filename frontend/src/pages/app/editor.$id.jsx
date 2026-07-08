@@ -81,14 +81,15 @@ function loadMonaco() {
 const LANG_TO_MONACO = {
   ts: "typescript", js: "javascript", py: "python", go: "go",
   html: "html", css: "css",
+  java: "java", cpp: "cpp", rust: "rust",
   // Monaco-native language IDs (passed through from multi-file extension detection)
   shell: "shell", yaml: "yaml", dockerfile: "dockerfile", plaintext: "plaintext",
   javascript: "javascript", typescript: "typescript", python: "python",
   multi: "shell",  // default for multi-file DevOps mode
 };
-const LANG_LABEL = { ts: "TypeScript", js: "JavaScript", py: "Python", go: "Go" };
-const LANG_BADGE = { ts: "node v20.10", js: "node v20.10", py: "python 3.12", go: "go 1.22" };
-const LANG_FILE = { ts: "solution.ts", js: "solution.js", py: "solution.py", go: "main.go" };
+const LANG_LABEL = { ts: "TypeScript", js: "JavaScript", py: "Python", go: "Go", java: "Java", cpp: "C++", rust: "Rust" };
+const LANG_BADGE = { ts: "node v20.10", js: "node v20.10", py: "python 3.12", go: "go 1.22", java: "openjdk 21", cpp: "gcc 13.2", rust: "rustc 1.75" };
+const LANG_FILE = { ts: "solution.ts", js: "solution.js", py: "solution.py", go: "main.go", java: "Solution.java", cpp: "solution.cpp", rust: "solution.rs" };
 
 // Reverse-map backend language strings to editor short codes
 const BACKEND_LANG_TO_SHORT = {
@@ -96,9 +97,9 @@ const BACKEND_LANG_TO_SHORT = {
   javascript: "js",
   python: "py",
   go: "go",
-  cpp: "ts", // fallback to ts if unsupported in editor
-  rust: "ts",
-  java: "ts",
+  cpp: "cpp",
+  rust: "rust",
+  java: "java",
 };
 
 const EnvironmentInfo = memo(function EnvironmentInfo({ domain, lang }) {
@@ -390,6 +391,25 @@ solution()
 import "fmt"
 func main() {
   fmt.Printf("%+v\n", map[string]any{"status": "ready", "message": "Start coding!"})
+}
+`,
+  java: `import java.util.Map;
+
+public class Solution {
+    public static void main(String[] args) {
+        System.out.println("{\\"status\\": \\"ready\\", \\"message\\": \\"Start coding!\\"}");
+    }
+}
+`,
+  cpp: `#include <iostream>
+
+int main() {
+    std::cout << "{\\"status\\": \\"ready\\", \\"message\\": \\"Start coding!\\"}" << std::endl;
+    return 0;
+}
+`,
+  rust: `fn main() {
+    println!("{{\\"status\\": \\"ready\\", \\"message\\": \\"Start coding!\\"}}");
 }
 `,
 };
@@ -868,6 +888,9 @@ function EditorPage() {
     if (runtimeEditor?.mode === "files") {
       return [runtimeEditor.executionLanguage || "multi"];
     }
+    if (c?.domain === "Backend") {
+      return ["ts", "js", "py", "go", "java", "cpp", "rust"];
+    }
     return ["ts", "js", "py", "go"];
   })();
 
@@ -886,7 +909,7 @@ function EditorPage() {
       } else if (keys.includes("javascript") && !keys.includes("typescript")) {
         initialLang = "js";
       } else if (keys.length > 0) {
-        const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).find(k => ["ts", "js", "py", "go"].includes(k));
+        const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k === "cpp" ? "cpp" : k === "rust" ? "rust" : k === "java" ? "java" : k).find(k => ["ts", "js", "py", "go", "java", "cpp", "rust"].includes(k));
         if (matched) initialLang = matched;
       }
     }
@@ -1178,16 +1201,16 @@ function EditorPage() {
         return;
       }
 
-      const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k).filter(k => ["ts", "js", "py", "go"].includes(k));
+      const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k === "cpp" ? "cpp" : k === "rust" ? "rust" : k === "java" ? "java" : k).filter(k => ["ts", "js", "py", "go", "java", "cpp", "rust"].includes(k));
       
       const allowedLangs = c.domain === "Frontend"
         ? ["ts", "js"].filter(k => shortKeys.includes(k))
-        : ["ts", "js", "py", "go"];
+        : (c.domain === "Backend" ? ["ts", "js", "py", "go", "java", "cpp", "rust"] : ["ts", "js", "py", "go"]);
 
       let nextLang = lang;
       
       // If current lang is not allowed, or current lang has no starter code but others in the DB do:
-      const currentHasStarter = keys.includes(lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang);
+      const currentHasStarter = keys.includes(lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang === "cpp" ? "cpp" : lang === "rust" ? "rust" : lang === "java" ? "java" : lang);
       
       if (!allowedLangs.includes(lang) || (!currentHasStarter && shortKeys.length > 0)) {
         const dbLang = shortKeys.find(k => allowedLangs.includes(k));
