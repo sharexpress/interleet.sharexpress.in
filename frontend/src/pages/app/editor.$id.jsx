@@ -233,6 +233,7 @@ function EditorPage() {
         const matched = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k === "cpp" ? "cpp" : k === "rust" ? "rust" : k === "java" ? "java" : k).find(k => ["ts", "js", "py", "go", "java", "cpp", "rust"].includes(k));
         if (matched) initialLang = matched;
       }
+    }
     return {
       lang: initialLang,
       code: getStarter(slug, initialLang, c, "sqlite")

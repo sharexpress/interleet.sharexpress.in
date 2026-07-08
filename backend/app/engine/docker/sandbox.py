@@ -430,6 +430,12 @@ class DockerSandbox:
             # Invalidate cache on unexpected errors
             _container_cache.pop(image, None)
             return SandboxResult(stderr=str(exc), exit_code=1)
+        finally:
+            try:
+                container = get_container(image)
+                container.exec_run(cmd=["sh", "-c", "kill -9 -1 || true"], user="judge")
+            except Exception as e:
+                logger.warning("Failed to clean up processes in container for %s: %s", image, e)
 
     @staticmethod
     def _run_isolated_sync(

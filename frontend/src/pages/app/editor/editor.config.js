@@ -417,6 +417,687 @@ func main() {
 }
 `,
   },
+  "task-manager-api": {
+    js_sqlite: JSON.stringify({
+      "solution.js": `const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const app = express();
+app.use(express.json());
+
+const db = new sqlite3.Database('db.sqlite');
+
+// Health check (required by sandbox)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+// GET /tasks - Get all tasks
+app.get('/tasks', (req, res) => {
+  db.all('SELECT * FROM tasks', [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// POST /tasks - Create a task
+app.post('/tasks', (req, res) => {
+  const { title, description } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required' });
+  
+  db.run('INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)', [title, description], function(err) {
+    if (err) return res.status(500).json({ error: err.message });
+    res.status(201).json({ id: this.lastID, title, description, completed: false });
+  });
+});
+
+// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(\`Server running on port \${PORT}\`);
+});`
+    }),
+    js_postgres: JSON.stringify({
+      "solution.js": `const express = require('express');
+const { Client } = require('pg');
+const app = express();
+app.use(express.json());
+
+const client = new Client({
+  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/tasks'
+});
+client.connect();
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.get('/tasks', async (req, res) => {
+  try {
+    const result = await client.query('SELECT * FROM tasks');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/tasks', async (req, res) => {
+  const { title, description } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required' });
+  
+  try {
+    const result = await client.query(
+      'INSERT INTO tasks (title, description, completed) VALUES ($1, $2, false) RETURNING *',
+      [title, description]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(\`Server running on port \${PORT}\`);
+});`
+    }),
+    js_mongodb: JSON.stringify({
+      "solution.js": `const express = require('express');
+const { MongoClient, ObjectId } = require('mongodb');
+const app = express();
+app.use(express.json());
+
+const client = new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017');
+let db;
+
+client.connect().then(() => {
+  db = client.db('tasks_db');
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.get('/tasks', async (req, res) => {
+  try {
+    const tasks = await db.collection('tasks').find({}).toArray();
+    res.json(tasks.map(t => ({
+      id: t._id,
+      title: t.title,
+      description: t.description,
+      completed: t.completed
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/tasks', async (req, res) => {
+  const { title, description } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required' });
+  
+  try {
+    const task = { title, description, completed: false };
+    const result = await db.collection('tasks').insertOne(task);
+    res.status(201).json({ id: result.insertedId, ...task });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(\`Server running on port \${PORT}\`);
+});`
+    }),
+    js_mysql: JSON.stringify({
+      "solution.js": `const express = require('express');
+const mysql = require('mysql2/promise');
+const app = express();
+app.use(express.json());
+
+let pool;
+mysql.createPool({
+  uri: process.env.DATABASE_URL || 'mysql://root:root@localhost:3306/tasks'
+}).then(p => pool = p);
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.get('/tasks', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM tasks');
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/tasks', async (req, res) => {
+  const { title, description } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title is required' });
+  
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO tasks (title, description, completed) VALUES (?, ?, false)',
+      [title, description]
+    );
+    res.status(201).json({ id: result.insertId, title, description, completed: false });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(\`Server running on port \${PORT}\`);
+});`
+    }),
+    py_sqlite: JSON.stringify({
+      "solution.py": `from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import sqlite3
+import os
+
+app = FastAPI()
+
+def get_db():
+    conn = sqlite3.connect('db.sqlite')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+@app.get('/health')
+def health():
+    return {'status': 'ok'}
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str | None = None
+
+@app.get('/tasks')
+def get_tasks():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM tasks')
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+@app.post('/tasks', status_code=201)
+def create_task(task: TaskCreate):
+    if not task.title:
+        raise HTTPException(status_code=400, detail='Title is required')
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)', (task.title, task.description))
+    conn.commit()
+    task_id = cursor.lastrowid
+    conn.close()
+    return {'id': task_id, 'title': task.title, 'description': task.description, 'completed': False}
+
+# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}
+
+if __name__ == '__main__':
+    import uvicorn
+    port = int(os.environ.get('PORT', 3000))
+    uvicorn.run(app, host='127.0.0.1', port=port)`
+    }),
+    py_postgres: JSON.stringify({
+      "solution.py": `from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import psycopg2
+import os
+
+app = FastAPI()
+
+def get_db():
+    return psycopg2.connect(os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/tasks'))
+
+@app.get('/health')
+def health():
+    return {'status': 'ok'}
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str | None = None
+
+@app.get('/tasks')
+def get_tasks():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, title, description, completed FROM tasks')
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [{'id': r[0], 'title': r[1], 'description': r[2], 'completed': r[3]} for r in rows]
+
+@app.post('/tasks', status_code=201)
+def create_task(task: TaskCreate):
+    if not task.title:
+        raise HTTPException(status_code=400, detail='Title is required')
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO tasks (title, description, completed) VALUES (%s, %s, false) RETURNING id, title, description, completed',
+        (task.title, task.description)
+    )
+    new_task = cursor.fetchone()
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return {'id': new_task[0], 'title': new_task[1], 'description': new_task[2], 'completed': new_task[3]}
+
+# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}
+
+if __name__ == '__main__':
+    import uvicorn
+    port = int(os.environ.get('PORT', 3000))
+    uvicorn.run(app, host='127.0.0.1', port=port)`
+    }),
+    py_mongodb: JSON.stringify({
+      "solution.py": `from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from pymongo import MongoClient
+import os
+
+app = FastAPI()
+client = MongoClient(os.environ.get('MONGO_URI', 'mongodb://localhost:27017'))
+db = client['tasks_db']
+
+@app.get('/health')
+def health():
+    return {'status': 'ok'}
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str | None = None
+
+@app.get('/tasks')
+def get_tasks():
+    tasks = list(db.tasks.find({}))
+    return [{'id': str(t['_id']), 'title': t.get('title'), 'description': t.get('description'), 'completed': t.get('completed', False)} for t in tasks]
+
+@app.post('/tasks', status_code=201)
+def create_task(task: TaskCreate):
+    if not task.title:
+        raise HTTPException(status_code=400, detail='Title is required')
+    new_task = {'title': task.title, 'description': task.description, 'completed': False}
+    result = db.tasks.insert_one(new_task)
+    return {'id': str(result.inserted_id), **new_task}
+
+# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}
+
+if __name__ == '__main__':
+    import uvicorn
+    port = int(os.environ.get('PORT', 3000))
+    uvicorn.run(app, host='127.0.0.1', port=port)`
+    }),
+    py_mysql: JSON.stringify({
+      "solution.py": `from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import pymysql
+import os
+
+app = FastAPI()
+
+def get_db():
+    return pymysql.connect(
+        host=os.environ.get('DB_HOST', 'localhost'),
+        user=os.environ.get('DB_USER', 'root'),
+        password=os.environ.get('DB_PASSWORD', 'root'),
+        database=os.environ.get('DB_NAME', 'tasks'),
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
+@app.get('/health')
+def health():
+    return {'status': 'ok'}
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str | None = None
+
+@app.get('/tasks')
+def get_tasks():
+    conn = get_db()
+    with conn.cursor() as cursor:
+        cursor.execute('SELECT * FROM tasks')
+        rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+@app.post('/tasks', status_code=201)
+def create_task(task: TaskCreate):
+    if not task.title:
+        raise HTTPException(status_code=400, detail='Title is required')
+    conn = get_db()
+    with conn.cursor() as cursor:
+        cursor.execute('INSERT INTO tasks (title, description, completed) VALUES (%s, %s, false)', (task.title, task.description))
+        task_id = conn.insert_id()
+    conn.commit()
+    conn.close()
+    return {'id': task_id, 'title': task.title, 'description': task.description, 'completed': False}
+
+# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}
+
+if __name__ == '__main__':
+    import uvicorn
+    port = int(os.environ.get('PORT', 3000))
+    uvicorn.run(app, host='127.0.0.1', port=port)`
+    }),
+    go_sqlite: JSON.stringify({
+      "main.go": `package main
+
+import (
+	"database/sql"
+	"net/http"
+	"os"
+	"github.com/gin-gonic/gin"
+	_ "github.com/glebarez/go-sqlite"
+)
+
+type Task struct {
+	ID          int    \`json:"id"\`
+	Title       string \`json:"title"\`
+	Description string \`json:"description"\`
+	Completed   bool   \`json:"completed"\`
+}
+
+var db *sql.DB
+
+func main() {
+	var err error
+	db, err = sql.Open("sqlite", "db.sqlite")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	r := gin.Default()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	r.GET("/tasks", func(c *gin.Context) {
+		rows, err := db.Query("SELECT id, title, description, completed FROM tasks")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var tasks []Task
+		for rows.Next() {
+			var t Task
+			var completed int
+			rows.Scan(&t.ID, &t.Title, &t.Description, &completed)
+			t.Completed = completed == 1
+			tasks = append(tasks, t)
+		}
+		c.JSON(http.StatusOK, tasks)
+	})
+
+	r.POST("/tasks", func(c *gin.Context) {
+		var t Task
+		c.BindJSON(&t)
+		if t.Title == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
+			return
+		}
+		res, _ := db.Exec("INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)", t.Title, t.Description)
+		id, _ := res.LastInsertId()
+		t.ID = int(id)
+		c.JSON(http.StatusCreated, t)
+	})
+
+	// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("127.0.0.1:" + port)
+}`
+    }),
+    go_postgres: JSON.stringify({
+      "main.go": `package main
+
+import (
+	"database/sql"
+	"net/http"
+	"os"
+	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
+)
+
+type Task struct {
+	ID          int    \`json:"id"\`
+	Title       string \`json:"title"\`
+	Description string \`json:"description"\`
+	Completed   bool   \`json:"completed"\`
+}
+
+var db *sql.DB
+
+func main() {
+	var err error
+	db, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	r := gin.Default()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	r.GET("/tasks", func(c *gin.Context) {
+		rows, err := db.Query("SELECT id, title, description, completed FROM tasks")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var tasks []Task
+		for rows.Next() {
+			var t Task
+			rows.Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
+			tasks = append(tasks, t)
+		}
+		c.JSON(http.StatusOK, tasks)
+	})
+
+	r.POST("/tasks", func(c *gin.Context) {
+		var t Task
+		c.BindJSON(&t)
+		if t.Title == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
+			return
+		}
+		err := db.QueryRow("INSERT INTO tasks (title, description, completed) VALUES ($1, $2, false) RETURNING id", t.Title, t.Description).Scan(&t.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusCreated, t)
+	})
+
+	// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("127.0.0.1:" + port)
+}`
+    }),
+    go_mongodb: JSON.stringify({
+      "main.go": `package main
+
+import (
+	"context"
+	"net/http"
+	"os"
+	"time"
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+type Task struct {
+	ID          string \`json:"id" bson:"_id,omitempty"\`
+	Title       string \`json:"title" bson:"title"\`
+	Description string \`json:"description" bson:"description"\`
+	Completed   bool   \`json:"completed" bson:"completed"\`
+}
+
+var collection *mongo.Collection
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(os.Getenv("MONGO_URI")))
+	if err != nil {
+		panic(err)
+	}
+	collection = client.Database("tasks_db").Collection("tasks")
+
+	r := gin.Default()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	r.GET("/tasks", func(c *gin.Context) {
+		cursor, err := collection.Find(context.Background(), bson.M{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer cursor.Close(context.Background())
+
+		var tasks []Task
+		for cursor.Next(context.Background()) {
+			var t Task
+			cursor.Decode(&t)
+			tasks = append(tasks, t)
+		}
+		c.JSON(http.StatusOK, tasks)
+	})
+
+	r.POST("/tasks", func(c *gin.Context) {
+		var t Task
+		c.BindJSON(&t)
+		if t.Title == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
+			return
+		}
+		t.Completed = false
+		res, err := collection.InsertOne(context.Background(), t)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		t.ID = res.InsertedID.(primitive.ObjectID).Hex()
+		c.JSON(http.StatusCreated, t)
+	})
+
+	// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("127.0.0.1:" + port)
+}`
+    }),
+    go_mysql: JSON.stringify({
+      "main.go": `package main
+
+import (
+	"database/sql"
+	"net/http"
+	"os"
+	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
+)
+
+type Task struct {
+	ID          int    \`json:"id"\`
+	Title       string \`json:"title"\`
+	Description string \`json:"description"\`
+	Completed   bool   \`json:"completed"\`
+}
+
+var db *sql.DB
+
+func main() {
+	var err error
+	db, err = sql.Open("mysql", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	r := gin.Default()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	r.GET("/tasks", func(c *gin.Context) {
+		rows, err := db.Query("SELECT id, title, description, completed FROM tasks")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		defer rows.Close()
+
+		var tasks []Task
+		for rows.Next() {
+			var t Task
+			rows.Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
+			tasks = append(tasks, t)
+		}
+		c.JSON(http.StatusOK, tasks)
+	})
+
+	r.POST("/tasks", func(c *gin.Context) {
+		var t Task
+		c.BindJSON(&t)
+		if t.Title == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
+			return
+		}
+		res, err := db.Exec("INSERT INTO tasks (title, description, completed) VALUES (?, ?, false)", t.Title, t.Description)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		id, _ := res.LastInsertId()
+		t.ID = int(id)
+		c.JSON(http.StatusCreated, t)
+	})
+
+	// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("127.0.0.1:" + port)
+}`
+    })
+  },
 };
 
 export const DEFAULT_STARTER = {
@@ -466,7 +1147,8 @@ int main() {
 `,
 };
 
-export function getStarter(slug, lang, dbChallenge) {
+export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
+  const dbKey = `${lang}_${selectedDb}`;
   if (dbChallenge?.starter_code) {
     if (lang === "multi" && dbChallenge.starter_code.multi) {
       return dbChallenge.starter_code.multi;
@@ -474,13 +1156,18 @@ export function getStarter(slug, lang, dbChallenge) {
     if (lang === "html" && dbChallenge.starter_code.html) {
       return dbChallenge.starter_code.html;
     }
-    const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
-    if (dbChallenge.starter_code[backendKey]) {
-      return dbChallenge.starter_code[backendKey];
+    if (dbChallenge.starter_code[dbKey]) {
+      return dbChallenge.starter_code[dbKey];
     }
-    if (dbChallenge.starter_code[lang]) {
-      return dbChallenge.starter_code[lang];
+    if (selectedDb === "sqlite") {
+      const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
+      if (dbChallenge.starter_code[backendKey]) {
+        return dbChallenge.starter_code[backendKey];
+      }
+      if (dbChallenge.starter_code[lang]) {
+        return dbChallenge.starter_code[lang];
+      }
     }
   }
-  return STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
+  return STARTERS[slug]?.[dbKey] ?? STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
 }
