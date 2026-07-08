@@ -130,6 +130,12 @@ class BrowserExecutor(BaseExecutor):
             return sandbox_result
         
         try:
+            # Diagnostic dump
+            try:
+                with open("/tmp/last_runner_output.json", "w") as df:
+                    df.write(sandbox_result.stdout)
+            except Exception:
+                pass
             data = json.loads(sandbox_result.stdout)
             status = data.get("status", "error")
             stdout_str = data.get("stdout", "")
