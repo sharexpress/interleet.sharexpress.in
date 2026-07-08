@@ -78,7 +78,14 @@ function loadMonaco() {
 
 // ─── Language config ──────────────────────────────────────────────────────────
 
-const LANG_TO_MONACO = { ts: "typescript", js: "javascript", py: "python", go: "go", html: "html", css: "css" };
+const LANG_TO_MONACO = {
+  ts: "typescript", js: "javascript", py: "python", go: "go",
+  html: "html", css: "css",
+  // Monaco-native language IDs (passed through from multi-file extension detection)
+  shell: "shell", yaml: "yaml", dockerfile: "dockerfile", plaintext: "plaintext",
+  javascript: "javascript", typescript: "typescript", python: "python",
+  multi: "shell",  // default for multi-file DevOps mode
+};
 const LANG_LABEL = { ts: "TypeScript", js: "JavaScript", py: "Python", go: "Go" };
 const LANG_BADGE = { ts: "node v20.10", js: "node v20.10", py: "python 3.12", go: "go 1.22" };
 const LANG_FILE = { ts: "solution.ts", js: "solution.js", py: "solution.py", go: "main.go" };
