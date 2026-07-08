@@ -2,69 +2,173 @@ import json
 
 DOMAINS = ["Frontend", "Backend", "DevOps", "APIs", "Databases", "System Design"]
 
-
 CHALLENGES = [
     {
         "id": "1",
-        "slug": "build-a-rate-limiter",
-        "title": "Build a Token Bucket Rate Limiter",
+        "slug": "debounce-event-simulator",
+        "title": "Debounce Event Simulator",
         "domain": "Backend",
-        "difficulty": "Medium",
-        "minutes": 45,
-        "xp": 320,
-        "completion": 64,
-        "tags": ["Node.js", "Concurrency", "Redis"],
-        "summary": "Implement a thread-safe rate limiter with burst handling and refill logic.",
+        "difficulty": "Easy",
+        "minutes": 20,
+        "xp": 150,
+        "completion": 85,
+        "tags": ["JavaScript", "Events", "Debounce"],
+        "summary": "Simulate a debounce handler and filter events that fire within wait windows.",
         "starter_code": {
-            "typescript": "export class TokenBucket {\n  constructor(capacity: number, refillPerSec: number) {}\n  allow(): boolean {\n    return false;\n  }\n}\n",
-            "javascript": "class TokenBucket {\n  constructor(capacity, refillPerSec) {}\n  allow() {\n    return false;\n  }\n}\nmodule.exports = { TokenBucket };\n",
-            "python": "class TokenBucket:\n    def __init__(self, capacity, refill_per_sec):\n        pass\n\n    def allow(self):\n        return False\n",
+            "javascript": (
+                "// // DEBOUNCE EVENT SIMULATOR\n"
+                "// // Find which events fire after debounce filtering.\n\n"
+                "// — Read input (do not modify) —\n"
+                "const input = JSON.parse(require('fs').readFileSync(0, 'utf8').trim());\n\n"
+                "/**\n"
+                " * Simulate debounce on a list of timestamped events.\n"
+                " * Each event in events is { time: number, value: string }\n"
+                " */\n"
+                "function simulateDebounce(delayMs, events) {\n"
+                "  // TODO: Return array of values of events that actually fire.\n"
+                "  const fired = [];\n"
+                "  return fired;\n"
+                "}\n\n"
+                "// — Output (do not modify) —\n"
+                "console.log(JSON.stringify(simulateDebounce(input.delayMs, input.events)));\n"
+            ),
+            "python": (
+                "# Python Debounce Event Simulator\n"
+                "import sys, json\n\n"
+                "# — Read input (do not modify) —\n"
+                "input_data = json.loads(sys.stdin.read().strip())\n\n"
+                "def simulate_debounce(delay_ms, events):\n"
+                "    # TODO: Return list of values of events that actually fire.\n"
+                "    # Each event is {\"time\": int, \"value\": str}\n"
+                "    return []\n\n"
+                "# — Output (do not modify) —\n"
+                "print(json.dumps(simulate_debounce(input_data[\"delayMs\"], input_data[\"events\"])))\n"
+            )
         },
         "test_cases": [
             {
-                "id": "rate-limit-visible-1",
-                "problem_slug": "build-a-rate-limiter",
-                "name": "allows up to capacity",
-                "stdin": "3 1 3\n",
-                "expected_output": "true\n",
+                "id": "debounce-1",
+                "problem_slug": "debounce-event-simulator",
+                "name": "basic debounce filter",
+                "stdin": "{\"delayMs\": 300, \"events\": [{\"time\": 0, \"value\": \"a\"}, {\"time\": 100, \"value\": \"b\"}, {\"time\": 500, \"value\": \"c\"}]}\n",
+                "expected_output": "[\"b\",\"c\"]\n",
                 "hidden": False,
                 "weight": 1,
-                "comparison_mode": "semantic",
+                "comparison_mode": "exact",
             },
             {
-                "id": "rate-limit-visible-2",
-                "problem_slug": "build-a-rate-limiter",
-                "name": "rejects burst overflow",
-                "stdin": "3 1 4\n",
-                "expected_output": "false\n",
+                "id": "debounce-2",
+                "problem_slug": "debounce-event-simulator",
+                "name": "rapid fire drops all but last",
+                "stdin": "{\"delayMs\": 200, \"events\": [{\"time\": 0, \"value\": \"1\"}, {\"time\": 50, \"value\": \"2\"}, {\"time\": 100, \"value\": \"3\"}]}\n",
+                "expected_output": "[\"3\"]\n",
                 "hidden": False,
                 "weight": 1,
-                "comparison_mode": "semantic",
-            },
-            {
-                "id": "rate-limit-hidden-1",
-                "problem_slug": "build-a-rate-limiter",
-                "name": "handles zero refill",
-                "stdin": "10 0 11\n",
-                "expected_output": "false\n",
-                "hidden": True,
-                "weight": 2,
-                "comparison_mode": "semantic",
-            },
-        ],
+                "comparison_mode": "exact",
+            }
+        ]
     },
     {
         "id": "2",
+        "slug": "toast-queue-manager",
+        "title": "Toast Notification Queue",
+        "domain": "Backend",
+        "difficulty": "Medium",
+        "minutes": 30,
+        "xp": 250,
+        "completion": 68,
+        "tags": ["Node.js", "Data Structures", "Queue"],
+        "summary": "Implement a notification toast manager with capacity and manual dismiss eviction.",
+        "starter_code": {
+            "javascript": (
+                "// // TOAST NOTIFICATION QUEUE\n"
+                "// // Manage a capped queue of notification toasts.\n\n"
+                "// — Read input (do not modify) —\n"
+                "const input = JSON.parse(require('fs').readFileSync(0, 'utf8').trim());\n\n"
+                "class ToastManager {\n"
+                "  constructor(maxToasts) {\n"
+                "    this.maxToasts = maxToasts;\n"
+                "    this.queue = [];\n"
+                "  }\n"
+                "  add(id) {\n"
+                "    // TODO: Add toast ID to queue. If at capacity, evict the oldest first.\n"
+                "  }\n"
+                "  dismiss(id) {\n"
+                "    // TODO: Remove toast by ID if it exists.\n"
+                "  }\n"
+                "  getActive() {\n"
+                "    return this.queue;\n"
+                "  }\n"
+                "}\n\n"
+                "// — Process and output (do not modify) —\n"
+                "const manager = new ToastManager(input.maxToasts);\n"
+                "for (const cmd of input.commands) {\n"
+                "  if (cmd.action === 'add') manager.add(cmd.id);\n"
+                "  else if (cmd.action === 'dismiss') manager.dismiss(cmd.id);\n"
+                "}\n"
+                "console.log(JSON.stringify(manager.getActive()));\n"
+            )
+        },
+        "test_cases": [
+            {
+                "id": "toast-1",
+                "problem_slug": "toast-queue-manager",
+                "name": "adds within limit",
+                "stdin": "{\"maxToasts\": 3, \"commands\": [{\"action\": \"add\", \"id\": \"t1\"}, {\"action\": \"add\", \"id\": \"t2\"}]}\n",
+                "expected_output": "[\"t1\",\"t2\"]\n",
+                "hidden": False,
+                "weight": 1,
+                "comparison_mode": "exact",
+            },
+            {
+                "id": "toast-2",
+                "problem_slug": "toast-queue-manager",
+                "name": "evicts oldest when full",
+                "stdin": "{\"maxToasts\": 2, \"commands\": [{\"action\": \"add\", \"id\": \"t1\"}, {\"action\": \"add\", \"id\": \"t2\"}, {\"action\": \"add\", \"id\": \"t3\"}]}\n",
+                "expected_output": "[\"t2\",\"t3\"]\n",
+                "hidden": False,
+                "weight": 1,
+                "comparison_mode": "exact",
+            }
+        ]
+    },
+    {
+        "id": "3",
+        "slug": "simple-click-counter",
+        "title": "Simple Click Counter",
+        "domain": "Frontend",
+        "difficulty": "Easy",
+        "minutes": 15,
+        "xp": 100,
+        "completion": 94,
+        "tags": ["HTML", "CSS", "JavaScript"],
+        "summary": "Build a responsive button that increments a counter, plus a reset button.",
+        "runtime": "frontend",
+        "starter_code": {
+            "html": json.dumps({
+                "index.html": (
+                    "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Click Counter</title>\n  <link rel=\"stylesheet\" href=\"index.css\">\n</head>\n<body>\n  <div class=\"card\">\n    <h1>Counter: <span id=\"count\">0</span></h1>\n    <div class=\"buttons\">\n      <button id=\"increment\" class=\"btn primary\">Increment</button>\n      <button id=\"reset\" class=\"btn secondary\">Reset</button>\n    </div>\n  </div>\n  <script src=\"index.js\"></script>\n</body>\n</html>"
+                ),
+                "index.css": (
+                  "body {\n  font-family: system-ui, -apple-system, sans-serif;\n  background: #09090b;\n  color: #fafafa;\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  height: 100vh;\n  margin: 0;\n}\n.card {\n  background: #18181b;\n  border: 1px solid #27272a;\n  border-radius: 12px;\n  padding: 32px;\n  text-align: center;\n  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);\n}\n.buttons {\n  display: flex;\n  gap: 12px;\n  margin-top: 24px;\n}\n.btn {\n  padding: 10px 20px;\n  border-radius: 8px;\n  border: none;\n  cursor: pointer;\n  font-weight: 600;\n  font-size: 14px;\n  transition: opacity 0.2s;\n}\n.btn:hover {\n  opacity: 0.9;\n}\n.primary {\n  background: #2563eb;\n  color: white;\n}\n.secondary {\n  background: #3f3f46;\n  color: white;\n}"
+                ),
+                "index.js": (
+                  "let count = 0;\nconst countEl = document.getElementById('count');\nconst incBtn = document.getElementById('increment');\nconst resetBtn = document.getElementById('reset');\n\nincBtn.addEventListener('click', () => {\n  // TODO: Increment count and update countEl\n});\n\nresetBtn.addEventListener('click', () => {\n  // TODO: Reset count to 0 and update countEl\n});"
+                )
+            })
+        }
+    },
+    {
+        "id": "4",
         "slug": "responsive-data-table",
         "title": "Responsive Virtualized Data Table",
         "domain": "Frontend",
-        "difficulty": "Hard",
-        "minutes": 90,
-        "xp": 540,
-        "completion": 38,
-        "tags": ["React", "Performance", "Accessibility"],
-        "summary": "Render 100k rows with sticky headers, sorting, and keyboard navigation.",
-        "is_premium": True,
+        "difficulty": "Medium",
+        "minutes": 45,
+        "xp": 300,
+        "completion": 58,
+        "tags": ["DOM", "Performance", "CSS"],
+        "summary": "Render row items with sorting, filtering, and responsive container wrapping.",
         "runtime": "frontend",
         "starter_code": {
             "html": json.dumps({
@@ -72,16 +176,66 @@ CHALLENGES = [
                 "index.css": "body {\n  font-family: system-ui, -apple-system, sans-serif;\n  color: #fafafa;\n  background: #09090b;\n  margin: 0;\n  padding: 24px;\n}\n.wrap {\n  max-width: 720px;\n  margin: 0 auto;\n}\n.toolbar {\n  display: flex;\n  gap: 8px;\n  margin-bottom: 12px;\n}\ninput {\n  flex: 1;\n  padding: 8px 10px;\n  border: 1px solid #27272a;\n  border-radius: 8px;\n  font: inherit;\n  background: #18181b;\n  color: #fafafa;\n}\ntable {\n  width: 100%;\n  border-collapse: collapse;\n  font-size: 13px;\n}\nth, td {\n  text-align: left;\n  padding: 10px 12px;\n  border-bottom: 1px solid #27272a;\n}\nth {\n  background: #18181b;\n  color: #a1a1aa;\n}\ntr:hover td {\n  background: #18181b;\n}\n.pill {\n  display: inline-block;\n  padding: 2px 8px;\n  border-radius: 999px;\n  font-size: 11px;\n}\n.ok {\n  background: #dcfce7;\n  color: #166534;\n}\n.warn {\n  background: #fef9c3;\n  color: #854d0e;\n}\n.err {\n  background: #fee2e2;\n  color: #991b1b;\n}",
                 "index.js": "const rows = [\n  { name: \"Ada Lovelace\", email: \"ada@interleet.dev\", role: \"Admin\", status: \"ok\" },\n  { name: \"Linus Torvalds\", email: \"linus@interleet.dev\", role: \"Maintainer\", status: \"ok\" },\n  { name: \"Grace Hopper\", email: \"grace@interleet.dev\", role: \"Member\", status: \"warn\" },\n  { name: \"Alan Turing\", email: \"alan@interleet.dev\", role: \"Member\", status: \"err\" },\n  { name: \"Margaret Hamilton\", email: \"margaret@interleet.dev\", role: \"Admin\", status: \"ok\" }\n];\n\nconst b = document.getElementById(\"b\");\nconst q = document.getElementById(\"q\");\n\nfunction render(f) {\n  f = (f || \"\").toLowerCase();\n  b.innerHTML = rows\n    .filter(r => r.name.toLowerCase().includes(f) || r.email.toLowerCase().includes(f))\n    .map(r => `\n      <tr>\n        <td>${r.name}</td>\n        <td>${r.email}</td>\n        <td>${r.role}</td>\n        <td><span class=\"pill ${r.status}\">${r.status}</span></td>\n      </tr>\n    `).join(\"\");\n}\n\nq.addEventListener(\"input\", e => render(e.target.value));\nrender(\"\");"
             })
-        },
+        }
     },
     {
-        "id": "3",
+        "id": "5",
+        "slug": "nginx-static-site",
+        "title": "Serve a Static Page with Nginx",
+        "domain": "DevOps",
+        "difficulty": "Easy",
+        "minutes": 20,
+        "xp": 150,
+        "completion": 78,
+        "tags": ["Nginx", "DevOps", "Config"],
+        "summary": "Configure Nginx to serve an index.html file from /workspace/static/ on port 80.",
+        "runtime": "devops",
+        "starter_code": {
+            "multi": json.dumps({
+                "nginx.conf": (
+                    "events {}\n"
+                    "http {\n"
+                    "    server {\n"
+                    "        listen 80;\n"
+                    "        # TODO: Configure root directory as /workspace/static\n"
+                    "        # and serve index.html\n"
+                    "    }\n"
+                    "}"
+                ),
+                "static/index.html": "<h1>Hello from Nginx Static Sandbox!</h1>",
+                "setup.sh": (
+                    "#!/bin/bash\n"
+                    "# Start Nginx with the workspace configuration\n"
+                    "nginx -c /workspace/nginx.conf"
+                )
+            })
+        },
+        "test_cases": [
+            {
+                "id": "nginx-static-1",
+                "problem_slug": "nginx-static-site",
+                "name": "Nginx serves index.html on port 80",
+                "stdin": "",
+                "expected_output": "Hello from Nginx Static Sandbox!\n",
+                "hidden": False,
+                "weight": 1.0,
+                "comparison_mode": "exact",
+                "verification_script": (
+                    "#!/bin/bash\n"
+                    "sleep 2\n"
+                    "curl -s http://localhost/ | grep -o 'Hello from Nginx Static Sandbox!'\n"
+                )
+            }
+        ]
+    },
+    {
+        "id": "6",
         "slug": "configure-nginx-proxy",
         "title": "Configure Nginx Reverse Proxy",
         "domain": "DevOps",
         "difficulty": "Medium",
-        "minutes": 60,
-        "xp": 380,
+        "minutes": 40,
+        "xp": 300,
         "completion": 52,
         "tags": ["Nginx", "Linux", "Networking"],
         "summary": "Configure Nginx to reverse proxy traffic to a local backend on port 3000.",
@@ -98,7 +252,7 @@ CHALLENGES = [
                 "problem_slug": "configure-nginx-proxy",
                 "name": "Nginx responds with proxy pass",
                 "stdin": "",
-                "expected_output": "OK\\n",
+                "expected_output": "OK\n",
                 "hidden": False,
                 "weight": 1.0,
                 "comparison_mode": "exact",
@@ -107,14 +261,14 @@ CHALLENGES = [
         ]
     },
     {
-        "id": "101",
+        "id": "7",
         "slug": "orchestrate-redis-node",
         "title": "Orchestrate Redis + Node API",
-        "domain": "System Design",
-        "difficulty": "Hard",
-        "minutes": 120,
-        "xp": 600,
-        "completion": 25,
+        "domain": "DevOps",
+        "difficulty": "Medium",
+        "minutes": 50,
+        "xp": 350,
+        "completion": 45,
         "tags": ["Docker Compose", "Redis", "Node.js"],
         "summary": "Write a docker-compose.yml to orchestrate a Node.js API and a Redis cache.",
         "runtime": "compose",
@@ -129,7 +283,7 @@ CHALLENGES = [
                 "problem_slug": "orchestrate-redis-node",
                 "name": "Services are up and responding",
                 "stdin": "",
-                "expected_output": "OK\\n",
+                "expected_output": "OK\n",
                 "hidden": False,
                 "weight": 1.0,
                 "comparison_mode": "exact",
@@ -140,79 +294,8 @@ CHALLENGES = [
                 }
             }
         ]
-    },
-
-    {
-        "id": "5",
-        "slug": "rest-versioning",
-        "title": "Versioning a Public REST API",
-        "domain": "APIs",
-        "difficulty": "Easy",
-        "minutes": 30,
-        "xp": 180,
-        "completion": 78,
-        "tags": ["REST", "Backward-compat"],
-        "summary": "Choose a versioning strategy and migrate a v1 client smoothly to v2.",
-    },
-    {
-        "id": "6",
-        "slug": "indexing-strategy",
-        "title": "Postgres Indexing Strategy",
-        "domain": "Databases",
-        "difficulty": "Medium",
-        "minutes": 40,
-        "xp": 280,
-        "completion": 56,
-        "tags": ["Postgres", "EXPLAIN", "B-tree"],
-        "summary": "Reduce a 12s analytics query to under 200ms using the right indexes.",
-    },
-    {
-        "id": "7",
-        "slug": "feature-flag-service",
-        "title": "Build a Feature Flag Service",
-        "domain": "Backend",
-        "difficulty": "Hard",
-        "minutes": 90,
-        "xp": 560,
-        "completion": 34,
-        "tags": ["Streaming", "SDKs", "Targeting"],
-        "summary": "Realtime flag evaluation with audience targeting and rollouts.",
-    },
-    {
-        "id": "8",
-        "slug": "k8s-blue-green",
-        "title": "Blue/Green Deploy on Kubernetes",
-        "domain": "DevOps",
-        "difficulty": "Expert",
-        "minutes": 120,
-        "xp": 820,
-        "completion": 18,
-        "tags": ["Kubernetes", "Helm", "Rollouts"],
-        "summary": "Zero-downtime release with automated rollback on SLO breach.",
-        "is_premium": True,
-    },
-    {
-        "id": "9",
-        "slug": "ssr-cache-strategy",
-        "title": "SSR Cache Strategy for an E-commerce App",
-        "domain": "Frontend",
-        "difficulty": "Medium",
-        "minutes": 60,
-        "xp": 360,
-        "completion": 47,
-        "tags": ["Next.js", "ISR", "Edge"],
-        "summary": "Cache product pages with personalization and inventory accuracy.",
-        "runtime": "frontend",
-        "starter_code": {
-            "html": json.dumps({
-                "index.html": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>SSR Cache Strategy Preview</title>\n  <link rel=\"stylesheet\" href=\"index.css\">\n</head>\n<body>\n  <h2>SSR Cache Preview</h2>\n  <div class=\"card\">\n    <div class=\"row\">\n      <span>GET /products</span>\n      <span id=\"s1\" class=\"ok\">HIT · 4ms</span>\n    </div>\n    <div class=\"row\">\n      <span>GET /products/42</span>\n      <span id=\"s2\" class=\"miss\">MISS · 218ms</span>\n    </div>\n    <div class=\"row\">\n      <span>GET /search?q=shoe</span>\n      <span id=\"s3\" class=\"ok\">HIT · 6ms</span>\n    </div>\n  </div>\n  <button onclick=\"bust()\">Bust cache</button>\n\n  <script src=\"index.js\"></script>\n</body>\n</html>",
-                "index.css": "body {\n  font-family: system-ui, -apple-system, sans-serif;\n  color: #fafafa;\n  background: #09090b;\n  margin: 0;\n  padding: 24px;\n}\n.card {\n  border: 1px solid #27272a;\n  border-radius: 10px;\n  padding: 14px;\n  margin-bottom: 10px;\n  background: #18181b;\n}\n.row {\n  display: flex;\n  justify-content: space-between;\n  font-family: monospace;\n  font-size: 12px;\n  padding: 4px 0;\n}\n.ok {\n  color: #10b981;\n}\n.miss {\n  color: #ef4444;\n}\nbutton {\n  padding: 8px 12px;\n  border: 1px solid #27272a;\n  background: #27272a;\n  color: #fff;\n  border-radius: 8px;\n  cursor: pointer;\n}\nbutton:hover {\n  background: #3f3f46;\n}",
-                "index.js": "function bust() {\n  [\"s1\", \"s2\", \"s3\"].forEach(id => {\n    const el = document.getElementById(id);\n    el.textContent = \"MISS · \" + (180 + Math.floor(Math.random() * 120)) + \"ms\";\n    el.className = \"miss\";\n  });\n}"
-            })
-        },
-    },
+    }
 ]
-
 
 LEADERBOARD = [
     {"rank": 1, "username": "amelia.dev", "rating": 2843, "xp": 184200, "country": "US", "delta": 24, "badges": ["Top 1%", "DevOps"]},
@@ -222,7 +305,6 @@ LEADERBOARD = [
     {"rank": 5, "username": "noor.k", "rating": 2682, "xp": 158020, "country": "AE", "delta": 5, "badges": ["APIs"]},
     {"rank": 6, "username": "aria.j", "rating": 2654, "xp": 152410, "country": "KR", "delta": 0, "badges": ["Frontend"]},
 ]
-
 
 USER_PROFILE = {
     "name": "Alex Morgan",
@@ -247,7 +329,6 @@ USER_PROFILE = {
     ],
 }
 
-
 ACTIVITY_WEEKLY = [
     {"day": "Mon", "solved": 3, "minutes": 75},
     {"day": "Tue", "solved": 5, "minutes": 110},
@@ -258,7 +339,6 @@ ACTIVITY_WEEKLY = [
     {"day": "Sun", "solved": 5, "minutes": 130},
 ]
 
-
 RECENT_ACTIVITY = [
     {"type": "solved", "text": "Solved Postgres Indexing Strategy", "when": "2h ago", "domain": "Databases"},
     {"type": "interview", "text": "Completed AI Interview - Senior Backend", "when": "1d ago", "domain": "Backend"},
@@ -266,13 +346,11 @@ RECENT_ACTIVITY = [
     {"type": "contest", "text": "Placed #18 in Weekly Engineering Cup", "when": "4d ago", "domain": "System Design"},
 ]
 
-
 INTERVIEW_HISTORY = [
     {"id": "iv-21", "role": "Senior Backend", "score": 84, "when": "1d ago", "duration": 42},
     {"id": "iv-20", "role": "System Design (L5)", "score": 78, "when": "5d ago", "duration": 55},
     {"id": "iv-19", "role": "Frontend Architect", "score": 71, "when": "12d ago", "duration": 48},
 ]
-
 
 SYSTEM_DESIGN_TOPICS = [
     {"title": "Scalability", "items": ["Vertical vs horizontal", "Load balancers", "Stateless services", "Backpressure"]},
@@ -280,7 +358,6 @@ SYSTEM_DESIGN_TOPICS = [
     {"title": "Databases", "items": ["Sharding", "Replication", "CAP & consistency", "Indexing for scale"]},
     {"title": "Distributed Systems", "items": ["Consensus", "Idempotency", "Event sourcing", "Sagas"]},
 ]
-
 
 CANDIDATES = [
     {"name": "Jordan Lee", "username": "jlee", "rating": 2410, "top": "Backend", "verified": True, "location": "NYC"},
