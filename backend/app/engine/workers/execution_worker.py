@@ -402,6 +402,19 @@ class ExecutionWorker:
             # Store in engine_results collection
             await db.engine_results.insert_one(doc)
 
+            # Update the initial engine_submissions record (created during enqueue)
+            await db.engine_submissions.update_one(
+                {"id": job.submission_id},
+                {"$set": {
+                    "status": _map_verdict_to_status(result.verdict),
+                    "verdict": result.verdict.value,
+                    "score": result.score,
+                    "passed_testcases": result.passed_testcases,
+                    "total_testcases": result.total_testcases,
+                    "completed_at": result.completed_at,
+                }},
+            )
+
             # For submissions (mode=submit), also update the submissions collection
             if job.mode == "submit" and job.problem_slug:
                 submission_doc = {
