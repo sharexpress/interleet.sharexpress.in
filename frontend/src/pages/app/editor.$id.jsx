@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState, useCallback, memo } from "react";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
 import { Link, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import EnvironmentCard from "@/components/runtime/EnvironmentCard";
@@ -837,15 +840,11 @@ function EditorPage() {
   const [multiFiles, setMultiFiles] = useState({ "index.html": "" });
   const isLocalChange = useRef(false);
 
-  // DevOps Terminal states
+  // DevOps Terminal states & refs
   const [devopsSessionId, setDevopsSessionId] = useState(null);
-  const [terminalHistory, setTerminalHistory] = useState([
-    { type: "system", text: "Interactive DevOps sandbox container initialized." },
-    { type: "system", text: "Type any shell commands (e.g. ls, nginx -t, curl, etc.) below." }
-  ]);
-  const [terminalInput, setTerminalInput] = useState("");
-  const [terminalLoading, setTerminalLoading] = useState(false);
-  const terminalEndRef = useRef(null);
+  const terminalRef = useRef(null);
+  const xtermInstance = useRef(null);
+  const wsInstance = useRef(null);
 
   useEffect(() => {
     let activeSessionId = null;
@@ -859,19 +858,9 @@ function EditorPage() {
             const sid = res.data.session_id;
             setDevopsSessionId(sid);
             activeSessionId = sid;
-            setTerminalHistory([
-              { type: "system", text: "Container sandbox ready. Working directory: /workspace" },
-              { type: "system", text: "Type shell commands to inspect, configure, or run services." }
-            ]);
           }
         } catch (err) {
           console.error("Failed to start DevOps session container:", err);
-          if (!isAborted) {
-            setTerminalHistory((prev) => [
-              ...prev,
-              { type: "error", text: `Error starting session: ${err.response?.data?.detail || err.message}` }
-            ]);
-          }
         }
       }
     }
@@ -886,53 +875,104 @@ function EditorPage() {
         );
       }
       setDevopsSessionId(null);
-      setTerminalHistory([
-        { type: "system", text: "Interactive DevOps sandbox container initialized." },
-        { type: "system", text: "Type any shell commands (e.g. ls, nginx -t, curl, etc.) below." }
-      ]);
     };
   }, [c?.id, slug]);
 
-  useEffect(() => {
-    if (activeTab === "terminal" && terminalEndRef.current) {
-      terminalEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [terminalHistory, activeTab]);
-
-  const handleTerminalSubmit = useCallback(async (e) => {
-    e.preventDefault();
-    const cmd = terminalInput.trim();
-    if (!cmd || !devopsSessionId) return;
-
-    setTerminalHistory((prev) => [...prev, { type: "input", text: cmd }]);
-    setTerminalInput("");
-    setTerminalLoading(true);
-
+  // Sync workspace helper
+  const syncWorkspaceFiles = useCallback(async () => {
+    if (!devopsSessionId) return;
     try {
-      // Sync editor files to workspace first
       await API.post(`/api/v1/devops/session/${devopsSessionId}/sync`, { files: multiFiles });
-
-      // Run command
-      const res = await API.post(`/api/v1/devops/session/${devopsSessionId}/exec`, { command: cmd });
-      const { stdout, stderr, exit_code } = res.data;
-
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          type: "output",
-          text: stdout || stderr ? `${stdout}${stderr}` : `[Command exited with code ${exit_code}]`,
-          exitCode: exit_code
-        }
-      ]);
-    } catch (err) {
-      setTerminalHistory((prev) => [
-        ...prev,
-        { type: "error", text: `Execution failed: ${err.response?.data?.detail || err.message}` }
-      ]);
-    } finally {
-      setTerminalLoading(false);
+    } catch (e) {
+      console.error("Failed to sync files to container sandbox:", e);
     }
-  }, [terminalInput, devopsSessionId, multiFiles]);
+  }, [devopsSessionId, multiFiles]);
+
+  // Dynamic WebSocket interactive terminal connector
+  useEffect(() => {
+    if (activeTab !== "terminal" || !devopsSessionId || !terminalRef.current) {
+      return;
+    }
+
+    // 1. Sync workspace files first so Nginx/scripts reflect latest editor state
+    syncWorkspaceFiles();
+
+    // 2. Initialize Xterm.js terminal instance
+    const term = new Terminal({
+      cursorBlink: true,
+      fontSize: 12,
+      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+      theme: {
+        background: "#0c0c0c",
+        foreground: "#d4d4d8",
+        cursor: "#3b82f6",
+        selectionBackground: "rgba(59, 130, 246, 0.3)"
+      }
+    });
+
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+
+    term.open(terminalRef.current);
+    
+    // Slight timeout to ensure layout sizing completes before fitting
+    setTimeout(() => {
+      try {
+        fitAddon.fit();
+      } catch (e) {}
+    }, 50);
+
+    xtermInstance.current = term;
+
+    // 3. Connect WebSocket
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    let wsHost = window.location.host;
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      wsHost = "localhost:8000";
+    }
+
+    const wsUrl = `${protocol}//${wsHost}/api/v1/devops/session/${devopsSessionId}/ws`;
+    const ws = new WebSocket(wsUrl);
+    wsInstance.current = ws;
+
+    ws.onopen = () => {
+      term.write("\r\n*** Terminal connection established. Welcome to Interleet Sandbox! ***\r\n\r\n");
+    };
+
+    ws.onmessage = (event) => {
+      term.write(event.data);
+    };
+
+    ws.onclose = () => {
+      term.write("\r\n*** Terminal connection closed. ***\r\n");
+    };
+
+    ws.onerror = (err) => {
+      term.write(`\r\n*** Connection error: ${err.message || "Unknown error"} ***\r\n`);
+    };
+
+    // Forward terminal input keystrokes directly to Docker stdin socket
+    term.onData((data) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
+      }
+    });
+
+    const handleResize = () => {
+      try {
+        fitAddon.fit();
+      } catch (e) {}
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      term.dispose();
+      ws.close();
+      xtermInstance.current = null;
+      wsInstance.current = null;
+    };
+  }, [activeTab, devopsSessionId, syncWorkspaceFiles]);
 
   useEffect(() => {
     if (isLocalChange.current) {
@@ -1754,42 +1794,8 @@ function EditorPage() {
 
                 {/* DevOps Terminal tab */}
                 {c?.domain === "DevOps" && (
-                  <TabsContent value="terminal" className="m-0 bg-black text-zinc-200 border-t border-zinc-800 flex flex-col font-mono text-xs select-text overflow-hidden" style={{ height: "240px" }}>
-                    <div id="devops-terminal-log" className="flex-1 overflow-y-auto p-3 space-y-2 select-text">
-                      {terminalHistory.map((h, i) => (
-                        <div key={i} className="whitespace-pre-wrap leading-relaxed">
-                          {h.type === "system" && (
-                            <span className="text-zinc-500 font-semibold">{h.text}</span>
-                          )}
-                          {h.type === "input" && (
-                            <span className="text-primary font-bold">/workspace # <span className="text-white font-normal">{h.text}</span></span>
-                          )}
-                          {h.type === "output" && (
-                            <span className={h.exitCode === 0 ? "text-emerald-400" : "text-zinc-300"}>{h.text}</span>
-                          )}
-                          {h.type === "error" && (
-                            <span className="text-destructive font-semibold">{h.text}</span>
-                          )}
-                        </div>
-                      ))}
-                      {terminalLoading && (
-                        <div className="text-primary animate-pulse font-semibold">Running command...</div>
-                      )}
-                      <div ref={terminalEndRef} />
-                    </div>
-
-                    <form onSubmit={handleTerminalSubmit} className="border-t border-zinc-800 bg-zinc-950 flex items-center px-3 py-2 gap-2">
-                      <span className="text-primary font-bold shrink-0">/workspace #</span>
-                      <input
-                        type="text"
-                        value={terminalInput}
-                        onChange={(e) => setTerminalInput(e.target.value)}
-                        disabled={terminalLoading || !devopsSessionId}
-                        placeholder={devopsSessionId ? "Type shell commands here and press Enter..." : "Starting container sandbox..."}
-                        className="flex-1 bg-transparent border-0 outline-none text-white font-mono text-xs focus:ring-0 placeholder:text-zinc-600"
-                        autoFocus
-                      />
-                    </form>
+                  <TabsContent value="terminal" className="m-0 bg-[#0c0c0c] border-t border-zinc-800 overflow-hidden" style={{ height: "240px" }}>
+                    <div ref={terminalRef} className="w-full h-full p-2 select-text" />
                   </TabsContent>
                 )}
 

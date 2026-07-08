@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, Body, HTTPException, Query, Depends
+from fastapi import APIRouter, Body, HTTPException, Query, Depends, WebSocket, WebSocketDisconnect
 
 from app.middleware.user import Middleware as UserMiddleware
 from app.core.db import get_db
@@ -575,4 +575,72 @@ async def api_stop_devops_session(session_id: str):
         shutil.rmtree(workspace_dir, ignore_errors=True)
         
     return {"success": True}
+
+
+@engine_router.websocket("/devops/session/{session_id}/ws")
+async def api_ws_devops_session(websocket: WebSocket, session_id: str):
+    await websocket.accept()
+    
+    client = get_docker_client()
+    container_name = f"interleet-devops-session-{session_id}"
+    
+    try:
+        container = client.containers.get(container_name)
+    except Exception:
+        await websocket.send_text("\r\n[Error: DevOps session container not found. Try resetting.]\r\n")
+        await websocket.close()
+        return
+
+    import threading
+    import asyncio
+    
+    try:
+        exec_id = client.api.exec_create(
+            container.id,
+            cmd=["/bin/bash"],
+            stdin=True,
+            stdout=True,
+            stderr=True,
+            tty=True,
+            workdir="/workspace"
+        )
+        sock = client.api.exec_start(exec_id, socket=True, tty=True)
+    except Exception as exc:
+        await websocket.send_text(f"\r\n[Error: Failed to spawn interactive terminal: {exc}]\r\n")
+        await websocket.close()
+        return
+
+    loop = asyncio.get_running_loop()
+    
+    def read_socket():
+        try:
+            while True:
+                data = sock.read(4096)
+                if not data:
+                    break
+                asyncio.run_coroutine_threadsafe(
+                    websocket.send_text(data.decode("utf-8", errors="ignore")),
+                    loop
+                )
+        except Exception:
+            pass
+        finally:
+            asyncio.run_coroutine_threadsafe(websocket.close(), loop)
+
+    t = threading.Thread(target=read_socket, daemon=True)
+    t.start()
+
+    try:
+        while True:
+            msg = await websocket.receive_text()
+            sock.write(msg.encode("utf-8"))
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        try:
+            sock.close()
+        except:
+            pass
 
