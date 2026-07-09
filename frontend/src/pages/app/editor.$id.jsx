@@ -63,7 +63,8 @@ import {
   LANG_BADGE,
   LANG_FILE,
   BACKEND_LANG_TO_SHORT,
-  getStarter
+  getStarter,
+  DEFAULT_STARTER
 } from "./editor/editor.config";
 
 // ─── Markdown Parser Helpers ──────────────────────────────────────────────────
@@ -447,6 +448,12 @@ function EditorPage() {
         }
       } catch (e) {}
 
+      // If the code is one of the default starters (initial loading state placeholder) or empty,
+      // do NOT run the fallback logic and overwrite the user's multi-files.
+      if (Object.values(DEFAULT_STARTER).includes(code) || !code) {
+        return;
+      }
+
       if (runtimeEditor?.executionLanguage === "html") {
         // Fallback for legacy plain text starter code
         const fallback = {
@@ -527,7 +534,7 @@ function EditorPage() {
       const keys = Object.keys(c.starter_code || {});
 
       // For multi-file domains (DevOps, Frontend filesystem), skip the lang selection logic
-      if (isMultiFileDomain || keys.includes("multi") || keys.includes("html")) {
+      if ((isMultiFileDomain && c?.domain !== "APIs") || keys.includes("multi") || keys.includes("html")) {
         const multiLang = runtimeEditor?.executionLanguage || (keys.includes("multi") ? "multi" : keys.includes("html") ? "html" : lang);
         setLang(multiLang);
         setCode(getStarter(slug, multiLang, c, selectedDb));
@@ -538,7 +545,7 @@ function EditorPage() {
       
       const allowedLangs = c.domain === "Frontend"
         ? ["ts", "js"].filter(k => shortKeys.includes(k))
-        : (c.domain === "Backend" ? ["ts", "js", "py", "go", "java", "cpp", "rust"] : ["ts", "js", "py", "go"]);
+        : (c.domain === "Backend" ? ["ts", "js", "py", "go", "java", "cpp", "rust"] : (c.domain === "APIs" ? ["js", "py", "go"] : ["ts", "js", "py", "go"]));
 
       let nextLang = lang;
       
