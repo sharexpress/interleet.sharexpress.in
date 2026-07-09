@@ -11,7 +11,7 @@ ENV CGO_ENABLED=0 \
     GOPROXY=https://goproxy.io,direct
 
 # Build tools (needed for go build)
-RUN apk add --no-cache gcc musl-dev
+RUN apk add --no-cache gcc musl-dev git
 
 # Pre-cache Gin and pure Go SQLite module for APIs challenges
 WORKDIR /tmp/warmup
