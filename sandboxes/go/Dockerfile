@@ -7,7 +7,8 @@ FROM golang:1.22-alpine
 # Disable CGO to produce static binaries (safer sandbox)
 ENV CGO_ENABLED=0 \
     GOPATH=/go \
-    GOCACHE=/tmp/gocache
+    GOCACHE=/tmp/gocache \
+    GOPROXY=https://goproxy.io,direct
 
 # Build tools (needed for go build)
 RUN apk add --no-cache gcc musl-dev
