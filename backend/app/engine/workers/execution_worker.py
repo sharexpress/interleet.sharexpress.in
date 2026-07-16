@@ -446,8 +446,14 @@ class ExecutionWorker:
                 # This is the heaviest operation — recalculates all ratings, badges, streak
                 # Now runs as a separate background task so it doesn't block the worker
                 if job.user_id:
+                    is_accepted = result.verdict == Verdict.ACCEPTED
                     asyncio.create_task(
-                        _update_user_ratings_and_badges(job.user_id),
+                        _update_user_ratings_and_badges(
+                            job.user_id,
+                            problem_slug=job.problem_slug if is_accepted else None,
+                            challenge_title=job.problem_slug,
+                            xp_earned=int(result.score),
+                        ),
                         name=f"update-ratings-{job.user_id[:8]}",
                     )
 
@@ -505,8 +511,20 @@ def _map_verdict_to_status(verdict: Verdict) -> str:
     return mapping.get(verdict, "failed")
 
 
-async def _update_user_ratings_and_badges(user_id: str) -> None:
-    """Recalculate and update the user's proficiency, streak, and badges in the DB."""
+async def _update_user_ratings_and_badges(
+    user_id: str,
+    problem_slug: str | None = None,
+    challenge_title: str | None = None,
+    xp_earned: int = 0,
+) -> None:
+    """Recalculate and update the user's proficiency, streak, and badges in the DB.
+    
+    Args:
+        user_id: The user whose stats to update.
+        problem_slug: If not None, this is a newly accepted problem — triggers badge award + notification.
+        challenge_title: Human-readable title for the notification message.
+        xp_earned: XP from the submission score (used in notification).
+    """
     try:
         from datetime import datetime, timedelta
         db = get_db()
@@ -577,34 +595,31 @@ async def _update_user_ratings_and_badges(user_id: str) -> None:
                 
         updates["streak_count"] = len(heatmap_dates)
         
-        badges = []
-        if solved_count >= 1:
-            badges.append("First Milestone")
-        if len(rep_activities) >= 1:
-            badges.append("Interview Scholar")
-        if "build-a-rate-limiter" in solved_slugs:
-            badges.append("Concurrency Expert")
-        if "rest-versioning" in solved_slugs:
-            badges.append("API Architect")
-            
-        solved_domains = set()
-        for slug in solved_slugs:
-            if slug in problems_by_slug:
-                solved_domains.add(problems_by_slug[slug].get("domain"))
-        if "Backend" in solved_domains:
-            badges.append("Top 5% Backend")
-        if len(solved_domains) >= 3:
-            badges.append("Fullstack Wizard")
-        if solved_count >= 5:
-            badges.append("Algorithm Master")
-            
-        if not badges:
-            badges = ["Novice Engineer"]
-            
-        updates["badges"] = badges
-        
         await db.users.update_one({"user_id": user_id}, {"$set": updates})
-        logger.info("Successfully updated user=%s ratings, badges, and streak in DB", user_id)
+        logger.info("Successfully updated user=%s ratings and streak in DB", user_id)
+
+        # ── Award badges via BadgeService (only when a problem was accepted) ──
+        # Badge notifications are deduped inside NotificationService so no spam.
+        if problem_slug:
+            try:
+                from app.services.badge_service import BadgeService
+                from app.services.notification_service import NotificationService
+
+                newly_awarded = await BadgeService.check_and_award_badges(user_id)
+                for badge in newly_awarded:
+                    await NotificationService.on_badge_earned(user_id, badge)
+
+                # Also send a "Challenge Solved" notification (once per slug)
+                title = challenge_title or problem_slug
+                await NotificationService.on_submission_accepted(
+                    user_id,
+                    challenge_title=title,
+                    xp_earned=xp_earned,
+                    problem_slug=problem_slug,
+                )
+            except Exception as exc:
+                logger.warning("Badge/notification dispatch failed: %s", exc)
         
     except Exception as exc:
         logger.exception("Failed to update user ratings and badges: %s", exc)
+

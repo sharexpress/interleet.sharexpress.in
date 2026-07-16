@@ -32,6 +32,7 @@ class NotificationService:
         action_label: str | None = None,
         category: str = "general",
         expires_at: datetime | None = None,
+        **kwargs,
     ) -> dict:
         """Create a single notification for a user."""
         notification = {
@@ -48,6 +49,7 @@ class NotificationService:
             "read": False,
             "created_at": datetime.utcnow(),
             "expires_at": expires_at,
+            "dedup_key": kwargs.get("dedup_key"),
         }
 
         await db.notifications.insert_one(notification)
@@ -66,8 +68,20 @@ class NotificationService:
         })
 
     @staticmethod
+    async def _already_notified(user_id: str, dedup_key: str) -> bool:
+        """Return True if a notification with this dedup_key already exists for this user."""
+        existing = await db.notifications.find_one({
+            "user_id": user_id,
+            "dedup_key": dedup_key,
+        })
+        return existing is not None
+
+    @staticmethod
     async def on_badge_earned(user_id: str, badge: dict) -> None:
-        """Notify user when a badge is earned."""
+        """Notify user when a badge is earned (once per badge, ever)."""
+        dedup_key = f"badge:{badge['id']}"
+        if await NotificationService._already_notified(user_id, dedup_key):
+            return  # Already sent this badge notification — skip
         await NotificationService.create(
             user_id,
             title="🏆 Badge Unlocked!",
@@ -78,13 +92,17 @@ class NotificationService:
             link="/app/profile",
             action_label="View Badge",
             category="achievement",
+            dedup_key=dedup_key,
         )
 
     @staticmethod
     async def on_submission_accepted(
-        user_id: str, challenge_title: str, xp_earned: int
+        user_id: str, challenge_title: str, xp_earned: int, problem_slug: str = ""
     ) -> None:
-        """Notify user when a challenge submission is accepted."""
+        """Notify user when a challenge submission is accepted (once per problem)."""
+        dedup_key = f"solved:{problem_slug}" if problem_slug else None
+        if dedup_key and await NotificationService._already_notified(user_id, dedup_key):
+            return  # Already notified for this challenge
         await NotificationService.create(
             user_id,
             title="✅ Challenge Solved!",
@@ -95,13 +113,17 @@ class NotificationService:
             link="/app/challenges",
             action_label="Continue Practicing",
             category="challenge",
+            dedup_key=dedup_key,
         )
 
     @staticmethod
     async def on_interview_completed(
-        user_id: str, role: str, score: float
+        user_id: str, role: str, score: float, session_id: str = ""
     ) -> None:
-        """Notify user when an interview report is generated."""
+        """Notify user when an interview report is generated (once per session)."""
+        dedup_key = f"interview:{session_id}" if session_id else None
+        if dedup_key and await NotificationService._already_notified(user_id, dedup_key):
+            return
         await NotificationService.create(
             user_id,
             title="🎤 Interview Complete!",
@@ -112,6 +134,7 @@ class NotificationService:
             link="/app/interviews",
             action_label="View Report",
             category="interview",
+            dedup_key=dedup_key,
         )
 
     @staticmethod

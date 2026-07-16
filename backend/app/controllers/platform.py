@@ -215,20 +215,11 @@ class PlatformController:
                 dt_str = dt_val.strftime("%Y-%m-%d")
                 heatmap_map[dt_str] = heatmap_map.get(dt_str, 0) + 1
 
-        # Badges — use the BadgeService for gamified badges
+        # Badges — read already-earned badges (do NOT re-run award check here;
+        # badge awarding is triggered only by submission events to avoid spam)
         from app.services.badge_service import BadgeService
-        newly_awarded = await BadgeService.check_and_award_badges(user_id)
         earned_badges = await BadgeService.get_earned_badges(user_id)
         badge_progress = await BadgeService.get_badge_progress(user_id)
-        badges = [b.get("name", b.get("id")) for b in earned_badges]
-        if not badges:
-            badges = ["Novice Engineer"]
-
-        # Trigger notifications for newly-awarded badges
-        if newly_awarded:
-            from app.services.notification_service import NotificationService
-            for badge in newly_awarded:
-                await NotificationService.on_badge_earned(user_id, badge)
 
         # Interview reports history list
         interviews_cursor = db.interview_reports.find({"user_id": user_id}).sort("created_at", -1)
@@ -715,9 +706,8 @@ class PlatformController:
                 dt_str = dt_val.strftime("%Y-%m-%d")
                 heatmap_map[dt_str] = heatmap_map.get(dt_str, 0) + 1
         
-        # 8. Badges — use gamified BadgeService
+        # 8. Badges — read already-earned badges only (no re-award check on page view)
         from app.services.badge_service import BadgeService
-        await BadgeService.check_and_award_badges(user_id)
         earned_badges = await BadgeService.get_earned_badges(user_id)
         badge_progress = await BadgeService.get_badge_progress(user_id)
         badges = [b.get("name", b.get("id")) for b in earned_badges]
