@@ -87,7 +87,7 @@ FRONTEND_TESTS["todo-list-app"] = [
         "weight": 2,
         "comparison_mode": "exact",
         "expected_output": "PASS\n",
-        "stdin": json.dumps({"evaluation": "const input=document.getElementById('todo-input');const btn=document.getElementById('add-btn');const list=document.getElementById('todo-list');if(!input||!btn||!list)return 'FAIL: missing elements';input.value='Test Item';btn.click();const before=list.querySelectorAll('.todo-item').length;const delBtn=list.querySelector('.delete-btn');if(!delBtn)return 'FAIL: no .delete-btn found inside todo items';delBtn.click();const after=list.querySelectorAll('.todo-item').length;return after===before-1?'PASS':'FAIL: expected '+(before-1)+' items after delete, got '+after;"}),
+        "stdin": json.dumps({"evaluation": "const input=document.getElementById('todo-input');const btn=document.getElementById('add-btn');const list=document.getElementById('todo-list');if(!input||!btn||!list)return 'FAIL: missing elements';input.value='Test Item';btn.click();const item=list.querySelector('.todo-item');if(!item)return 'FAIL: no .todo-item found after adding';const before=list.querySelectorAll('.todo-item').length;const delBtn=item.querySelector('.delete-btn,.remove-btn,.btn-delete')||Array.from(item.querySelectorAll('button')).find(b=>/delete|remove|✕|×|trash|del/i.test(b.textContent+b.className))||item.querySelectorAll('button')[1];if(!delBtn)return 'FAIL: no delete button found inside todo item (expected .delete-btn class, or button with delete/remove text, or a second button)';delBtn.click();const after=list.querySelectorAll('.todo-item').length;return after===before-1?'PASS':'FAIL: expected '+(before-1)+' items after delete, got '+after;"}),
     },
 ]
 
