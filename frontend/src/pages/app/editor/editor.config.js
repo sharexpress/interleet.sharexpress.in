@@ -1141,26 +1141,167 @@ solution()
   go: `package main
 import "fmt"
 func main() {
-  fmt.Printf("%+v\\n", map[string]any{"status": "ready", "message": "Start coding!"})
+  fmt.Printf("%+v\n", map[string]any{"status": "ready", "message": "Start coding!"})
+}
+`,
+  go_sqlite: `package main
+
+import (
+	"database/sql"
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	_ "github.com/glebarez/go-sqlite"
+)
+
+func main() {
+	db, err := sql.Open("sqlite", "db.sqlite")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	r := gin.Default()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// TODO: Implement your API endpoints here
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("127.0.0.1:" + port)
+}
+`,
+  go_postgres: `package main
+
+import (
+	"database/sql"
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	_ "github.com/lib/pq"
+)
+
+func main() {
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	r := gin.Default()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// TODO: Implement your API endpoints here
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("127.0.0.1:" + port)
+}
+`,
+  go_mongodb: `package main
+
+import (
+	"context"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+func main() {
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+	if err != nil {
+		panic(err)
+	}
+	defer client.Disconnect(ctx)
+
+	r := gin.Default()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// TODO: Implement your API endpoints here
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("127.0.0.1:" + port)
+}
+`,
+  go_mysql: `package main
+
+import (
+	"database/sql"
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
+)
+
+func main() {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "root:root@tcp(127.0.0.1:3306)/db"
+	}
+	db, err := sql.Open("mysql", dbURL)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	r := gin.Default()
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// TODO: Implement your API endpoints here
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+	r.Run("127.0.0.1:" + port)
 }
 `,
   java: `import java.util.Map;
 
 public class Solution {
     public static void main(String[] args) {
-        System.out.println("{\\"status\\": \\"ready\\", \\"message\\": \\"Start coding!\\"}");
+        System.out.println("{\"status\": \"ready\", \"message\": \"Start coding!\"}");
     }
 }
 `,
   cpp: `#include <iostream>
 
 int main() {
-    std::cout << "{\\"status\\": \\"ready\\", \\"message\\": \\"Start coding!\\"}" << std::endl;
+    std::cout << "{\"status\": \"ready\", \"message\": \"Start coding!\"}" << std::endl;
     return 0;
 }
 `,
   rust: `fn main() {
-    println!("{{\\"status\\": \\"ready\\", \\"message\\": \\"Start coding!\\"}}");
+    println!("{{\"status\": \"ready\", \"message\": \"Start coding!\"}}");
 }
 `,
 };
@@ -1187,5 +1328,5 @@ export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
       }
     }
   }
-  return STARTERS[slug]?.[dbKey] ?? STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
+  return STARTERS[slug]?.[dbKey] ?? STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[dbKey] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
 }
