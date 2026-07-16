@@ -112,6 +112,10 @@ def _create_persistent_container(client: docker.DockerClient, image: str) -> Con
         except Exception:
             pass
 
+    is_browser = "browser" in image
+    mem_limit = "1.5g" if is_browser else "512m"
+    pids_limit = 1024 if is_browser else 256
+
     try:
         container = client.containers.run(
             image=image,
@@ -121,10 +125,10 @@ def _create_persistent_container(client: docker.DockerClient, image: str) -> Con
                 workspace_base: {"bind": "/workspace", "mode": "rw"}
             },
             network_disabled=True,
-            mem_limit="512m",
-            memswap_limit="512m",
+            mem_limit=mem_limit,
+            memswap_limit=mem_limit,
             nano_cpus=2_000_000_000,
-            pids_limit=256,
+            pids_limit=pids_limit,
             security_opt=["no-new-privileges"],
             cap_drop=["ALL"],
             detach=True,
