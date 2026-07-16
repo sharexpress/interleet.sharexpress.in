@@ -51,12 +51,12 @@ FRONTEND_TESTS["simple-click-counter"] = [
     },
     {
         "id": "cc-tc-3",
-        "name": "Decrement button decreases count",
+        "name": "Reset button sets count back to 0",
         "hidden": True,
         "weight": 1,
         "comparison_mode": "exact",
         "expected_output": "PASS\n",
-        "stdin": json.dumps({"evaluation": "const incBtn=document.getElementById('increment');const decBtn=document.getElementById('decrement');const countSpan=document.getElementById('count');if(!decBtn)return 'FAIL: missing #decrement button';incBtn.click();incBtn.click();const before=parseInt(countSpan.textContent.trim(),10);decBtn.click();const after=parseInt(countSpan.textContent.trim(),10);return after===before-1?'PASS':'FAIL: expected '+(before-1)+' got '+after;"}),
+        "stdin": json.dumps({"evaluation": "const incBtn=document.getElementById('increment');const resetBtn=document.getElementById('reset');const countSpan=document.getElementById('count');if(!resetBtn)return 'FAIL: missing #reset button';if(!incBtn||!countSpan)return 'FAIL: missing #increment or #count';incBtn.click();incBtn.click();incBtn.click();const before=parseInt(countSpan.textContent.trim(),10);if(before!==3)return 'FAIL: expected count to be 3 before reset, got '+before;resetBtn.click();const after=parseInt(countSpan.textContent.trim(),10);return after===0?'PASS':'FAIL: expected 0 after reset, got '+after;"}),
     },
 ]
 
