@@ -131,7 +131,6 @@ FRONTEND_TESTS["stopwatch-timer"] = [
     },
 ]
 
-# ── FORM VALIDATOR ──────────────────────────────────────────────────────────
 FRONTEND_TESTS["form-validator"] = [
     {
         "id": "fv-1",
@@ -144,21 +143,21 @@ FRONTEND_TESTS["form-validator"] = [
     },
     {
         "id": "fv-2",
-        "name": "Invalid email triggers an error message",
+        "name": "Real-time validation enables/disables submit button correctly",
         "hidden": False,
         "weight": 2,
         "comparison_mode": "exact",
         "expected_output": "PASS\n",
-        "stdin": json.dumps({"evaluation": "const email=document.getElementById('email');const submitBtn=document.getElementById('submit-btn');if(!email||!submitBtn)return 'FAIL: missing elements';email.value='not-an-email';submitBtn.click();const body=document.body.textContent+document.body.innerHTML;const hasError=body.toLowerCase().includes('invalid')||body.toLowerCase().includes('valid email')||document.querySelector('.error,.error-msg,.invalid,[data-error]');return hasError?'PASS':'FAIL: submitting invalid email should show an error message';"}),
+        "stdin": json.dumps({"evaluation": "const username=document.getElementById('username');const email=document.getElementById('email');const password=document.getElementById('password');const confirm=document.getElementById('confirm-password');const btn=document.getElementById('submit-btn');if(!username||!email||!password||!confirm||!btn)return 'FAIL: missing required form elements';function fill(u,e,p,c){username.value=u;email.value=e;password.value=p;confirm.value=c;username.dispatchEvent(new Event('input',{bubbles:true}));email.dispatchEvent(new Event('input',{bubbles:true}));password.dispatchEvent(new Event('input',{bubbles:true}));confirm.dispatchEvent(new Event('input',{bubbles:true}));}fill('user123','test@example.com','SecurePass1','SecurePass1');if(btn.disabled)return 'FAIL: submit button should be enabled when all fields are valid';fill('user123','bad-email','SecurePass1','SecurePass1');if(!btn.disabled)return 'FAIL: submit button should be disabled for invalid email';fill('us','test@example.com','SecurePass1','SecurePass1');if(!btn.disabled)return 'FAIL: submit button should be disabled for username shorter than 3 characters';fill('user123','test@example.com','secretpass','secretpass');if(!btn.disabled)return 'FAIL: submit button should be disabled for password lacking uppercase/number';fill('user123','test@example.com','SecurePass1','SecurePass1');if(btn.disabled)return 'FAIL: submit button should re-enable when all fields are corrected to valid';return 'PASS';"}),
     },
     {
         "id": "fv-3",
-        "name": "Mismatched passwords shows error",
+        "name": "Mismatched passwords disables submit and shows error message",
         "hidden": True,
         "weight": 2,
         "comparison_mode": "exact",
         "expected_output": "PASS\n",
-        "stdin": json.dumps({"evaluation": "const password=document.getElementById('password');const confirm=document.getElementById('confirm-password');const submitBtn=document.getElementById('submit-btn');if(!password||!confirm||!submitBtn)return 'FAIL: missing elements';password.value='Password123!';confirm.value='DifferentPass!';submitBtn.click();const body=document.body.textContent+document.body.innerHTML;const hasError=body.toLowerCase().includes('match')||body.toLowerCase().includes('password')||document.querySelector('.error,.error-msg,.invalid');return hasError?'PASS':'FAIL: mismatched passwords should show error';"}),
+        "stdin": json.dumps({"evaluation": "const username=document.getElementById('username');const email=document.getElementById('email');const password=document.getElementById('password');const confirm=document.getElementById('confirm-password');const btn=document.getElementById('submit-btn');if(!username||!email||!password||!confirm||!btn)return 'FAIL: missing required form elements';function fill(u,e,p,c){username.value=u;email.value=e;password.value=p;confirm.value=c;username.dispatchEvent(new Event('input',{bubbles:true}));email.dispatchEvent(new Event('input',{bubbles:true}));password.dispatchEvent(new Event('input',{bubbles:true}));confirm.dispatchEvent(new Event('input',{bubbles:true}));}fill('user123','test@example.com','SecurePass1','DifferentPass2');if(!btn.disabled)return 'FAIL: submit button should be disabled when passwords mismatch';const els=Array.from(document.querySelectorAll('.error,.error-msg,.invalid,[data-error],span,div,p'));const hasError=els.some(el=>{const txt=el.textContent.toLowerCase();const style=window.getComputedStyle(el);return style.display!=='none'&&style.visibility!=='hidden'&&(txt.includes('match')||txt.includes('differ')||txt.includes('same')||txt.includes('password'));});if(!hasError)return 'FAIL: should display a visible error message when passwords mismatch';fill('user123','test@example.com','SecurePass1','SecurePass1');if(btn.disabled)return 'FAIL: submit button should re-enable when passwords are corrected to match';return 'PASS';"}),
     },
 ]
 
