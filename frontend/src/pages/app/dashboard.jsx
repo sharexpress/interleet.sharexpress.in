@@ -161,6 +161,20 @@ function Dashboard() {
     { d: "W8", s: 84 },
   ];
 
+  const earnedBadges = useMemo(() => {
+    if (dashboardData?.badgeProgress?.earned && dashboardData.badgeProgress.earned.length > 0) {
+      return dashboardData.badgeProgress.earned;
+    }
+    return [];
+  }, [dashboardData]);
+
+  const nextBadge = useMemo(() => {
+    if (dashboardData?.badgeProgress?.locked && dashboardData.badgeProgress.locked.length > 0) {
+      return dashboardData.badgeProgress.locked[0];
+    }
+    return null;
+  }, [dashboardData]);
+
   const handleQuestToggle = (id) => {
     setQuests(prev => prev.map(q => {
       if (q.id === id) {
@@ -597,26 +611,76 @@ function Dashboard() {
 
             {/* Badges & achievements */}
             <Card className="border-border bg-card p-5">
-              <h3 className="mb-3 text-sm font-semibold">Badges & achievements</h3>
-              <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto pr-1">
-                {Array.from(new Set(activeUser.badges || [])).map((badge) => (
-                  <div
-                    key={badge}
-                    className="flex items-center gap-1.5 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs text-foreground/80 transition-all hover:border-primary/30"
-                  >
-                    <Award className="h-3 w-3 text-primary" />
-                    <span>{badge}</span>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">Badges & achievements</h3>
+                <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-mono">
+                  {earnedBadges.length} unlocked
+                </span>
               </div>
-
-              <div className="mt-4">
-                <div className="mb-1 flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Next badge: Top 5% APIs</span>
-                  <span className="font-mono">82/100</span>
+              
+              {earnedBadges.length > 0 ? (
+                <div className="grid grid-cols-4 gap-2 max-h-[160px] overflow-y-auto pr-1 py-1">
+                  {earnedBadges.map((b) => (
+                    <div
+                      key={b.id}
+                      className="group relative flex flex-col items-center justify-center p-2 rounded-xl border border-border bg-background/25 hover:border-primary/30 transition-all duration-300 cursor-help"
+                    >
+                      {b.image_url ? (
+                        <img
+                          src={b.image_url}
+                          alt={b.name}
+                          className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-200"
+                        />
+                      ) : (
+                        <span className="text-xl">{b.icon || "🏆"}</span>
+                      )}
+                      
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-20 w-44 bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300 p-2 rounded-lg shadow-xl text-center">
+                        <p className="font-bold text-white mb-0.5">{b.name}</p>
+                        <p className="text-[9px] text-zinc-400">{b.description}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <Progress value={82} />
-              </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto pr-1">
+                  {Array.from(new Set(activeUser.badges || [])).map((badge) => (
+                    <div
+                      key={badge}
+                      className="flex items-center gap-1.5 rounded-full border border-border bg-background/40 px-2.5 py-1 text-xs text-foreground/80 transition-all hover:border-primary/30"
+                    >
+                      <Award className="h-3 w-3 text-primary" />
+                      <span>{badge}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {nextBadge ? (
+                <div className="mt-4 pt-3 border-t border-border/40">
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5">
+                      {nextBadge.image_url ? (
+                        <img src={nextBadge.image_url} alt={nextBadge.name} className="w-4.5 h-4.5 object-contain filter grayscale" />
+                      ) : (
+                        <Award className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                      <span className="text-muted-foreground">Next: {nextBadge.name}</span>
+                    </div>
+                    <span className="font-mono text-zinc-400">{nextBadge.progress}%</span>
+                  </div>
+                  <Progress value={nextBadge.progress} className="h-1" />
+                </div>
+              ) : (
+                <div className="mt-4 pt-3 border-t border-border/40">
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Next badge: Top 5% APIs</span>
+                    <span className="font-mono">82/100</span>
+                  </div>
+                  <Progress value={82} className="h-1" />
+                </div>
+              )}
             </Card>
           </div>
         </div>
