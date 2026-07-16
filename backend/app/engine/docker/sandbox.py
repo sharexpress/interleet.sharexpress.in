@@ -447,7 +447,12 @@ class DockerSandbox:
         finally:
             try:
                 container = get_container(image)
-                container.exec_run(cmd=["sh", "-c", "kill -9 -1 || true"], user="judge")
+                # Browser containers run as root and don't have a 'judge' user
+                is_browser = "browser" in image
+                cleanup_kwargs = {"cmd": ["sh", "-c", "kill -9 -1 || true"]}
+                if not is_browser:
+                    cleanup_kwargs["user"] = "judge"
+                container.exec_run(**cleanup_kwargs)
             except Exception as e:
                 logger.warning("Failed to clean up processes in container for %s: %s", image, e)
 
