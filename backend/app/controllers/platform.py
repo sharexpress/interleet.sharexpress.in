@@ -220,6 +220,9 @@ class PlatformController:
         from app.services.badge_service import BadgeService
         earned_badges = await BadgeService.get_earned_badges(user_id)
         badge_progress = await BadgeService.get_badge_progress(user_id)
+        badges = [b.get("name", b.get("id")) for b in earned_badges]
+        if not badges:
+            badges = ["Novice Engineer"]
 
         # Interview reports history list
         interviews_cursor = db.interview_reports.find({"user_id": user_id}).sort("created_at", -1)
