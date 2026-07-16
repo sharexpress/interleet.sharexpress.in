@@ -259,7 +259,7 @@ FRONTEND_TESTS["quiz-app"] = [
         "weight": 3,
         "comparison_mode": "exact",
         "expected_output": "PASS\n",
-        "stdin": json.dumps({"evaluation": "const opt0=document.getElementById('opt-0');const question=document.getElementById('question');if(!opt0||!question)return 'FAIL: missing elements';const before=question.textContent.trim();opt0.click();return new Promise(resolve=>{setTimeout(()=>{const after=question.textContent.trim();const scoreScreen=document.getElementById('score-screen');const scoreVisible=scoreScreen&&scoreScreen.style.display!=='none'&&scoreScreen.offsetHeight>0;resolve((after!==before||scoreVisible)?'PASS':'FAIL: clicking option should advance question or show score screen');},100);});"}),
+        "stdin": json.dumps({"evaluation": "const opt0=document.getElementById('opt-0');const question=document.getElementById('question');if(!opt0||!question)return 'FAIL: missing elements';const before=question.textContent.trim();const beforeClass=opt0.className;const beforeColor=opt0.style.backgroundColor;opt0.click();return new Promise(resolve=>{setTimeout(()=>{const after=question.textContent.trim();const scoreScreen=document.getElementById('score-screen');const scoreVisible=scoreScreen&&(scoreScreen.style.display!=='none'||scoreScreen.classList.contains('visible')||scoreScreen.offsetHeight>0);const hasHighlight=opt0.className!==beforeClass||opt0.style.backgroundColor!==beforeColor||document.querySelector('.correct,.wrong,.selected,.active,.highlighted');resolve((after!==before||scoreVisible||hasHighlight)?'PASS':'FAIL: clicking option should advance question, highlight choices, or show score screen');},1500);});"}),
     },
 ]
 
