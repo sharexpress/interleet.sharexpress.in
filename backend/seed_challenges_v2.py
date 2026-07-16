@@ -396,21 +396,7 @@ if __name__ == '__main__':
 """
             })
         },
-        "test_cases": [
-            {
-                "id": "task-api-tc-1",
-                "name": "Health check responds with ok",
-                "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-                "expected_output": json.dumps([{
-                    "request": {"method": "GET", "path": "/health"},
-                    "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}
-                }]),
-                "hidden": False,
-                "weight": 1.0,
-                "comparison_mode": "json"
-                # No seed.sql — MongoDB doesn't need SQL seeding
-            }
-        ]
+        "test_cases": [{'id': 'task-api-tc-1', 'name': 'Full Task CRUD Flow', 'stdin': '[{"method": "GET", "path": "/health"}, {"method": "POST", "path": "/tasks", "body": {"title": "Task 1", "description": "Write code", "completed": false}}, {"method": "GET", "path": "/tasks"}]', 'expected_output': '[{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "body": {"status": "ok"}}}, {"request": {"method": "POST", "path": "/tasks"}, "response": {"status": "*", "body": {"id": "*", "title": "Task 1", "description": "Write code", "completed": false}}}, {"request": {"method": "GET", "path": "/tasks"}, "response": {"status": 200, "body": [{"id": "*", "title": "Task 1", "description": "Write code", "completed": false}]}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
     # ─────────────────────────── DevOps ───────────────────────────────────────
     {

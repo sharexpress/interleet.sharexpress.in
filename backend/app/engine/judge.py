@@ -445,6 +445,10 @@ def _deep_equals(a: Any, b: Any, epsilon: float = FLOAT_EPSILON) -> bool:
     a = _normalize_value(a)
     b = _normalize_value(b)
 
+    # Wildcard matcher: if the expected value is '*', accept any value
+    if b == "*" or b == "__ANY__":
+        return True
+
     # Both None
     if a is None and b is None:
         return True

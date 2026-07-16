@@ -1453,12 +1453,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "na-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'notes-crud-tc-1', 'name': 'Full Notes CRUD Flow', 'stdin': '[{"method": "POST", "path": "/notes", "body": {"title": "Note A", "content": "Hello note"}}, {"method": "GET", "path": "/notes"}, {"method": "GET", "path": "/notes/{{id}}"}, {"method": "PUT", "path": "/notes/{{id}}", "body": {"title": "Note A Updated", "content": "Hello note updated"}}, {"method": "DELETE", "path": "/notes/{{id}}"}, {"method": "GET", "path": "/notes/{{id}}"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/notes"}, "response": {"status": "*", "body": {"id": "*", "title": "Note A", "content": "Hello note"}}}, {"request": {"method": "GET", "path": "/notes"}, "response": {"status": 200, "body": [{"id": "*", "title": "Note A", "content": "Hello note"}]}}, {"request": {"method": "GET", "path": "/notes/{{id}}"}, "response": {"status": 200, "body": {"id": "*", "title": "Note A", "content": "Hello note"}}}, {"request": {"method": "PUT", "path": "/notes/{{id}}"}, "response": {"status": 200, "body": {"id": "*", "title": "Note A Updated", "content": "Hello note updated"}}}, {"request": {"method": "DELETE", "path": "/notes/{{id}}"}, "response": {"status": "*"}}, {"request": {"method": "GET", "path": "/notes/{{id}}"}, "response": {"status": 404}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1505,12 +1500,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "us-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'url-short-tc-1', 'name': 'Shorten & Redirect & Stats Flow', 'stdin': '[{"method": "POST", "path": "/shorten", "body": {"url": "https://google.com"}}, {"method": "GET", "path": "/{{id}}"}, {"method": "GET", "path": "/stats/{{id}}"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/shorten"}, "response": {"status": "*", "body": {"shortUrl": "*", "id": "*"}}}, {"request": {"method": "GET", "path": "/{{id}}"}, "response": {"status": "*"}}, {"request": {"method": "GET", "path": "/stats/{{id}}"}, "response": {"status": 200, "body": {"clicks": "*", "originalUrl": "https://google.com"}}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1544,12 +1534,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "bp-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'blog-posts-tc-1', 'name': 'Blog Posts comment & tags flow', 'stdin': '[{"method": "POST", "path": "/posts", "body": {"title": "Post 1", "content": "Content 1", "tags": ["tech", "coding"]}}, {"method": "GET", "path": "/posts?tag=tech"}, {"method": "POST", "path": "/posts/{{id}}/comments", "body": {"author": "bob", "text": "great post"}}]', 'expected_output': '[{"request": {"method": "POST", "path": "/posts"}, "response": {"status": "*", "body": {"id": "*", "title": "Post 1", "content": "Content 1", "tags": ["tech", "coding"]}}}, {"request": {"method": "GET", "path": "/posts?tag=tech"}, "response": {"status": 200, "body": [{"id": "*", "title": "Post 1", "content": "Content 1", "tags": ["tech", "coding"]}]}}, {"request": {"method": "POST", "path": "/posts/{{id}}/comments"}, "response": {"status": "*"}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1583,12 +1568,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "ia-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'inventory-tc-1', 'name': 'Inventory stock updates & sells flow', 'stdin': '[{"method": "POST", "path": "/products", "body": {"name": "Widget", "sku": "WDG-100", "stock": 10, "price": 9.99}}, {"method": "PUT", "path": "/products/WDG-100", "body": {"stock": 15, "price": 9.99}}, {"method": "POST", "path": "/products/WDG-100/sell", "body": {"quantity": 3}}, {"method": "GET", "path": "/products"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/products"}, "response": {"status": "*"}}, {"request": {"method": "PUT", "path": "/products/WDG-100"}, "response": {"status": 200}}, {"request": {"method": "POST", "path": "/products/WDG-100/sell"}, "response": {"status": 200, "body": {"sku": "WDG-100", "remaining": 12}}}, {"request": {"method": "GET", "path": "/products"}, "response": {"status": 200, "body": [{"name": "Widget", "sku": "WDG-100", "stock": 12, "price": 9.99}]}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1624,12 +1604,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "auth-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'auth-jwt-tc-1', 'name': 'JWT register & login & me flow', 'stdin': '[{"method": "POST", "path": "/auth/register", "body": {"username": "alice", "password": "secretpassword"}}, {"method": "POST", "path": "/auth/login", "body": {"username": "alice", "password": "wrongpassword"}}, {"method": "POST", "path": "/auth/login", "body": {"username": "alice", "password": "secretpassword"}}, {"method": "GET", "path": "/auth/me", "headers": {"Authorization": "Bearer {{token}}"}}, {"method": "GET", "path": "/auth/me", "headers": {"Authorization": "Bearer invalidtoken"}}]', 'expected_output': '[{"request": {"method": "POST", "path": "/auth/register"}, "response": {"status": "*", "body": {"token": "*", "userId": "*"}}}, {"request": {"method": "POST", "path": "/auth/login"}, "response": {"status": 401}}, {"request": {"method": "POST", "path": "/auth/login"}, "response": {"status": 200, "body": {"token": "*", "userId": "*"}}}, {"request": {"method": "GET", "path": "/auth/me"}, "response": {"status": 200, "body": {"username": "alice", "userId": "*"}}}, {"request": {"method": "GET", "path": "/auth/me"}, "response": {"status": 401}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1670,12 +1645,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "rl-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'rate-limit-tc-1', 'name': 'Rate limit 429 triggering flow', 'stdin': '[{"method": "GET", "path": "/ping"}, {"method": "GET", "path": "/ping"}, {"method": "GET", "path": "/ping"}, {"method": "GET", "path": "/ping"}, {"method": "GET", "path": "/ping"}, {"method": "GET", "path": "/ping"}]', 'expected_output': '[{"request": {"method": "GET", "path": "/ping"}, "response": {"status": 200, "body": {"message": "pong", "remaining": "*"}}}, {"request": {"method": "GET", "path": "/ping"}, "response": {"status": 200, "body": {"message": "pong", "remaining": "*"}}}, {"request": {"method": "GET", "path": "/ping"}, "response": {"status": 200, "body": {"message": "pong", "remaining": "*"}}}, {"request": {"method": "GET", "path": "/ping"}, "response": {"status": 200, "body": {"message": "pong", "remaining": "*"}}}, {"request": {"method": "GET", "path": "/ping"}, "response": {"status": 200, "body": {"message": "pong", "remaining": "*"}}}, {"request": {"method": "GET", "path": "/ping"}, "response": {"status": 429}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1709,12 +1679,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "bm-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'bookmarks-tc-1', 'name': 'Bookmarks tags listing & delete flow', 'stdin': '[{"method": "POST", "path": "/bookmarks", "body": {"title": "Google", "url": "https://google.com", "tags": ["search", "tools"]}}, {"method": "GET", "path": "/bookmarks?tag=search"}, {"method": "GET", "path": "/bookmarks/tags"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/bookmarks"}, "response": {"status": "*", "body": {"id": "*", "title": "Google", "url": "https://google.com", "tags": ["search", "tools"]}}}, {"request": {"method": "GET", "path": "/bookmarks?tag=search"}, "response": {"status": 200, "body": [{"id": "*", "title": "Google", "url": "https://google.com", "tags": ["search", "tools"]}]}}, {"request": {"method": "GET", "path": "/bookmarks/tags"}, "response": {"status": 200}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1750,12 +1715,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "pq-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'polling-queue-tc-1', 'name': 'Queue enqueue, list & process flow', 'stdin': '[{"method": "POST", "path": "/jobs", "body": {"type": "email", "payload": {"to": "user@test.com"}}}, {"method": "GET", "path": "/jobs/{{jobId}}"}, {"method": "POST", "path": "/jobs/process"}, {"method": "GET", "path": "/jobs/{{jobId}}"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/jobs"}, "response": {"status": "*", "body": {"jobId": "*", "status": "queued"}}}, {"request": {"method": "GET", "path": "/jobs/{{jobId}}"}, "response": {"status": 200, "body": {"jobId": "*", "status": "queued", "result": "*"}}}, {"request": {"method": "POST", "path": "/jobs/process"}, "response": {"status": 200}}, {"request": {"method": "GET", "path": "/jobs/{{jobId}}"}, "response": {"status": 200, "body": {"jobId": "*", "status": "done", "result": "*"}}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1789,12 +1749,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "ct-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'comments-thread-tc-1', 'name': 'Threaded comments & replies & votes flow', 'stdin': '[{"method": "POST", "path": "/comments", "body": {"text": "Root comment", "author": "dev"}}, {"method": "POST", "path": "/comments", "body": {"text": "Reply comment", "author": "tester", "parentId": "{{id}}"}}, {"method": "POST", "path": "/comments/{{id}}/vote", "body": {"type": "up"}}, {"method": "GET", "path": "/comments/{{parentId}}/replies"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/comments"}, "response": {"status": "*", "body": {"id": "*", "text": "Root comment", "author": "dev"}}}, {"request": {"method": "POST", "path": "/comments"}, "response": {"status": "*", "body": {"id": "*", "text": "Reply comment", "author": "tester", "parentId": "{{id}}"}}}, {"request": {"method": "POST", "path": "/comments/{{id}}/vote"}, "response": {"status": 200}}, {"request": {"method": "GET", "path": "/comments/{{parentId}}/replies"}, "response": {"status": 200}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -1827,12 +1782,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "at-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'analytics-tc-1', 'name': 'Analytics aggregate counts & summary flow', 'stdin': '[{"method": "POST", "path": "/events", "body": {"event": "click", "userId": "user1"}}, {"method": "POST", "path": "/events", "body": {"event": "click", "userId": "user2"}}, {"method": "GET", "path": "/metrics/click"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/events"}, "response": {"status": "*"}}, {"request": {"method": "POST", "path": "/events"}, "response": {"status": "*"}}, {"request": {"method": "GET", "path": "/metrics/click"}, "response": {"status": 200, "body": {"event": "click", "count": 2, "uniqueUsers": 2}}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     # ═══════════════════════ DATABASES — (7) ═════════════════════════════════
@@ -2534,12 +2484,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "sc-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'shopping-cart-tc-1', 'name': 'E-commerce products & cart checkout flow', 'stdin': '[{"method": "POST", "path": "/products", "body": {"name": "Laptop", "price": 999.99, "stock": 5}}, {"method": "POST", "path": "/cart", "body": {"productId": "{{id}}", "qty": 2}}, {"method": "GET", "path": "/cart"}, {"method": "POST", "path": "/cart/checkout"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/products"}, "response": {"status": "*", "body": {"id": "*", "name": "Laptop", "price": 999.99, "stock": 5}}}, {"request": {"method": "POST", "path": "/cart"}, "response": {"status": 200}}, {"request": {"method": "GET", "path": "/cart"}, "response": {"status": 200, "body": {"items": [{"productId": "{{id}}", "qty": 2, "price": 999.99, "name": "Laptop"}], "total": 1999.98}}}, {"request": {"method": "POST", "path": "/cart/checkout"}, "response": {"status": 200, "body": {"orderId": "*", "total": 1999.98, "items": [{"productId": "{{id}}", "qty": 2}]}}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -2572,12 +2517,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "np2-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'notification-prefs-tc-1', 'name': 'Notification routing based on channels Preferences', 'stdin': '[{"method": "POST", "path": "/users/usr_1/preferences", "body": {"email": true, "sms": false, "push": true}}, {"method": "POST", "path": "/notifications/send", "body": {"userId": "usr_1", "message": "Alert!", "channels": ["email", "sms"]}}]', 'expected_output': '[{"request": {"method": "POST", "path": "/users/usr_1/preferences"}, "response": {"status": 200}}, {"request": {"method": "POST", "path": "/notifications/send"}, "response": {"status": 200, "body": {"sent": ["email"], "skipped": ["sms"]}}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -2611,12 +2551,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "fs-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'file-storage-tc-1', 'name': 'File upload & download flow', 'stdin': '[{"method": "POST", "path": "/files", "body": {"filename": "hello.txt", "content": "SGVsbG8gV29ybGQ=", "contentType": "text/plain"}}, {"method": "GET", "path": "/files"}, {"method": "GET", "path": "/files/{{fileId}}/download"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/files"}, "response": {"status": "*", "body": {"fileId": "*", "filename": "hello.txt", "size": "*", "url": "*"}}}, {"request": {"method": "GET", "path": "/files"}, "response": {"status": 200, "body": [{"fileId": "*", "filename": "hello.txt", "size": "*", "contentType": "text/plain"}]}}, {"request": {"method": "GET", "path": "/files/{{fileId}}/download"}, "response": {"status": 200, "body": "Hello World"}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 
     {
@@ -2650,12 +2585,7 @@ CHALLENGES = [
                 )
             })
         },
-        "test_cases": [
-            {"id": "lb-1", "name": "health check", "hidden": False, "weight": 1,
-             "stdin": json.dumps([{"method": "GET", "path": "/health"}]),
-             "expected_output": json.dumps([{"request": {"method": "GET", "path": "/health"}, "response": {"status": 200, "headers": {}, "body": {"status": "ok"}}}]) + "\n",
-             "comparison_mode": "json"},
-        ],
+        "test_cases": [{'id': 'leaderboard-tc-1', 'name': 'Scores submission & Top ranks listing flow', 'stdin': '[{"method": "POST", "path": "/scores", "body": {"userId": "u1", "username": "p1", "score": 100, "gameId": "g1"}}, {"method": "POST", "path": "/scores", "body": {"userId": "u2", "username": "p2", "score": 250, "gameId": "g1"}}, {"method": "GET", "path": "/leaderboard/g1"}]', 'expected_output': '[{"request": {"method": "POST", "path": "/scores"}, "response": {"status": "*"}}, {"request": {"method": "POST", "path": "/scores"}, "response": {"status": "*"}}, {"request": {"method": "GET", "path": "/leaderboard/g1"}, "response": {"status": 200, "body": [{"userId": "u2", "username": "p2", "score": 250, "rank": 1}, {"userId": "u1", "username": "p1", "score": 100, "rank": 2}]}}]', 'hidden': False, 'weight': 1.0, 'comparison_mode': 'json'}],
     },
 ]
 
