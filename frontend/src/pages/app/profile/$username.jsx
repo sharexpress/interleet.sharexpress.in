@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { API } from "@/api/api";
 import ContributionHeatmap from "@/components/domain/ContributionHeatmap";
+import { BadgeIcon } from "@/components/BadgeIcon";
 
 const getDivisionTier = (rating, rank) => {
   if (rank === 1) return { name: "Grandmaster Elite", color: "bg-purple-500/15 text-purple-400 border-purple-500/30" };
@@ -572,11 +573,7 @@ function ProfilePage() {
                         <Card key={b.id} className={`relative overflow-hidden flex flex-col justify-between border bg-card p-4 hover:border-zinc-700 transition-all duration-300 ${glowColor}`}>
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              {b.image_url ? (
-                                <img src={b.image_url} alt={b.name} className="w-10 h-10 object-contain hover:scale-110 transition-transform duration-200" />
-                              ) : (
-                                <span className="text-2xl">{b.icon || "🏆"}</span>
-                              )}
+                              <BadgeIcon id={b.id} imageUrl={b.image_url} name={b.name} className="w-10 h-10" />
                               <Badge className={`text-[9px] font-mono border ${rarityBadge}`}>
                                 {b.rarity}
                               </Badge>
@@ -608,11 +605,9 @@ function ProfilePage() {
                       <Card key={b.id} className="relative overflow-hidden flex flex-col justify-between border border-zinc-900 bg-card/45 p-4 opacity-75 hover:opacity-100 transition-opacity">
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            {b.image_url ? (
-                              <img src={b.image_url} alt={b.name} className="w-10 h-10 object-contain filter grayscale opacity-45 hover:opacity-85 transition-all duration-200" />
-                            ) : (
-                              <span className="text-2xl filter grayscale opacity-60">{b.icon || "🏆"}</span>
-                            )}
+                            <div className="filter grayscale opacity-55 hover:opacity-90 transition-all duration-200">
+                              <BadgeIcon id={b.id} imageUrl={b.image_url} name={b.name} className="w-10 h-10" />
+                            </div>
                             <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
                               <Lock className="w-3 h-3" />
                               <span>{b.progress}%</span>

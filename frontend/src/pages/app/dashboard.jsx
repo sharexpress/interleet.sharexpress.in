@@ -34,6 +34,7 @@ import { activityWeekly, challenges, recentActivity } from "@/lib/mock";
 
 import { ChallengeCard } from "@/components/domain/ChallengeCard";
 import UpgradeModal from "@/components/UpgradeModal";
+import { BadgeIcon } from "@/components/BadgeIcon";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -94,23 +95,37 @@ function Dashboard() {
     };
   }, []);
 
-  if (!user) return null;
-
   // Real-time resolved data
   const activeUser = dashboardData?.user || user;
 
   // Map domainData dynamically from user.domains or backend ratings
   const domainData = useMemo(() => {
-    return (activeUser.domains || [
-      { domain: "Frontend", score: activeUser.frontend_rating || 0 },
-      { domain: "Backend", score: activeUser.backend_rating || 0 },
-      { domain: "Fullstack", score: activeUser.fullstack_rating || 0 },
-      { domain: "DevOps", score: activeUser.devops_rating || 0 },
+    return (activeUser?.domains || [
+      { domain: "Frontend", score: activeUser?.frontend_rating || 0 },
+      { domain: "Backend", score: activeUser?.backend_rating || 0 },
+      { domain: "Fullstack", score: activeUser?.fullstack_rating || 0 },
+      { domain: "DevOps", score: activeUser?.devops_rating || 0 },
     ]).map(d => ({
       domain: d.domain,
       score: d.score || d.rating || 0
     }));
   }, [activeUser]);
+
+  const earnedBadges = useMemo(() => {
+    if (dashboardData?.badgeProgress?.earned && dashboardData.badgeProgress.earned.length > 0) {
+      return dashboardData.badgeProgress.earned;
+    }
+    return [];
+  }, [dashboardData]);
+
+  const nextBadge = useMemo(() => {
+    if (dashboardData?.badgeProgress?.locked && dashboardData.badgeProgress.locked.length > 0) {
+      return dashboardData.badgeProgress.locked[0];
+    }
+    return null;
+  }, [dashboardData]);
+
+  if (!user) return null;
 
   if (loading) {
     return (
@@ -160,20 +175,6 @@ function Dashboard() {
     { d: "W7", s: 81 },
     { d: "W8", s: 84 },
   ];
-
-  const earnedBadges = useMemo(() => {
-    if (dashboardData?.badgeProgress?.earned && dashboardData.badgeProgress.earned.length > 0) {
-      return dashboardData.badgeProgress.earned;
-    }
-    return [];
-  }, [dashboardData]);
-
-  const nextBadge = useMemo(() => {
-    if (dashboardData?.badgeProgress?.locked && dashboardData.badgeProgress.locked.length > 0) {
-      return dashboardData.badgeProgress.locked[0];
-    }
-    return null;
-  }, [dashboardData]);
 
   const handleQuestToggle = (id) => {
     setQuests(prev => prev.map(q => {
@@ -625,15 +626,7 @@ function Dashboard() {
                       key={b.id}
                       className="group relative flex flex-col items-center justify-center p-2 rounded-xl border border-border bg-background/25 hover:border-primary/30 transition-all duration-300 cursor-help"
                     >
-                      {b.image_url ? (
-                        <img
-                          src={b.image_url}
-                          alt={b.name}
-                          className="w-10 h-10 object-contain group-hover:scale-110 transition-transform duration-200"
-                        />
-                      ) : (
-                        <span className="text-xl">{b.icon || "🏆"}</span>
-                      )}
+                      <BadgeIcon id={b.id} imageUrl={b.image_url} name={b.name} className="w-10 h-10" />
                       
                       {/* Tooltip */}
                       <div className="absolute bottom-full mb-1.5 hidden group-hover:block z-20 w-44 bg-zinc-950 border border-zinc-800 text-[10px] text-zinc-300 p-2 rounded-lg shadow-xl text-center">
@@ -661,11 +654,7 @@ function Dashboard() {
                 <div className="mt-4 pt-3 border-t border-border/40">
                   <div className="mb-1 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
-                      {nextBadge.image_url ? (
-                        <img src={nextBadge.image_url} alt={nextBadge.name} className="w-4.5 h-4.5 object-contain filter grayscale" />
-                      ) : (
-                        <Award className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
+                      <BadgeIcon id={nextBadge.id} imageUrl={nextBadge.image_url} name={nextBadge.name} className="w-4.5 h-4.5 filter grayscale" />
                       <span className="text-muted-foreground">Next: {nextBadge.name}</span>
                     </div>
                     <span className="font-mono text-zinc-400">{nextBadge.progress}%</span>
