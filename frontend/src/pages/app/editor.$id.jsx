@@ -249,7 +249,10 @@ function EditorPage() {
   const [customTestCases, setCustomTestCases] = useState([]);
   const [selectedTestCaseIdx, setSelectedTestCaseIdx] = useState(0);
 
-  const isMultiFileDomain = c?.runtime_config?.capabilities?.filesystem || false;
+  // Derive isMultiFileDomain from live `c` — NOT from stale useState so first-visit always works
+  const isMultiFileDomain = !!(c?.runtime_config?.capabilities?.filesystem);
+  // Track whether we have already seeded the initial code/lang from the challenge data
+  const initializedForSlug = useRef(null);
 
   // Multi-file states
   const [activeFile, setActiveFile] = useState("index.html");
@@ -456,17 +459,35 @@ function EditorPage() {
 
       if (runtimeEditor?.executionLanguage === "html") {
         // Fallback for legacy plain text starter code
+        let parsedStarter = {};
+        try {
+          const starterCode = getStarter(slug, lang, c);
+          parsedStarter = JSON.parse(starterCode);
+        } catch (err) {}
+
         const fallback = {
           "index.html": `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>Interleet Preview</title>\n  <link rel="stylesheet" href="index.css">\n</head>\n<body>\n  <div id="app">\n    <!-- Write your HTML structure here -->\n  </div>\n  <script src="index.js"></script>\n</body>\n</html>`,
           "index.css": `body {\n  font-family: system-ui, -apple-system, sans-serif;\n  color: #fafafa;\n  background: #09090b;\n  margin: 0;\n  padding: 24px;\n}\n#app {\n  max-width: 600px;\n  margin: 0 auto;\n  padding: 20px;\n  border: 1px solid #27272a;\n  border-radius: 8px;\n  background: #18181b;\n}`,
-          "index.js": code || `console.log("DOM loaded successfully!");\n`
+          "index.js": code || `console.log("DOM loaded successfully!");\n`,
+          ...parsedStarter
         };
+        fallback["index.js"] = code || fallback["index.js"] || "";
+        
         setMultiFiles(fallback);
         isLocalChange.current = true;
         setCode(JSON.stringify(fallback));
       } else {
-        const entryFile = runtimeEditor?.entryFile || "main.txt";
-        const fallback = { [entryFile]: code || "" };
+        let parsedStarter = {};
+        try {
+          const starterCode = getStarter(slug, lang, c);
+          parsedStarter = JSON.parse(starterCode);
+        } catch (err) {}
+
+        const entryFile = runtimeEditor?.entryFile || Object.keys(parsedStarter)[0] || "main.txt";
+        const fallback = {
+          ...parsedStarter,
+          [entryFile]: code || ""
+        };
         setMultiFiles(fallback);
         isLocalChange.current = true;
         setCode(JSON.stringify(fallback));
@@ -516,10 +537,8 @@ function EditorPage() {
   }, []);
 
   useEffect(() => {
-    const initialState = getInitialState();
-    setLang(initialState.lang);
-    setCode(initialState.code);
-    setSelectedDb("sqlite");
+    // Reset per-slug initialization guard so new challenge always re-initializes
+    initializedForSlug.current = null;
     setResult(null);
     setPrevSubmission(null);
     setUsingPrevCode(false);
@@ -530,35 +549,74 @@ function EditorPage() {
   }, [slug]);
 
   useEffect(() => {
-    if (c && !usingPrevCode) {
-      const keys = Object.keys(c.starter_code || {});
+    if (!c || usingPrevCode) return;
 
-      // For multi-file domains (DevOps, Frontend filesystem), skip the lang selection logic
-      if ((isMultiFileDomain && c?.domain !== "APIs") || keys.includes("multi") || keys.includes("html")) {
-        const multiLang = runtimeEditor?.executionLanguage || (keys.includes("multi") ? "multi" : keys.includes("html") ? "html" : lang);
-        setLang(multiLang);
-        setCode(getStarter(slug, multiLang, c, selectedDb));
-        return;
+    // Guard: only run full init once per slug (prevents resetting user edits on re-renders)
+    if (initializedForSlug.current === slug) return;
+    initializedForSlug.current = slug;
+
+    const keys = Object.keys(c.starter_code || {});
+    // Re-derive isMultiFile from the freshly loaded challenge data
+    const isMultiNow = !!(c?.runtime_config?.capabilities?.filesystem);
+    const runtimeEditorNow = c?.runtime_config?.editor;
+
+    // ── Multi-file domains (Frontend, API, DevOps, Compose — anything with filesystem: true) ──
+    if (isMultiNow || keys.includes("multi") || keys.includes("html")) {
+      // Auto-detect preferred DB from starter_code keys (e.g. "js_mongodb" → "mongodb")
+      const KNOWN_DBS = ["sqlite", "mongodb", "postgres", "mysql"];
+      let inferredDb = selectedDb;
+      const dbKeyMatch = keys.find(k => k.includes("_") && KNOWN_DBS.some(db => k.endsWith("_" + db)));
+      if (dbKeyMatch) {
+        const suffix = dbKeyMatch.split("_").pop();
+        if (KNOWN_DBS.includes(suffix) && suffix !== selectedDb) {
+          inferredDb = suffix;
+          setSelectedDb(suffix);
+        }
       }
 
-      const shortKeys = keys.map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py" : k === "go" ? "go" : k === "cpp" ? "cpp" : k === "rust" ? "rust" : k === "java" ? "java" : k).filter(k => ["ts", "js", "py", "go", "java", "cpp", "rust"].includes(k));
-      
-      const allowedLangs = c.domain === "Frontend"
-        ? ["ts", "js"].filter(k => shortKeys.includes(k))
-        : (c.domain === "Backend" ? ["ts", "js", "py", "go", "java", "cpp", "rust"] : (c.domain === "APIs" ? ["js", "py", "go"] : ["ts", "js", "py", "go"]));
-
-      let nextLang = lang;
-      
-      // If current lang is not allowed, or current lang has no starter code but others in the DB do:
-      const currentHasStarter = keys.includes(lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang === "cpp" ? "cpp" : lang === "rust" ? "rust" : lang === "java" ? "java" : lang);
-      
-      if (!allowedLangs.includes(lang) || (!currentHasStarter && shortKeys.length > 0)) {
-        const dbLang = shortKeys.find(k => allowedLangs.includes(k));
-        nextLang = dbLang || allowedLangs[0];
-        setLang(nextLang);
-      }
-      setCode(getStarter(slug, nextLang, c, selectedDb));
+      // For API domain: default to "js" if not set yet, since api runtime is multi-file
+      const multiLang = runtimeEditorNow?.executionLanguage
+        || (keys.includes("multi") ? "multi" : keys.includes("html") ? "html"
+          : (c?.domain === "APIs" ? (lang === "py" ? "py" : lang === "go" ? "go" : "js") : lang));
+      setLang(multiLang);
+      const starterRaw = getStarter(slug, multiLang, c, inferredDb);
+      setCode(starterRaw);
+      // Immediately hydrate multiFiles so the file tabs appear on first load
+      try {
+        const parsed = JSON.parse(starterRaw);
+        if (parsed && typeof parsed === "object") {
+          setMultiFiles(parsed);
+          const firstKey = Object.keys(parsed)[0];
+          if (firstKey) setActiveFile(firstKey);
+        }
+      } catch (_) { /* non-JSON starter — handled by existing code */ }
+      return;
     }
+
+    // ── Single-file domains ────────────────────────────────────────────────────
+    const shortKeys = keys
+      .map(k => k === "typescript" ? "ts" : k === "javascript" ? "js" : k === "python" ? "py"
+             : k === "go" ? "go" : k === "cpp" ? "cpp" : k === "rust" ? "rust"
+             : k === "java" ? "java" : k)
+      .filter(k => ["ts", "js", "py", "go", "java", "cpp", "rust"].includes(k));
+
+    const allowedLangs = c.domain === "Frontend"
+      ? ["ts", "js"].filter(k => shortKeys.includes(k))
+      : c.domain === "Backend" ? ["ts", "js", "py", "go", "java", "cpp", "rust"]
+      : c.domain === "APIs" ? ["js", "py", "go"]
+      : ["ts", "js", "py", "go"];
+
+    let nextLang = lang;
+    const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript"
+      : lang === "py" ? "python" : lang === "go" ? "go" : lang;
+    const currentHasStarter = keys.includes(backendKey);
+
+    if (!allowedLangs.includes(lang) || (!currentHasStarter && shortKeys.length > 0)) {
+      const dbLang = shortKeys.find(k => allowedLangs.includes(k));
+      nextLang = dbLang || allowedLangs[0] || "js";
+      setLang(nextLang);
+    }
+    setCode(getStarter(slug, nextLang, c, selectedDb));
   }, [c, slug, usingPrevCode]);
 
   useEffect(() => {
@@ -594,10 +652,22 @@ function EditorPage() {
   const handleLangChange = useCallback(
     (l) => {
       setLang(l);
-      setCode(getStarter(slug, l, c, selectedDb));
+      const starterRaw = getStarter(slug, l, c, selectedDb);
+      setCode(starterRaw);
+      // For multi-file domains, immediately hydrate file tabs when switching language
+      if (isMultiFileDomain) {
+        try {
+          const parsed = JSON.parse(starterRaw);
+          if (parsed && typeof parsed === "object") {
+            setMultiFiles(parsed);
+            const firstKey = Object.keys(parsed)[0];
+            if (firstKey) setActiveFile(firstKey);
+          }
+        } catch (_) {}
+      }
       setResult(null);
     },
-    [slug, c, selectedDb],
+    [slug, c, selectedDb, isMultiFileDomain],
   );
 
   const handleDbChange = useCallback(
@@ -1064,8 +1134,14 @@ function EditorPage() {
                       : (activeFile || "").endsWith(".css") ? "css"
                       : (activeFile || "").endsWith(".js") ? "javascript"
                       : (activeFile || "").endsWith(".ts") ? "typescript"
+                      : (activeFile || "").endsWith(".py") ? "python"
+                      : (activeFile || "").endsWith(".go") ? "go"
+                      : (activeFile || "").endsWith(".rs") ? "rust"
+                      : (activeFile || "").endsWith(".java") ? "java"
                       : (activeFile || "").endsWith(".yml") || (activeFile || "").endsWith(".yaml") ? "yaml"
                       : (activeFile || "").endsWith(".sh") || (activeFile || "").endsWith(".conf") ? "shell"
+                      : (activeFile || "").endsWith(".sql") ? "sql"
+                      : (activeFile || "").endsWith(".json") ? "json"
                       : activeFile === "Dockerfile" ? "dockerfile"
                       : "plaintext"
                     : lang

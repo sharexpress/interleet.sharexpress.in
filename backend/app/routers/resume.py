@@ -13,11 +13,15 @@ Flow:
 from __future__ import annotations
 
 import logging
+import uuid
+from datetime import datetime
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile, Depends
 
 from app.ai.resume.resume_parser import ResumeParser
 from app.services.cloudinary_service import upload_resume_to_cloudinary
+from app.middleware.user import Middleware as UserMiddleware
+from app.core.db import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -27,27 +31,12 @@ MAX_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
 @router.post("/parse")
-async def parse_resume(file: UploadFile = File(...)):
+async def parse_resume(
+    file: UploadFile = File(...),
+    user_auth=Depends(UserMiddleware.me)
+):
     """
-    Upload a PDF resume to Cloudinary and return AI-parsed structured data.
-
-    Returns:
-    ```json
-    {
-      "cloudinary": { "secure_url": "...", "public_id": "...", "bytes": 0 },
-      "parsed_resume": {
-        "summary": "...",
-        "skills": [...],
-        "technologies": [...],
-        "experience": [...],
-        "projects": [...]
-      },
-      "mock_test": {
-        "topics": [...],
-        "max_questions": 8
-      }
-    }
-    ```
+    Upload a PDF resume to Cloudinary, parse it, save it to database, and return structured data.
     """
     # ── Validate file type ───────────────────────────────────────────────────
     if file.content_type not in ("application/pdf", "application/octet-stream"):
@@ -81,7 +70,66 @@ async def parse_resume(file: UploadFile = File(...)):
     # ── AI parse (downloads from Cloudinary URL → PyMuPDF → LLM) ────────────
     parsed = await ResumeParser.parse_from_url(cloudinary_meta["secure_url"])
 
-    return {
-        "cloudinary": cloudinary_meta,
-        **parsed,  # inlines  parsed_resume  and  mock_test  keys
+    # ── Save to Database ─────────────────────────────────────────────────────
+    user_doc = user_auth.get("user")
+    user_id = str(user_doc["user_id"])
+    
+    resume_id = str(uuid.uuid4())
+    resume_doc = {
+        "id": resume_id,
+        "user_id": user_id,
+        "filename": file.filename or "resume.pdf",
+        "cloudinary_url": cloudinary_meta["secure_url"],
+        "parsed_resume": parsed.get("parsed_resume", {}),
+        "mock_test": parsed.get("mock_test", {}),
+        "created_at": datetime.utcnow()
     }
+    
+    db = get_db()
+    await db.resumes.insert_one(resume_doc)
+
+    return {
+        "id": resume_id,
+        "cloudinary": cloudinary_meta,
+        **parsed,  # inlines parsed_resume and mock_test keys
+    }
+
+
+@router.get("/my-resumes")
+async def get_my_resumes(user_auth=Depends(UserMiddleware.me)):
+    """
+    Get all previously uploaded and parsed resumes for the authenticated user.
+    """
+    user_doc = user_auth.get("user")
+    user_id = str(user_doc["user_id"])
+    
+    db = get_db()
+    cursor = db.resumes.find({"user_id": user_id}).sort("created_at", -1)
+    resumes = []
+    async for doc in cursor:
+        resumes.append({
+            "id": doc.get("id"),
+            "filename": doc.get("filename"),
+            "cloudinary_url": doc.get("cloudinary_url"),
+            "parsed_resume": doc.get("parsed_resume"),
+            "mock_test": doc.get("mock_test"),
+            "created_at": str(doc.get("created_at"))
+        })
+    
+    return {"success": True, "resumes": resumes}
+
+
+@router.delete("/{resume_id}")
+async def delete_resume(resume_id: str, user_auth=Depends(UserMiddleware.me)):
+    """
+    Delete a previously uploaded resume.
+    """
+    user_doc = user_auth.get("user")
+    user_id = str(user_doc["user_id"])
+    
+    db = get_db()
+    res = await db.resumes.delete_one({"id": resume_id, "user_id": user_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Resume not found")
+        
+    return {"success": True, "message": "Resume deleted successfully"}

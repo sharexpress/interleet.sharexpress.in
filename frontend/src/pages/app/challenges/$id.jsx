@@ -172,7 +172,33 @@ function ChallengeDetail() {
             <div className="prose prose-invert mt-3 max-w-none text-sm text-foreground/85">
               <p>{c.summary}</p>
               {c.description ? (
-                <p className="text-muted-foreground">{c.description}</p>
+                <div className="text-muted-foreground mt-3 space-y-2">
+                  {(() => {
+                    const lines = c.description.split('\n');
+                    return lines.map((line, idx) => {
+                      if (line.startsWith('### ')) {
+                        return <h3 key={idx} className="mt-5 mb-2 text-sm font-semibold text-foreground">{line.slice(4)}</h3>;
+                      }
+                      if (line.startsWith('## ')) {
+                        return <h2 key={idx} className="mt-6 mb-3 text-base font-bold text-foreground">{line.slice(3)}</h2>;
+                      }
+                      if (line.startsWith('# ')) {
+                        return <h1 key={idx} className="mt-7 mb-4 text-lg font-extrabold text-foreground">{line.slice(2)}</h1>;
+                      }
+                      if (line.trim().startsWith('- ')) {
+                        return (
+                          <ul key={idx} className="list-disc pl-5 my-1 text-muted-foreground">
+                            <li>{line.trim().slice(2)}</li>
+                          </ul>
+                        );
+                      }
+                      if (line.trim() === '') {
+                        return <div key={idx} className="h-2" />;
+                      }
+                      return <p key={idx} className="my-1.5 leading-relaxed">{line}</p>;
+                    });
+                  })()}
+                </div>
               ) : (
                 <p className="text-muted-foreground">
                   You're given a service that needs to behave correctly under realistic production

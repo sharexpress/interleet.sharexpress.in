@@ -19,6 +19,8 @@ export const BACKEND_LANG_TO_SHORT = {
   cpp: "cpp",
   rust: "rust",
   java: "java",
+  multi: "multi",
+  html: "html",
 };
 
 export const STARTERS = {

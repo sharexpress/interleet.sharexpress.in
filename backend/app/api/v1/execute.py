@@ -470,11 +470,14 @@ async def api_start_devops_session(request: DevOpsSessionStartRequest):
     
     # Write initial starter files to workspace
     for fname, content in initial_files.items():
-        safe_name = os.path.basename(fname)
-        with open(workspace_dir / safe_name, "w", encoding="utf-8") as f:
+        target_path = Path(workspace_dir / fname).resolve()
+        if not str(target_path).startswith(str(workspace_dir.resolve())):
+            continue
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(target_path, "w", encoding="utf-8") as f:
             f.write(content)
-        if safe_name.endswith(".sh"):
-            (workspace_dir / safe_name).chmod(0o755)
+        if fname.endswith(".sh"):
+            target_path.chmod(0o755)
             
     # Start persistent container specific to this session
     container_name = f"interleet-devops-session-{session_id}"
@@ -518,11 +521,14 @@ async def api_sync_devops_session(session_id: str, request: DevOpsSessionSyncReq
         os.makedirs(workspace_dir, exist_ok=True)
         
     for fname, content in request.files.items():
-        safe_name = os.path.basename(fname)
-        with open(workspace_dir / safe_name, "w", encoding="utf-8") as f:
+        target_path = Path(workspace_dir / fname).resolve()
+        if not str(target_path).startswith(str(workspace_dir.resolve())):
+            continue
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(target_path, "w", encoding="utf-8") as f:
             f.write(content)
-        if safe_name.endswith(".sh"):
-            (workspace_dir / safe_name).chmod(0o755)
+        if fname.endswith(".sh"):
+            target_path.chmod(0o755)
             
     return {"success": True}
 

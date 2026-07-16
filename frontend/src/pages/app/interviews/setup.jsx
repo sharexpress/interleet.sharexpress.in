@@ -13,7 +13,7 @@ import {
 import { 
   Mic, MicOff, Volume2, Upload, FileText, CheckCircle, 
   AlertTriangle, ArrowLeft, ArrowRight, Play, Sparkles, Check,
-  Clock, DollarSign, Briefcase, RefreshCw, X, ShieldCheck
+  Clock, DollarSign, Briefcase, RefreshCw, X, ShieldCheck, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 import { API } from "@/api/api";
@@ -250,6 +250,47 @@ function InterviewSetupPage() {
   const [parsedJD, setParsedJD] = useState(null);
   const [resumeUploaded, setResumeUploaded] = useState(false);
 
+  const [resumes, setResumes] = useState([]);
+  const [resumesLoading, setResumesLoading] = useState(false);
+
+  const fetchResumes = async () => {
+    setResumesLoading(true);
+    try {
+      const res = await API.get("/resume/my-resumes");
+      if (res.data?.success) {
+        setResumes(res.data.resumes || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch resumes:", err);
+    } finally {
+      setResumesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchResumes();
+  }, []);
+
+  const handleDeleteResume = async (e, resumeId) => {
+    e.stopPropagation();
+    try {
+      const targetResume = resumes.find(r => r.id === resumeId);
+      const deleteRes = await API.delete(`/resume/${resumeId}`);
+      if (deleteRes.data?.success) {
+        toast.success("Resume deleted");
+        fetchResumes();
+        if (parsedJD && parsedJD.cloudinaryUrl === targetResume?.cloudinary_url) {
+          setSelectedFile(null);
+          setResumeUploaded(false);
+          setParsedJD(null);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete resume:", err);
+      toast.error("Failed to delete resume");
+    }
+  };
+
   // Handle microphone permissions and audio level analysis
   const requestMicPermission = async () => {
     try {
@@ -394,6 +435,7 @@ function InterviewSetupPage() {
       });
 
       toast.success("Resume parsed and interview tailored!");
+      fetchResumes();
     } catch (err) {
       console.error("Resume parsing error:", err);
       const status = err?.response?.status;
@@ -677,6 +719,55 @@ function InterviewSetupPage() {
                   {resumeUploaded && (
                     <div className="flex items-center gap-1.5 text-[11px] font-semibold text-success bg-success/5 border border-success/20 p-2 rounded">
                       <CheckCircle className="h-3.5 w-3.5" /> Context tailored and loaded.
+                    </div>
+                  )}
+
+                  {/* Previously uploaded resumes list */}
+                  {resumes.length > 0 && (
+                    <div className="pt-3 border-t border-zinc-800/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Select Previous Resume</span>
+                        {resumesLoading && <div className="h-3 w-3 animate-spin rounded-full border border-zinc-700 border-t-zinc-400" />}
+                      </div>
+                      <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+                        {resumes.map((resume) => {
+                          const isSelected = parsedJD && parsedJD.cloudinaryUrl === resume.cloudinary_url;
+                          return (
+                            <div
+                              key={resume.id}
+                              onClick={() => {
+                                setResumeUploaded(true);
+                                setSelectedFile({ name: resume.filename, isPrevious: true });
+                                setParsedJD({
+                                  skills: resume.parsed_resume?.skills?.slice(0, 8) || [],
+                                  technologies: resume.parsed_resume?.technologies?.slice(0, 6) || [],
+                                  summary: resume.parsed_resume?.summary || "",
+                                  topics: resume.mock_test?.topics || [],
+                                  cloudinaryUrl: resume.cloudinary_url || "",
+                                });
+                                toast.success(`Applied context: ${resume.filename}`);
+                              }}
+                              className={`group/item flex items-center justify-between gap-2 rounded border px-2.5 py-2 cursor-pointer transition-all ${
+                                isSelected
+                                  ? "border-orange-500/40 bg-orange-500/10 text-white"
+                                  : "border-zinc-800 bg-zinc-950/40 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900/40"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className={`h-3.5 w-3.5 flex-shrink-0 ${isSelected ? "text-orange-500" : "text-zinc-500"}`} />
+                                <span className="text-[10px] font-medium truncate font-mono">{resume.filename}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => handleDeleteResume(e, resume.id)}
+                                className="opacity-0 group-hover/item:opacity-100 p-1 text-zinc-500 hover:text-red-500 transition-all rounded hover:bg-zinc-800"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>

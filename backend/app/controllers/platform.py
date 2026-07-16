@@ -860,12 +860,15 @@ class PlatformController:
         progress_cursor = db.user_system_design_progress.find({"user_id": user_id})
         progress_list = await progress_cursor.to_list(length=100)
             
-        user_progress = {p["challenge_id"]: p["progress"] for p in progress_list}
+        user_progress = {
+            (p.get("challenge_id") or p.get("id")): p.get("progress", "Not Started")
+            for p in progress_list if (p.get("challenge_id") or p.get("id"))
+        }
         user_canvas = {
-            p["challenge_id"]: {
+            (p.get("challenge_id") or p.get("id")): {
                 "nodes": p["nodes"],
                 "edges": p["edges"]
-            } for p in progress_list if "nodes" in p and "edges" in p
+            } for p in progress_list if (p.get("challenge_id") or p.get("id")) and "nodes" in p and "edges" in p
         }
         
         base_attempts_map = {
@@ -880,7 +883,7 @@ class PlatformController:
         
         # Merge progress, attempts and relative times with challenges
         for c in ch:
-            user_entry = next((p for p in progress_list if p["challenge_id"] == c["id"]), None)
+            user_entry = next((p for p in progress_list if (p.get("challenge_id") or p.get("id")) == c["id"]), None)
             c["progress"] = user_entry.get("progress", "Not Started") if user_entry else "Not Started"
             
             if user_entry and user_entry.get("updated_at"):
@@ -906,7 +909,7 @@ class PlatformController:
         
         # Merge progress, attempts and relative times with templates
         for t in tpl:
-            user_entry = next((p for p in progress_list if p["challenge_id"] == t["id"]), None)
+            user_entry = next((p for p in progress_list if (p.get("challenge_id") or p.get("id")) == t["id"]), None)
             t["progress"] = user_entry.get("progress", "Not Started") if user_entry else "Not Started"
             
             if user_entry and user_entry.get("updated_at"):
@@ -931,11 +934,17 @@ class PlatformController:
         if progress not in ("Completed", "In Progress", "Not Started"):
             raise HTTPException(status_code=400, detail="Invalid progress status value")
             
-        prev = await db.user_system_design_progress.find_one({"user_id": user_id, "challenge_id": challenge_id})
+        prev = await db.user_system_design_progress.find_one({
+            "user_id": user_id,
+            "$or": [{"challenge_id": challenge_id}, {"id": challenge_id}]
+        })
         prev_progress = prev.get("progress") if prev else None
         
         await db.user_system_design_progress.update_one(
-            {"user_id": user_id, "challenge_id": challenge_id},
+            {
+                "user_id": user_id,
+                "$or": [{"challenge_id": challenge_id}, {"id": challenge_id}]
+            },
             {
                 "$set": {
                     "user_id": user_id,
@@ -975,9 +984,14 @@ class PlatformController:
     @staticmethod
     async def save_system_design_canvas(user_id: str, challenge_id: str, nodes: list, edges: list):
         await db.user_system_design_progress.update_one(
-            {"user_id": user_id, "challenge_id": challenge_id},
+            {
+                "user_id": user_id,
+                "$or": [{"challenge_id": challenge_id}, {"id": challenge_id}]
+            },
             {
                 "$set": {
+                    "user_id": user_id,
+                    "challenge_id": challenge_id,
                     "nodes": nodes,
                     "edges": edges,
                     "updated_at": datetime.utcnow()

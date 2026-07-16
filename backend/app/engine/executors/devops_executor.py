@@ -92,11 +92,14 @@ class DevOpsExecutor(BaseExecutor):
             files = json.loads(code)
             if isinstance(files, dict):
                 for fname, content in files.items():
-                    safe_name = os.path.basename(fname)
-                    async with aiofiles.open(workspace / safe_name, "w", encoding="utf-8") as f:
+                    target_path = Path(workspace / fname).resolve()
+                    if not str(target_path).startswith(str(workspace.resolve())):
+                        continue
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    async with aiofiles.open(target_path, "w", encoding="utf-8") as f:
                         await f.write(content)
-                    if safe_name.endswith(".sh"):
-                        (workspace / safe_name).chmod(0o755)
+                    if fname.endswith(".sh"):
+                        target_path.chmod(0o755)
                 if "setup.sh" in files:
                     self.filename = "setup.sh"
                     self.run_command = ["bash", "setup.sh"]

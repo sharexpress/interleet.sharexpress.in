@@ -123,9 +123,6 @@ class ChallengeController:
         doc = await db.problems.find_one({"slug": slug, "is_archived": {"$ne": True}})
 
         if not doc:
-            doc = next((c for c in CHALLENGES if c.get("slug") == slug), None)
-
-        if not doc:
             raise HTTPException(status_code=404, detail="Challenge not found")
 
         challenge_data = _to_frontend(_serialize(doc))

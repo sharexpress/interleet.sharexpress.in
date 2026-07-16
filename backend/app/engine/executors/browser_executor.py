@@ -162,6 +162,16 @@ class BrowserExecutor(BaseExecutor):
             logger.error("Failed to parse runner output: %s", e)
             return sandbox_result
 
+    async def execute(
+        self,
+        request,
+        testcase = None,
+    ):
+        if testcase:
+            testcase.time_limit = max(20.0, testcase.time_limit or request.time_limit)
+        request.time_limit = max(20.0, request.time_limit)
+        return await super().execute(request, testcase)
+
     async def run_batch_testcases(
         self,
         code: str,
@@ -169,8 +179,12 @@ class BrowserExecutor(BaseExecutor):
         time_limit: float,
         memory_limit: int,
     ) -> list[SandboxResult]:
-        """Override to parse the structured JSON output from the browser runner."""
-        results = await super().run_batch_testcases(code, testcases, time_limit, memory_limit)
+        """Override to parse the structured JSON output from the browser runner with boosted time limit."""
+        boosted_time_limit = max(20.0, time_limit)
+        for tc in testcases:
+            if tc:
+                tc.time_limit = max(20.0, tc.time_limit or time_limit)
+        results = await super().run_batch_testcases(code, testcases, boosted_time_limit, memory_limit)
         return [self._parse_runner_output(r) for r in results]
 
     async def run_testcase(
@@ -181,9 +195,29 @@ class BrowserExecutor(BaseExecutor):
         memory_limit: int,
         comparison_mode,
     ):
-        """Override to parse the structured JSON output for a single testcase."""
+        """Override to parse the structured JSON output for a single testcase with boosted time limit."""
+        boosted_time_limit = max(20.0, time_limit)
+        if testcase:
+            testcase.time_limit = max(20.0, testcase.time_limit or time_limit)
         sandbox_result, compile_result = await super().run_testcase(
-            code, testcase, time_limit, memory_limit, comparison_mode
+            code, testcase, boosted_time_limit, memory_limit, comparison_mode
         )
         return self._parse_runner_output(sandbox_result), compile_result
+
+    async def run_testcase_with_compile_workspace(
+        self,
+        code: str,
+        testcase: TestCaseSchema,
+        time_limit: float,
+        memory_limit: int,
+        compile_workspace = None,
+    ) -> SandboxResult:
+        """Override to parse the structured JSON output with boosted time limit."""
+        boosted_time_limit = max(20.0, time_limit)
+        if testcase:
+            testcase.time_limit = max(20.0, testcase.time_limit or time_limit)
+        sandbox_result = await super().run_testcase_with_compile_workspace(
+            code, testcase, boosted_time_limit, memory_limit, compile_workspace
+        )
+        return self._parse_runner_output(sandbox_result)
 
