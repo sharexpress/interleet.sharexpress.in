@@ -52,8 +52,8 @@ export default function ExecutionTimeline({ steps }) {
                   {step.stderr}
                 </pre>
               )}
-              {step.stdout && step.status !== 'passed' && !step.stderr && (
-                <pre className="mt-2 rounded-md border border-white/10 bg-white/5 p-2 text-xs font-mono text-slate-300 overflow-x-auto">
+              {step.stdout && step.status !== 'passed' && (
+                <pre className="mt-2 rounded-md border border-red-500/20 bg-red-500/10 p-2 text-xs font-mono text-red-300 overflow-x-auto">
                   {step.stdout}
                 </pre>
               )}

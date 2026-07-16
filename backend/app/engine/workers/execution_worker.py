@@ -217,10 +217,12 @@ class ExecutionWorker:
             # Category-aware scoring for anti-overfitting detection
             category_scores = JudgeEngine.score_by_category(testcase_results)
 
-            # Build first testcase stdout/stderr for non-submission runs
+            # Build stdout/stderr: prefer first FAILING testcase so the timeline
+            # shows the actual error, not a passing TC's "PASS" output.
             first_result = testcase_results[0] if testcase_results else None
-            stdout = first_result.stdout if first_result else ""
-            stderr = first_result.stderr if first_result else ""
+            first_failing = next((r for r in testcase_results if r and not r.passed), first_result)
+            stdout = (first_failing.stdout if first_failing else "") or ""
+            stderr = (first_failing.stderr if first_failing else "") or ""
             exit_code = first_result.exit_code if first_result else 0
 
             from app.engine.runtimes.registry import RuntimeRegistry
