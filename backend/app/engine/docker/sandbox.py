@@ -480,9 +480,9 @@ class DockerSandbox:
                 "image": image,
                 "command": wrapped_command,
                 "volumes": {
-                    workspace_base: {"bind": "/workspace", "mode": "rw"}
+                    str(workspace.resolve()): {"bind": "/workspace", "mode": "rw"}
                 },
-                "working_dir": container_workspace,
+                "working_dir": "/workspace",
                 "network_disabled": True,
                 "mem_limit": f"{memory_limit_mb}m",
                 "memswap_limit": f"{memory_limit_mb}m",
