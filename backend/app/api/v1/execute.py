@@ -198,11 +198,7 @@ async def create_submission(
         is_premium = False
         if challenge:
             is_premium = challenge.get("is_premium", False) or challenge.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
-        else:
-            from app.data.seed import CHALLENGES
-            c_seed = next((c for c in CHALLENGES if c.get("slug") == request.problem_slug), None)
-            if c_seed:
-                is_premium = c_seed.get("is_premium", False) or c_seed.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
+
 
         # Verify if bypassed by contest
         bypassed = False
@@ -456,12 +452,7 @@ class DevOpsSessionExecRequest(BaseModel):
 async def api_start_devops_session(request: DevOpsSessionStartRequest):
     db = get_db()
     
-    # 1. Fetch challenge details from DB to get starter code
     challenge = await db.problems.find_one({"slug": request.slug})
-    if not challenge:
-        from app.data.seed import CHALLENGES
-        challenge = next((c for c in CHALLENGES if c.get("slug") == request.slug), None)
-        
     if not challenge:
         raise HTTPException(status_code=404, detail="DevOps challenge not found")
         

@@ -66,11 +66,7 @@ async def submit_code(
         is_premium = False
         if challenge:
             is_premium = challenge.get("is_premium", False) or challenge.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
-        else:
-            from app.data.seed import CHALLENGES
-            c_seed = next((c for c in CHALLENGES if c.get("slug") == payload.problem_slug), None)
-            if c_seed:
-                is_premium = c_seed.get("is_premium", False) or c_seed.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
+
 
         # Verify if bypassed by contest
         bypassed = False

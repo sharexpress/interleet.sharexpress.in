@@ -20,7 +20,7 @@ from typing import Optional
 from fastapi import HTTPException
 
 from app.core.db import get_db
-from app.data.seed import CHALLENGES, DOMAINS
+from app.data.seed import DOMAINS
 from app.models.challenge import ChallengeModel, ChallengeDomain, ChallengeDifficulty
 
 db = get_db()

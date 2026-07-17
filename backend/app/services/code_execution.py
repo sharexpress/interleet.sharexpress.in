@@ -21,7 +21,7 @@ import httpx
 
 from app.core.config import JUDGE0_API_KEY, JUDGE0_API_URL, JUDGE0_CALLBACK_URL, JUDGE0_RAPIDAPI_HOST
 from app.core.db import get_db
-from app.data.seed import CHALLENGES
+
 
 
 LANGUAGE_IDS = {
@@ -309,10 +309,8 @@ class CodeExecutionService:
         stored = await cls.db.problems.find_one({"id": slug_or_id})
         if stored:
             return stored
-        for problem in CHALLENGES:
-            if problem.get("slug") == slug_or_id or problem.get("id") == slug_or_id:
-                return problem
         raise ValueError("Problem not found")
+
 
     @classmethod
     async def _get_testcases(cls, problem_slug: str, *, include_hidden: bool) -> list[dict[str, Any]]:

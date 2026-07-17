@@ -169,8 +169,43 @@ def main():
         logs.append(f"Warning: Failed to parse stdin.txt requests: {e}")
 
     # Execute requests
+    import re
+    
+    context = {"responses": []}
+    
+    def get_nested_value(obj, path_str):
+        parts = path_str.split('.')
+        current = obj
+        for part in parts:
+            if current is None:
+                return None
+            if isinstance(current, dict):
+                current = current.get(part)
+            elif isinstance(current, list):
+                try:
+                    current = current[int(part)]
+                except:
+                    return None
+            else:
+                return None
+        return current
+
+    def replace_templates(val, ctx):
+        if isinstance(val, str):
+            def repl(match):
+                key = match.group(1).strip()
+                res = get_nested_value(ctx, key)
+                return str(res) if res is not None else match.group(0)
+            return re.sub(r'\{\{([^}]+)\}\}', repl, val)
+        elif isinstance(val, list):
+            return [replace_templates(item, ctx) for item in val]
+        elif isinstance(val, dict):
+            return {k: replace_templates(v, ctx) for k, v in val.items()}
+        return val
+
     responses = []
-    for req in requests:
+    for raw_req in requests:
+        req = replace_templates(raw_req, context)
         method = req.get("method", "GET")
         path = req.get("path", "/")
         headers = req.get("headers", {})
@@ -179,7 +214,7 @@ def main():
         url = f"http://127.0.0.1:{port}{path}"
         
         data = None
-        if body:
+        if body is not None:
             if isinstance(body, dict) or isinstance(body, list):
                 data = json.dumps(body).encode("utf-8")
                 if "Content-Type" not in headers:
@@ -225,6 +260,9 @@ def main():
             }
             
         responses.append(res_data)
+        context["responses"].append(res_data)
+        if res_data["response"] and isinstance(res_data["response"].get("body"), dict):
+            context.update(res_data["response"]["body"])
 
     # Clean up
     process.terminate()

@@ -281,9 +281,48 @@ async function main() {
     logs.push(`Warning: Failed to parse stdin.txt requests: ${e.message}`);
   }
 
+  const context = { responses: [] };
+
+  function getNestedValue(obj, pathStr) {
+    const parts = pathStr.split('.');
+    let current = obj;
+    for (const part of parts) {
+      if (current === null || current === undefined) return undefined;
+      current = current[part];
+    }
+    return current;
+  }
+
+  function replaceTemplates(value, ctx) {
+    if (typeof value === 'string') {
+      return value.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+        const trimmed = key.trim();
+        const val = getNestedValue(ctx, trimmed);
+        return val !== undefined ? String(val) : match;
+      });
+    } else if (value && typeof value === 'object') {
+      if (Array.isArray(value)) {
+        return value.map(item => replaceTemplates(item, ctx));
+      } else {
+        const newObj = {};
+        for (const k in value) {
+          newObj[k] = replaceTemplates(value[k], ctx);
+        }
+        return newObj;
+      }
+    }
+    return value;
+  }
+
   const responses = [];
-  for (const req of requests) {
-    responses.push(await makeRequest(port, req));
+  for (const rawReq of requests) {
+    const req = replaceTemplates(rawReq, context);
+    const resData = await makeRequest(port, req);
+    responses.push(resData);
+    context.responses.push(resData);
+    if (resData.response && resData.response.body && typeof resData.response.body === 'object') {
+      Object.assign(context, resData.response.body);
+    }
   }
 
   serverProcess.kill();

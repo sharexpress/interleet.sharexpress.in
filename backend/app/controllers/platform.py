@@ -23,7 +23,6 @@ from app.core.db import get_db
 from app.data.seed import (
     ACTIVITY_WEEKLY,
     CANDIDATES,
-    CHALLENGES,
     DOMAINS,
     INTERVIEW_HISTORY,
     LEADERBOARD,
@@ -431,7 +430,8 @@ class PlatformController:
         difficulty: str | None = None,
         sort: str = "popular",
     ):
-        challenges = await _collection_or_seed("problems", CHALLENGES)
+        cursor = db.problems.find({"is_archived": {"$ne": True}})
+        challenges = [_serialize(doc) async for doc in cursor]
         items = []
         for challenge in challenges:
             if domain and domain != "all" and challenge.get("domain") != domain:
@@ -455,10 +455,13 @@ class PlatformController:
 
     @staticmethod
     async def get_challenge(slug: str, requesting_user: dict | None = None):
-        challenges = await _collection_or_seed("problems", CHALLENGES)
-        challenge = next((item for item in challenges if item.get("slug") == slug or item.get("id") == slug), None)
-        if not challenge:
+        challenge_doc = await db.problems.find_one({"slug": slug, "is_archived": {"$ne": True}})
+        if not challenge_doc:
+            # Try by id
+            challenge_doc = await db.problems.find_one({"id": slug, "is_archived": {"$ne": True}})
+        if not challenge_doc:
             raise HTTPException(status_code=404, detail="Challenge not found")
+        challenge = _serialize(challenge_doc)
         
         # Inject is_premium dynamically
         challenge["is_premium"] = challenge.get("is_premium", False) or challenge.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
