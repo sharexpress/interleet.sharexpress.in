@@ -1367,14 +1367,9 @@ export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
     if (dbChallenge.starter_code[lang]) {
       return dbChallenge.starter_code[lang];
     }
-    // Challenge has starter_code but not for this language — return first available
-    // rather than falling through to unrelated DEFAULT_STARTER DB boilerplate
-    const firstKey = Object.keys(dbChallenge.starter_code)[0];
-    if (firstKey) {
-      return dbChallenge.starter_code[firstKey];
-    }
+    // No starter for this language in the challenge — fall through to DEFAULT_STARTER[lang]
+    // so each language gets its own proper template (NOT another language's starter code)
   }
-  // Only reach DEFAULT_STARTER for challenges with no starter_code at all
   return STARTERS[slug]?.[dbKey] ?? STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[dbKey] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
 }
 
