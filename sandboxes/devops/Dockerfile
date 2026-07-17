@@ -11,7 +11,8 @@ RUN apk add --no-cache \
     iproute2 \
     net-tools \
     bind-tools \
-    nginx
+    nginx \
+    git
 
 RUN addgroup -S judge && adduser -S -G judge -H -s /bin/bash judge
 RUN echo "judge ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
