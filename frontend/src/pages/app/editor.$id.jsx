@@ -264,6 +264,10 @@ function EditorPage() {
   const [selectedDb, setSelectedDb] = useState("sqlite");
   const [code, setCode] = useState(() => getInitialState().code);
   const [consoleResult, setResult] = useState(null);
+  const [liveLogs, setLiveLogs] = useState([]);
+  const onConsoleLog = useCallback((entry) => {
+    setLiveLogs((prev) => [...prev, entry]);
+  }, []);
   const [activeTab, setActiveTab] = useState(() => typeof window !== "undefined" && window.innerWidth < 768 ? "description" : "testcase");
   const [customTestCases, setCustomTestCases] = useState([]);
   const [selectedTestCaseIdx, setSelectedTestCaseIdx] = useState(0);
@@ -699,6 +703,8 @@ function EditorPage() {
   );
 
   const handleCodeChange = useCallback((newValue) => {
+    // Clear browser console on code change for Frontend (like a browser reload)
+    if (c?.domain === "Frontend") setLiveLogs([]);
     if (isMultiFileDomain) {
       setMultiFiles((prev) => {
         const next = { ...prev, [activeFile]: newValue };
@@ -709,7 +715,7 @@ function EditorPage() {
     } else {
       setCode(newValue);
     }
-  }, [isMultiFileDomain, activeFile]);
+  }, [isMultiFileDomain, activeFile, c?.domain]);
 
   // Run — executes custom test cases or visible sample test cases
   const handleRun = useCallback(() => {
@@ -883,7 +889,7 @@ function EditorPage() {
             </DrawerTrigger>
             <DrawerContent className="p-0">
               <div className="flex h-[85vh] flex-col overflow-hidden">
-                <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} />
+                <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} onConsoleLog={onConsoleLog} />
               </div>
             </DrawerContent>
           </Drawer>
@@ -1188,17 +1194,32 @@ function EditorPage() {
                     </TabsTrigger>
                     <TabsTrigger value="console" className="h-7 px-3 text-xs">
                       <TerminalIcon className="mr-1 h-3 w-3" /> Console
-                      {consoleResult && (
-                        <span
-                          className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold ${consoleResult.errors.length > 0
-                              ? "bg-destructive/20 text-destructive"
-                              : "bg-success/20 text-success"
+                      {c?.domain === "Frontend" ? (
+                        liveLogs.length > 0 && (
+                          <span
+                            className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold ${
+                              liveLogs.some(e => e.type === "error")
+                                ? "bg-destructive/20 text-destructive"
+                                : "bg-blue-500/20 text-blue-400"
                             }`}
-                        >
-                          {consoleResult.errors.length > 0
-                            ? consoleResult.errors.length
-                            : consoleResult.logs.length}
-                        </span>
+                          >
+                            {liveLogs.length}
+                          </span>
+                        )
+                      ) : (
+                        consoleResult && (
+                          <span
+                            className={`ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold ${
+                              consoleResult.errors.length > 0
+                                ? "bg-destructive/20 text-destructive"
+                                : "bg-success/20 text-success"
+                            }`}
+                          >
+                            {consoleResult.errors.length > 0
+                              ? consoleResult.errors.length
+                              : consoleResult.logs.length}
+                          </span>
+                        )
                       )}
                     </TabsTrigger>
                     {c?.domain === "DevOps" && (
@@ -1390,9 +1411,13 @@ function EditorPage() {
                   )}
                 </TabsContent>
 
-                {/* Console tab: legacy local output (JS/TS eval) */}
                 <TabsContent value="console" className="m-0 overflow-auto p-3" style={{ height: "calc(100% - 36px)" }}>
-                  <ConsoleOutput result={consoleResult} isRunning={false} />
+                  <ConsoleOutput
+                    result={consoleResult}
+                    isRunning={false}
+                    liveLogs={liveLogs}
+                    isFrontend={c?.domain === "Frontend"}
+                  />
                 </TabsContent>
 
                 {/* DevOps Terminal tab */}
@@ -1426,7 +1451,7 @@ function EditorPage() {
             className={`hidden h-full flex-col overflow-hidden bg-card xl:flex ${isDraggingAny ? "pointer-events-none" : ""}`}
             style={{ width: rightW, minWidth: MIN_COL, flexShrink: 0 }}
           >
-            <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} />
+            <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} onConsoleLog={onConsoleLog} />
           </aside>
         </div>
       )}

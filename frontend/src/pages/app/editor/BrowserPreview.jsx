@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { memo } from "react";
+import { memo, useEffect, useRef, useCallback } from "react";
 import {
   RotateCw,
   Lock,
@@ -93,6 +93,28 @@ function getFrontendSrcDoc(slug, title) {
   }
 }
 
+// ─── Console Interceptor ─────────────────────────────────────────────────────
+// Injected into the iframe srcdoc to forward console.* calls to the parent via postMessage
+const CONSOLE_INTERCEPTOR = `<script>
+(function() {
+  var _c = window.console;
+  ['log','warn','error','info','debug'].forEach(function(type) {
+    var orig = _c[type].bind(_c);
+    _c[type] = function() {
+      var args = Array.prototype.slice.call(arguments).map(function(a) {
+        try { return typeof a === 'object' ? JSON.parse(JSON.stringify(a)) : a; }
+        catch(e) { return String(a); }
+      });
+      orig.apply(_c, arguments);
+      try { window.parent.postMessage({ __interleet_console: true, type: type, args: args, ts: Date.now() }, '*'); } catch(e) {}
+    };
+  });
+  window.addEventListener('error', function(e) {
+    try { window.parent.postMessage({ __interleet_console: true, type: 'error', args: [e.message + (e.filename ? ' (' + e.filename + ':' + e.lineno + ')' : '')], ts: Date.now() }, '*'); } catch(err) {}
+  });
+})();
+<\/script>`;
+
 function compileFrontendCode(code, slug, title) {
   if (!code) return getFrontendSrcDoc(slug, title);
   try {
@@ -109,9 +131,9 @@ function compileFrontendCode(code, slug, title) {
       // Inject css
       const styleTag = `<style>\n${css}\n</style>`;
       if (html.includes("</head>")) {
-        html = html.replace("</head>", `${styleTag}\n</head>`);
+        html = html.replace("</head>", `${CONSOLE_INTERCEPTOR}\n${styleTag}\n</head>`);
       } else {
-        html = `${styleTag}\n${html}`;
+        html = `${CONSOLE_INTERCEPTOR}\n${styleTag}\n${html}`;
       }
 
       // Inject js
@@ -133,11 +155,25 @@ function compileFrontendCode(code, slug, title) {
 
 const FRONTEND_DOMAINS = new Set(["Frontend"]);
 
-const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execState, isMultiFileDomain }) {
+const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execState, isMultiFileDomain, onConsoleLog }) {
+  const iframeRef = useRef(null);
+
+  // Listen for postMessage console events from the iframe
+  useEffect(() => {
+    if (!FRONTEND_DOMAINS.has(domain)) return;
+    function handleMessage(event) {
+      if (!event.data || !event.data.__interleet_console) return;
+      if (onConsoleLog) onConsoleLog({ type: event.data.type, args: event.data.args, ts: event.data.ts });
+    }
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [domain, onConsoleLog]);
+
   if (FRONTEND_DOMAINS.has(domain)) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden bg-white">
         <iframe
+          ref={iframeRef}
           title={`${title} preview`}
           srcDoc={compileFrontendCode(code, slug, title)}
           sandbox="allow-scripts"
@@ -398,7 +434,7 @@ const PreviewArea = memo(function PreviewArea({ domain, slug, title, code, execS
   );
 });
 
-export const BrowserPreview = memo(function BrowserPreview({ domain, slug, title, code, execState, isMultiFileDomain }) {
+export const BrowserPreview = memo(function BrowserPreview({ domain, slug, title, code, execState, isMultiFileDomain, onConsoleLog }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-card">
       <div className="border-b border-border bg-background/60 px-3 py-2">
@@ -420,7 +456,7 @@ export const BrowserPreview = memo(function BrowserPreview({ domain, slug, title
           </button>
         </div>
       </div>
-      <PreviewArea domain={domain} slug={slug} title={title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} />
+      <PreviewArea domain={domain} slug={slug} title={title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} onConsoleLog={onConsoleLog} />
     </div>
   );
 });
