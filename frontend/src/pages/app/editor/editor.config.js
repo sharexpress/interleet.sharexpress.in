@@ -619,196 +619,201 @@ app.listen(PORT, () => {
 });`
     }),
     py_sqlite: JSON.stringify({
-      "solution.py": `from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+      "solution.py": `import os
 import sqlite3
-import os
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 app = FastAPI()
 
 def get_db():
-    conn = sqlite3.connect('db.sqlite')
+    conn = sqlite3.connect("db.sqlite")
     conn.row_factory = sqlite3.Row
     return conn
 
-@app.get('/health')
-def health():
-    return {'status': 'ok'}
-
 class TaskCreate(BaseModel):
     title: str
     description: str | None = None
 
-@app.get('/tasks')
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/tasks")
 def get_tasks():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT * FROM tasks')
+    cursor.execute("SELECT * FROM tasks")
     rows = cursor.fetchall()
     conn.close()
-    return [{**dict(r), 'completed': bool(r['completed'])} for r in rows]
+    return [dict(r) for r in rows]
 
-@app.post('/tasks', status_code=201)
+@app.post("/tasks", status_code=201)
 def create_task(task: TaskCreate):
-    if not task.title:
-        raise HTTPException(status_code=400, detail='Title is required')
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)', (task.title, task.description))
-    conn.commit()
-    task_id = cursor.lastrowid
-    conn.close()
-    return {'id': task_id, 'title': task.title, 'description': task.description, 'completed': False}
-
-# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}
-
-if __name__ == '__main__':
-    import uvicorn
-    port = int(os.environ.get('PORT', 3000))
-    uvicorn.run(app, host='127.0.0.1', port=port)`
+    try:
+        cursor.execute(
+            "INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)",
+            (task.title, task.description)
+        )
+        conn.commit()
+        task_id = cursor.lastrowid
+        conn.close()
+        return {"id": task_id, "title": task.title, "description": task.description, "completed": False}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+`
     }),
     py_postgres: JSON.stringify({
-      "solution.py": `from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+      "solution.py": `import os
 import psycopg2
-import os
+from psycopg2.extras import RealDictCursor
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 app = FastAPI()
 
 def get_db():
-    return psycopg2.connect(os.environ.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/tasks'))
-
-@app.get('/health')
-def health():
-    return {'status': 'ok'}
+    conn_str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/tasks")
+    return psycopg2.connect(conn_str, cursor_factory=RealDictCursor)
 
 class TaskCreate(BaseModel):
     title: str
     description: str | None = None
 
-@app.get('/tasks')
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/tasks")
 def get_tasks():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT id, title, description, completed FROM tasks')
+    cursor.execute("SELECT * FROM tasks")
     rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return [{'id': r[0], 'title': r[1], 'description': r[2], 'completed': r[3]} for r in rows]
-
-@app.post('/tasks', status_code=201)
-def create_task(task: TaskCreate):
-    if not task.title:
-        raise HTTPException(status_code=400, detail='Title is required')
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute(
-        'INSERT INTO tasks (title, description, completed) VALUES (%s, %s, false) RETURNING id, title, description, completed',
-        (task.title, task.description)
-    )
-    new_task = cursor.fetchone()
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return {'id': new_task[0], 'title': new_task[1], 'description': new_task[2], 'completed': new_task[3]}
-
-# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}
-
-if __name__ == '__main__':
-    import uvicorn
-    port = int(os.environ.get('PORT', 3000))
-    uvicorn.run(app, host='127.0.0.1', port=port)`
-    }),
-    py_mongodb: JSON.stringify({
-      "solution.py": `from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from pymongo import MongoClient
-import os
-
-app = FastAPI()
-client = MongoClient(os.environ.get('MONGO_URI', 'mongodb://localhost:27017'))
-db = client['tasks_db']
-
-@app.get('/health')
-def health():
-    return {'status': 'ok'}
-
-class TaskCreate(BaseModel):
-    title: str
-    description: str | None = None
-
-@app.get('/tasks')
-def get_tasks():
-    tasks = list(db.tasks.find({}))
-    return [{'id': str(t['_id']), 'title': t.get('title'), 'description': t.get('description'), 'completed': t.get('completed', False)} for t in tasks]
-
-@app.post('/tasks', status_code=201)
-def create_task(task: TaskCreate):
-    if not task.title:
-        raise HTTPException(status_code=400, detail='Title is required')
-    new_task = {'title': task.title, 'description': task.description, 'completed': False}
-    result = db.tasks.insert_one(new_task)
-    return {'id': str(result.inserted_id), **new_task}
-
-# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}
-
-if __name__ == '__main__':
-    import uvicorn
-    port = int(os.environ.get('PORT', 3000))
-    uvicorn.run(app, host='127.0.0.1', port=port)`
-    }),
-    py_mysql: JSON.stringify({
-      "solution.py": `from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import pymysql
-import os
-
-app = FastAPI()
-
-def get_db():
-    return pymysql.connect(
-        host=os.environ.get('DB_HOST', 'localhost'),
-        user=os.environ.get('DB_USER', 'root'),
-        password=os.environ.get('DB_PASSWORD', 'root'),
-        database=os.environ.get('DB_NAME', 'tasks'),
-        cursorclass=pymysql.cursors.DictCursor
-    )
-
-@app.get('/health')
-def health():
-    return {'status': 'ok'}
-
-class TaskCreate(BaseModel):
-    title: str
-    description: str | None = None
-
-@app.get('/tasks')
-def get_tasks():
-    conn = get_db()
-    with conn.cursor() as cursor:
-        cursor.execute('SELECT * FROM tasks')
-        rows = cursor.fetchall()
     conn.close()
     return rows
 
-@app.post('/tasks', status_code=201)
+@app.post("/tasks", status_code=201)
 def create_task(task: TaskCreate):
-    if not task.title:
-        raise HTTPException(status_code=400, detail='Title is required')
     conn = get_db()
-    with conn.cursor() as cursor:
-        cursor.execute('INSERT INTO tasks (title, description, completed) VALUES (%s, %s, false)', (task.title, task.description))
-        task_id = conn.insert_id()
-    conn.commit()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO tasks (title, description, completed) VALUES (%s, %s, false) RETURNING *",
+            (task.title, task.description)
+        )
+        conn.commit()
+        new_task = cursor.fetchone()
+        conn.close()
+        return new_task
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+`
+    }),
+    py_mongodb: JSON.stringify({
+      "solution.py": `import os
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from pymongo import MongoClient
+
+app = FastAPI()
+
+client = MongoClient(os.environ.get("MONGO_URI", "mongodb://localhost:27017"))
+db = client["tasks_db"]
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str | None = None
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/tasks")
+def get_tasks():
+    tasks = list(db["tasks"].find({}))
+    return [
+        {
+            "id": str(t["_id"]),
+            "title": t["title"],
+            "description": t.get("description"),
+            "completed": t.get("completed", False)
+        } for t in tasks
+    ]
+
+@app.post("/tasks", status_code=201)
+def create_task(task: TaskCreate):
+    try:
+        new_task = {"title": task.title, "description": task.description, "completed": False}
+        result = db["tasks"].insert_one(new_task)
+        return {"id": str(result.inserted_id), **new_task}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+`
+    }),
+    py_mysql: JSON.stringify({
+      "solution.py": `import os
+import pymysql
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+
+app = FastAPI()
+
+def get_db():
+    url = os.getenv("DATABASE_URL", "mysql://root:root@localhost:3306/tasks")
+    # Parse mysql://root:root@localhost:3306/tasks
+    parts = url.replace("mysql://", "").split("@")
+    user_pass = parts[0].split(":")
+    host_port_db = parts[1].split("/")
+    host_port = host_port_db[0].split(":")
+    
+    return pymysql.connect(
+        host=host_port[0],
+        port=int(host_port[1]) if len(host_port) > 1 else 3306,
+        user=user_pass[0],
+        password=user_pass[1] if len(user_pass) > 1 else "",
+        database=host_port_db[1],
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str | None = None
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/tasks")
+def get_tasks():
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tasks")
+    rows = cursor.fetchall()
     conn.close()
-    return {'id': task_id, 'title': task.title, 'description': task.description, 'completed': False}
+    return rows
 
-# TODO: Implement GET /tasks/{task_id}, PUT /tasks/{task_id}, and DELETE /tasks/{task_id}
-
-if __name__ == '__main__':
-    import uvicorn
-    port = int(os.environ.get('PORT', 3000))
-    uvicorn.run(app, host='127.0.0.1', port=port)`
+@app.post("/tasks", status_code=201)
+def create_task(task: TaskCreate):
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO tasks (title, description, completed) VALUES (%s, %s, false)",
+            (task.title, task.description)
+        )
+        conn.commit()
+        task_id = cursor.lastrowid
+        conn.close()
+        return {"id": task_id, "title": task.title, "description": task.description, "completed": False}
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+`
     }),
     go_sqlite: JSON.stringify({
       "main.go": `package main
@@ -817,22 +822,13 @@ import (
 	"database/sql"
 	"net/http"
 	"os"
+
 	"github.com/gin-gonic/gin"
 	_ "github.com/glebarez/go-sqlite"
 )
 
-type Task struct {
-	ID          int    \`json:"id"\`
-	Title       string \`json:"title"\`
-	Description string \`json:"description"\`
-	Completed   bool   \`json:"completed"\`
-}
-
-var db *sql.DB
-
 func main() {
-	var err error
-	db, err = sql.Open("sqlite", "db.sqlite")
+	db, err := sql.Open("sqlite", "db.sqlite")
 	if err != nil {
 		panic(err)
 	}
@@ -851,31 +847,49 @@ func main() {
 		}
 		defer rows.Close()
 
-		var tasks []Task
+		var tasks []map[string]any
 		for rows.Next() {
-			var t Task
-			var completed int
-			rows.Scan(&t.ID, &t.Title, &t.Description, &completed)
-			t.Completed = completed == 1
-			tasks = append(tasks, t)
+			var id int
+			var title, desc string
+			var completed bool
+			rows.Scan(&id, &title, &desc, &completed)
+			tasks = append(tasks, map[string]any{
+				"id":          id,
+				"title":       title,
+				"description": desc,
+				"completed":   completed,
+			})
 		}
 		c.JSON(http.StatusOK, tasks)
 	})
 
 	r.POST("/tasks", func(c *gin.Context) {
-		var t Task
-		c.BindJSON(&t)
-		if t.Title == "" {
+		var req struct {
+			Title       string \`json:"title"\`
+			Description string \`json:"description"\`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if req.Title == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
 			return
 		}
-		res, _ := db.Exec("INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)", t.Title, t.Description)
-		id, _ := res.LastInsertId()
-		t.ID = int(id)
-		c.JSON(http.StatusCreated, t)
-	})
 
-	// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+		res, err := db.Exec("INSERT INTO tasks (title, description, completed) VALUES (?, ?, 0)", req.Title, req.Description)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		lastID, _ := res.LastInsertId()
+		c.JSON(http.StatusCreated, gin.H{
+			"id":          lastID,
+			"title":       req.Title,
+			"description": req.Description,
+			"completed":   false,
+		})
+	})
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -891,22 +905,13 @@ import (
 	"database/sql"
 	"net/http"
 	"os"
+
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
 
-type Task struct {
-	ID          int    \`json:"id"\`
-	Title       string \`json:"title"\`
-	Description string \`json:"description"\`
-	Completed   bool   \`json:"completed"\`
-}
-
-var db *sql.DB
-
 func main() {
-	var err error
-	db, err = sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		panic(err)
 	}
@@ -925,31 +930,55 @@ func main() {
 		}
 		defer rows.Close()
 
-		var tasks []Task
+		var tasks []map[string]any
 		for rows.Next() {
-			var t Task
-			rows.Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
-			tasks = append(tasks, t)
+			var id int
+			var title, desc string
+			var completed bool
+			rows.Scan(&id, &title, &desc, &completed)
+			tasks = append(tasks, map[string]any{
+				"id":          id,
+				"title":       title,
+				"description": desc,
+				"completed":   completed,
+			})
 		}
 		c.JSON(http.StatusOK, tasks)
 	})
 
 	r.POST("/tasks", func(c *gin.Context) {
-		var t Task
-		c.BindJSON(&t)
-		if t.Title == "" {
+		var req struct {
+			Title       string \`json:"title"\`
+			Description string \`json:"description"\`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if req.Title == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
 			return
 		}
-		err := db.QueryRow("INSERT INTO tasks (title, description, completed) VALUES ($1, $2, false) RETURNING id", t.Title, t.Description).Scan(&t.ID)
+
+		var id int
+		var completed bool
+		err = db.QueryRow(
+			"INSERT INTO tasks (title, description, completed) VALUES ($1, $2, false) RETURNING id, completed",
+			req.Title, req.Description,
+		).Scan(&id, &completed)
+
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusCreated, t)
-	})
 
-	// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
+		c.JSON(http.StatusCreated, gin.H{
+			"id":          id,
+			"title":       req.Title,
+			"description": req.Description,
+			"completed":   completed,
+		})
+	})
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -966,6 +995,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -973,22 +1003,22 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type Task struct {
-	ID          string \`json:"id" bson:"_id,omitempty"\`
-	Title       string \`json:"title" bson:"title"\`
-	Description string \`json:"description" bson:"description"\`
-	Completed   bool   \`json:"completed" bson:"completed"\`
-}
-
 var collection *mongo.Collection
 
 func main() {
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(os.Getenv("MONGO_URI")))
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
 	if err != nil {
 		panic(err)
 	}
+	defer client.Disconnect(ctx)
+
 	collection = client.Database("tasks_db").Collection("tasks")
 
 	r := gin.Default()
@@ -1004,33 +1034,55 @@ func main() {
 		}
 		defer cursor.Close(context.Background())
 
-		var tasks []Task
+		var tasks []map[string]any
 		for cursor.Next(context.Background()) {
-			var t Task
+			var t struct {
+				ID          primitive.ObjectID \`bson:"_id"\`
+				Title       string             \`bson:"title"\`
+				Description string             \`bson:"description"\`
+				Completed   bool               \`bson:"completed"\`
+			}
 			cursor.Decode(&t)
-			tasks = append(tasks, t)
+			tasks = append(tasks, map[string]any{
+				"id":          t.ID.Hex(),
+				"title":       t.Title,
+				"description": t.Description,
+				"completed":   t.Completed,
+			})
 		}
 		c.JSON(http.StatusOK, tasks)
 	})
 
 	r.POST("/tasks", func(c *gin.Context) {
-		var t Task
-		c.BindJSON(&t)
-		if t.Title == "" {
+		var req struct {
+			Title       string \`json:"title"\`
+			Description string \`json:"description"\`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if req.Title == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
 			return
 		}
-		t.Completed = false
-		res, err := collection.InsertOne(context.Background(), t)
+
+		res, err := collection.InsertOne(context.Background(), bson.M{
+			"title":       req.Title,
+			"description": req.Description,
+			"completed":   false,
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		t.ID = res.InsertedID.(primitive.ObjectID).Hex()
-		c.JSON(http.StatusCreated, t)
+		c.JSON(http.StatusCreated, gin.H{
+			"id":          res.InsertedID.(primitive.ObjectID).Hex(),
+			"title":       req.Title,
+			"description": req.Description,
+			"completed":   false,
+		})
 	})
-
-	// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -1046,22 +1098,17 @@ import (
 	"database/sql"
 	"net/http"
 	"os"
+
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 )
 
-type Task struct {
-	ID          int    \`json:"id"\`
-	Title       string \`json:"title"\`
-	Description string \`json:"description"\`
-	Completed   bool   \`json:"completed"\`
-}
-
-var db *sql.DB
-
 func main() {
-	var err error
-	db, err = sql.Open("mysql", os.Getenv("DATABASE_URL"))
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "root:root@tcp(127.0.0.1:3306)/db"
+	}
+	db, err := sql.Open("mysql", dbURL)
 	if err != nil {
 		panic(err)
 	}
@@ -1080,33 +1127,49 @@ func main() {
 		}
 		defer rows.Close()
 
-		var tasks []Task
+		var tasks []map[string]any
 		for rows.Next() {
-			var t Task
-			rows.Scan(&t.ID, &t.Title, &t.Description, &t.Completed)
-			tasks = append(tasks, t)
+			var id int
+			var title, desc string
+			var completed bool
+			rows.Scan(&id, &title, &desc, &completed)
+			tasks = append(tasks, map[string]any{
+				"id":          id,
+				"title":       title,
+				"description": desc,
+				"completed":   completed,
+			})
 		}
 		c.JSON(http.StatusOK, tasks)
 	})
 
 	r.POST("/tasks", func(c *gin.Context) {
-		var t Task
-		c.BindJSON(&t)
-		if t.Title == "" {
+		var req struct {
+			Title       string \`json:"title"\`
+			Description string \`json:"description"\`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		if req.Title == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
 			return
 		}
-		res, err := db.Exec("INSERT INTO tasks (title, description, completed) VALUES (?, ?, false)", t.Title, t.Description)
+
+		res, err := db.Exec("INSERT INTO tasks (title, description, completed) VALUES (?, ?, false)", req.Title, req.Description)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		id, _ := res.LastInsertId()
-		t.ID = int(id)
-		c.JSON(http.StatusCreated, t)
+		lastID, _ := res.LastInsertId()
+		c.JSON(http.StatusCreated, gin.H{
+			"id":          lastID,
+			"title":       req.Title,
+			"description": req.Description,
+			"completed":   false,
+		})
 	})
-
-	// TODO: Implement GET /tasks/:id, PUT /tasks/:id, and DELETE /tasks/:id
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -1115,28 +1178,52 @@ func main() {
 	r.Run("127.0.0.1:" + port)
 }`
     })
-  },
+  }
 };
 
 export const DEFAULT_STARTER = {
   ts: `// Write your TypeScript solution here
+import * as fs from 'fs';
 
-function solution(): void {
-  console.log({ status: "ready", message: "Start coding!" });
+function main() {
+  const inputJson = fs.readFileSync(0, 'utf-8').trim();
+  const input = JSON.parse(inputJson);
+
+  // TODO: Implement your solution using 'input'
+  const result = { result: null };
+  console.log(JSON.stringify(result));
 }
 
-solution();
+main();
 `,
   js: `// Write your JavaScript solution here
-function solution() {
-  console.log({ status: "ready", message: "Start coding!" });
+const fs = require('fs');
+
+function main() {
+  const inputJson = fs.readFileSync(0, 'utf-8').trim();
+  const input = JSON.parse(inputJson);
+
+  // TODO: Implement your solution using 'input'
+  const result = { result: null };
+  console.log(JSON.stringify(result));
 }
-solution();
+
+main();
 `,
   py: `# Write your Python solution here
-def solution():
-    print({"status": "ready", "message": "Start coding!"})
-solution()
+import sys
+import json
+
+def main():
+    input_json = sys.stdin.read().strip()
+    data = json.loads(input_json)
+
+    # TODO: Implement your solution using 'data'
+    result = {"result": None}
+    print(json.dumps(result))
+
+if __name__ == '__main__':
+    main()
 `,
   go: `package main
 
@@ -1154,8 +1241,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: Implement your solution
-	// Access input fields like: data := input.(map[string]interface{})
+	// TODO: Implement your solution using 'input'
 	result := map[string]interface{}{"result": nil}
 	json.NewEncoder(os.Stdout).Encode(result)
 }
@@ -1311,8 +1397,7 @@ public class Solution {
         while (scanner.hasNextLine()) sb.append(scanner.nextLine());
         String inputJson = sb.toString().trim();
 
-        // TODO: Implement your solution
-        // Parse inputJson as needed (use org.json or manual parsing)
+        // TODO: Implement your solution using 'inputJson'
         System.out.println("{\"result\": null}");
     }
 }
@@ -1327,8 +1412,7 @@ int main() {
     ss << std::cin.rdbuf();
     std::string inputJson = ss.str();
 
-    // TODO: Implement your solution
-    // Parse inputJson as needed
+    // TODO: Implement your solution using 'inputJson'
     std::cout << "{\"result\": null}" << std::endl;
     return 0;
 }
@@ -1340,8 +1424,7 @@ fn main() {
     io::stdin().read_to_string(&mut input).unwrap();
     let input_json = input.trim();
 
-    // TODO: Implement your solution
-    // Parse input_json as needed (use serde_json crate if available)
+    // TODO: Implement your solution using 'input_json'
     println!("{{\"result\": null}}");
 }
 `,
@@ -1372,4 +1455,3 @@ export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
   }
   return STARTERS[slug]?.[dbKey] ?? STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[dbKey] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
 }
-
