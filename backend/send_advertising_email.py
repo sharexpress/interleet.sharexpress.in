@@ -293,8 +293,8 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
                 pass
 
 
-    # Split users into N batches (e.g. 10 threads maximum)
-    num_threads = 10 if len(users) >= 10 else len(users)
+    # Split users into N batches (e.g. 3 threads maximum to prevent SMTP IP rate limits)
+    num_threads = 3 if len(users) >= 3 else len(users)
     if num_threads == 0:
         print("No users found to email.")
         return
@@ -307,7 +307,11 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
     
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         for idx, batch in enumerate(batches):
+            # Stagger startup to prevent concurrent SMTP login collisions
+            import time
+            time.sleep(1)
             executor.submit(worker, batch, idx + 1)
+
 
     print(f"\nCompleted Parallel Campaign! Total Sent: {sent_count}, Failed: {failed_count}.")
 
