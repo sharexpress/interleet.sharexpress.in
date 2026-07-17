@@ -139,6 +139,12 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # Bulk Email Logic
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Bulk Email Logic with Parallel Threaded Dispatch
+# ─────────────────────────────────────────────────────────────────────────────
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
 def send_bulk_advertisement(test_email=None, cold_mode=False):
     db = get_db()
     if test_email:
@@ -189,57 +195,122 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
             print(f"Warning: Failed to optimize logo: {e}")
             has_logo = False
 
-    # Open single SMTP connection
-    if port == 465:
-        server = smtplib.SMTP_SSL(host, port, timeout=30)
-    else:
-        server = smtplib.SMTP(host, port, timeout=30)
-        server.ehlo()
-        if port == 587 or server.has_extn("STARTTLS"):
-            server.starttls()
+    # Thread-safe counters
+    sent_count = 0
+    failed_count = 0
+    counter_lock = threading.Lock()
+
+    # Worker function for parallel execution
+    def worker(batch, worker_id):
+        nonlocal sent_count, failed_count
+        
+        # Open separate SMTP connection per thread/worker
+        if port == 465:
+            server = smtplib.SMTP_SSL(host, port, timeout=30)
+        else:
+            server = smtplib.SMTP(host, port, timeout=30)
             server.ehlo()
+            if port == 587 or server.has_extn("STARTTLS"):
+                server.starttls()
+                server.ehlo()
 
-    try:
-        server.login(username, password)
-        print("Successfully logged into SMTP server.")
+        try:
+            server.login(username, password)
+            
+            thread_sent = 0
+            thread_failed = 0
+            for user in batch:
+                email = user.get("email")
+                user_name = user.get("username", "Engineer")
+                
+                msg = MIMEMultipart("related")
+                msg["Subject"] = "🚀 Upgrade Your Coding Skills: 79 Interactive Challenges Live on Interleet!"
+                msg["From"] = f"{from_name} <{from_email}>" if from_name else from_email
+                msg["To"] = email
+                
+                html_content = get_advertisement_template(user_name, has_logo=has_logo)
+                
+                msg_alternative = MIMEMultipart("alternative")
+                msg.attach(msg_alternative)
+                msg_alternative.attach(MIMEText(html_content, "html"))
+                
+                if has_logo and img_data:
+                    try:
+                        msg_image = MIMEImage(img_data)
+                        msg_image.add_header("Content-ID", "<logo>")
+                        msg_image.add_header("Content-Disposition", "inline", filename="logo.png")
+                        msg.attach(msg_image)
+                    except Exception as e:
+                        pass
+                
+                import time
+                
+                # Retry loop for rate-limiting
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        server.sendmail(from_email, email, msg.as_string())
+                        thread_sent += 1
+                        time.sleep(0.5)  # Pace sending to avoid hitting SMTP limits
+                        break
+                    except Exception as e:
+                        err_str = str(e)
+                        if "450" in err_str or "421" in err_str or "too much mail" in err_str.lower():
+                            print(f"  [Worker {worker_id}] Rate limited for {email}, retrying in 5s... (Attempt {attempt+1}/{max_retries})")
+                            time.sleep(5)
+                            # Reconnect connection
+                            try:
+                                server.noop()
+                            except Exception:
+                                try:
+                                    server.quit()
+                                except Exception:
+                                    pass
+                                if port == 465:
+                                    server = smtplib.SMTP_SSL(host, port, timeout=30)
+                                else:
+                                    server = smtplib.SMTP(host, port, timeout=30)
+                                    server.ehlo()
+                                    if port == 587 or server.has_extn("STARTTLS"):
+                                        server.starttls()
+                                        server.ehlo()
+                                server.login(username, password)
+                        else:
+                            if attempt == max_retries - 1:
+                                print(f"  [Worker {worker_id}] ✗ Failed to send to {email}: {e}")
+                                thread_failed += 1
+                            break
 
-        sent_count = 0
-        for user in users:
-            email = user.get("email")
-            user_name = user.get("username", "Engineer")
-            
-            # Create MIMEMultipart message with related subtype for inline images
-            msg = MIMEMultipart("related")
-            msg["Subject"] = "🚀 Upgrade Your Coding Skills: 79 Interactive Challenges Live on Interleet!"
-            msg["From"] = f"{from_name} <{from_email}>" if from_name else from_email
-            msg["To"] = email
-            
-            html_content = get_advertisement_template(user_name, has_logo=has_logo)
-            
-            # Attach HTML content in alternative subpart
-            msg_alternative = MIMEMultipart("alternative")
-            msg.attach(msg_alternative)
-            msg_alternative.attach(MIMEText(html_content, "html"))
-            
-            if has_logo and img_data:
-                try:
-                    msg_image = MIMEImage(img_data)
-                    msg_image.add_header("Content-ID", "<logo>")
-                    msg_image.add_header("Content-Disposition", "inline", filename="logo.png")
-                    msg.attach(msg_image)
-                except Exception as e:
-                    print(f"Warning: Failed to attach logo to email for {email}: {e}")
-            
+            # Update global counters safely
+            with counter_lock:
+                sent_count += thread_sent
+                failed_count += thread_failed
+            print(f"  ✓ Worker {worker_id} complete. Sent: {thread_sent}, Failed: {thread_failed}")
+        finally:
             try:
-                server.sendmail(from_email, email, msg.as_string())
-                print(f"  ✓ Sent email to {email}")
-                sent_count += 1
-            except Exception as e:
-                print(f"  ✗ Failed to send to {email}: {e}")
+                server.quit()
+            except Exception:
+                pass
 
-        print(f"\nCompleted! Sent {sent_count}/{len(users)} advertisement emails.")
-    finally:
-        server.quit()
+
+    # Split users into N batches (e.g. 10 threads maximum)
+    num_threads = 10 if len(users) >= 10 else len(users)
+    if num_threads == 0:
+        print("No users found to email.")
+        return
+
+    # Calculate batch chunks
+    batch_size = (len(users) + num_threads - 1) // num_threads
+    batches = [users[i:i + batch_size] for i in range(0, len(users), batch_size)]
+
+    print(f"Starting parallel execution with {len(batches)} workers...")
+    
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        for idx, batch in enumerate(batches):
+            executor.submit(worker, batch, idx + 1)
+
+    print(f"\nCompleted Parallel Campaign! Total Sent: {sent_count}, Failed: {failed_count}.")
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
