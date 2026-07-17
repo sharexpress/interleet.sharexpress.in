@@ -311,6 +311,7 @@ function EditorPage() {
 
   // DevOps Terminal states & refs
   const [devopsSessionId, setDevopsSessionId] = useState(null);
+  const [devopsStatus, setDevopsStatus] = useState("idle"); // idle | provisioning | ready | error
   const terminalRef = useRef(null);
   const xtermInstance = useRef(null);
   const wsInstance = useRef(null);
@@ -321,14 +322,17 @@ function EditorPage() {
 
     async function initSession() {
       if (c && c.domain === "DevOps") {
+        setDevopsStatus("provisioning");
         try {
           const res = await API.post("/api/v1/devops/session/start", { slug });
           if (!isAborted) {
             const sid = res.data.session_id;
             setDevopsSessionId(sid);
+            setDevopsStatus("ready");
             activeSessionId = sid;
           }
         } catch (err) {
+          if (!isAborted) setDevopsStatus("error");
           console.error("Failed to start DevOps session container:", err);
         }
       }
@@ -344,6 +348,7 @@ function EditorPage() {
         );
       }
       setDevopsSessionId(null);
+      setDevopsStatus("idle");
     };
   }, [c?.id, slug]);
 
@@ -415,7 +420,14 @@ function EditorPage() {
 
     ws.onopen = () => {
       const osName = c?.runtime_config?.os || "Linux";
-      term.write(`\r\n*** Terminal connection established. Welcome to Interleet Sandbox (${osName})! ***\r\n\r\n`);
+      // ANSI styled connection banner
+      term.write("\r\n");
+      term.write("\x1b[38;5;34m╔══════════════════════════════════════════════════╗\x1b[0m\r\n");
+      term.write(`\x1b[38;5;34m║  \x1b[1;32m✓  Connection established\x1b[0m\x1b[38;5;34m                         ║\x1b[0m\r\n`);
+      term.write(`\x1b[38;5;34m║  \x1b[0;37mInterleet Sandbox  ·  ${osName.padEnd(26)}\x1b[38;5;34m║\x1b[0m\r\n`);
+      term.write(`\x1b[38;5;34m║  \x1b[38;5;245mSession ID: ${devopsSessionId?.slice(0, 8) || "--------"}                             \x1b[38;5;34m║\x1b[0m\r\n`);
+      term.write("\x1b[38;5;34m╚══════════════════════════════════════════════════╝\x1b[0m\r\n");
+      term.write("\r\n");
     };
 
     ws.onmessage = (event) => {
@@ -423,11 +435,18 @@ function EditorPage() {
     };
 
     ws.onclose = () => {
-      term.write("\r\n*** Terminal connection closed. ***\r\n");
+      term.write("\r\n\x1b[38;5;214m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\r\n");
+      term.write("\x1b[38;5;214m  ⚡ Terminal session closed\x1b[0m\r\n");
+      term.write("\x1b[38;5;245m  The sandbox container has been stopped.\x1b[0m\r\n");
+      term.write("\x1b[38;5;214m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\r\n");
     };
 
-    ws.onerror = (err) => {
-      term.write(`\r\n*** Connection error: ${err.message || "Unknown error"} ***\r\n`);
+    ws.onerror = () => {
+      term.write("\r\n\x1b[38;5;196m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\r\n");
+      term.write("\x1b[1;31m  ✗ Connection error\x1b[0m\r\n");
+      term.write("\x1b[38;5;245m  Failed to reach the sandbox server.\x1b[0m\r\n");
+      term.write("\x1b[38;5;245m  Check your network connection and reload the page.\x1b[0m\r\n");
+      term.write("\x1b[38;5;196m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\x1b[0m\r\n");
     };
 
     // Forward terminal input keystrokes directly to Docker stdin socket
@@ -1225,6 +1244,15 @@ function EditorPage() {
                     {c?.domain === "DevOps" && (
                       <TabsTrigger value="terminal" className="h-7 px-3 text-xs">
                         <TerminalIcon className="mr-1 h-3 w-3" /> Terminal
+                        {devopsStatus === "provisioning" && (
+                          <Loader2 className="ml-1.5 h-3 w-3 animate-spin text-muted-foreground" />
+                        )}
+                        {devopsStatus === "ready" && (
+                          <span className="ml-1.5 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_#10b981]" />
+                        )}
+                        {devopsStatus === "error" && (
+                          <span className="ml-1.5 h-2 w-2 rounded-full bg-destructive shadow-[0_0_4px_#ef4444]" />
+                        )}
                       </TabsTrigger>
                     )}
                   </TabsList>
