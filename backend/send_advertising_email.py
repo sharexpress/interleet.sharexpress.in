@@ -210,119 +210,125 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
             print(f"Warning: Failed to optimize logo: {e}")
             has_logo = False
 
-    # Thread-safe counters
+    # Thread-safe counters and queues
+    import queue
+    import time
+
     sent_count = 0
     failed_count = 0
     counter_lock = threading.Lock()
+    rate_limit_event = threading.Event()
+    rate_limit_event.clear()
+
+    q = queue.Queue()
+    for u in users:
+        q.put(u)
 
     # Worker function for parallel execution
-    def worker(batch, worker_id):
+    def worker(worker_id):
         nonlocal sent_count, failed_count
         
-        try:
-            # Open separate SMTP connection per thread/worker
+        server = None
+        def connect_smtp():
             if port == 465:
-                server = smtplib.SMTP_SSL(host, port, timeout=30)
+                srv = smtplib.SMTP_SSL(host, port, timeout=30)
             else:
-                server = smtplib.SMTP(host, port, timeout=30)
-                server.ehlo()
-                if port == 587 or server.has_extn("STARTTLS"):
-                    server.starttls()
-                    server.ehlo()
-        except Exception as conn_err:
-            print(f"  [Worker {worker_id}] ✗ Connection failed: {conn_err}")
-            with counter_lock:
-                failed_count += len(batch)
-            return
+                srv = smtplib.SMTP(host, port, timeout=30)
+                srv.ehlo()
+                if port == 587 or srv.has_extn("STARTTLS"):
+                    srv.starttls()
+                    srv.ehlo()
+            srv.login(username, password)
+            return srv
 
+        # Try to connect initially
         try:
-            server.login(username, password)
-        except Exception as login_err:
-            print(f"  [Worker {worker_id}] ✗ Login failed: {login_err}")
-            with counter_lock:
-                failed_count += len(batch)
+            server = connect_smtp()
+        except Exception as err:
+            print(f"  [Worker {worker_id}] ✗ Initial SMTP setup failed: {err}")
+
+        while not q.empty():
+            # If a rate limit event is active, wait
+            if rate_limit_event.is_set():
+                time.sleep(2)
+                continue
+                
             try:
-                server.quit()
-            except Exception:
-                pass
-            return
-
+                user = q.get_nowait()
+            except queue.Empty:
+                break
+                
+            email = user.get("email")
+            user_name = user.get("username", "Engineer")
             
-            thread_sent = 0
-            thread_failed = 0
-            for user in batch:
-                email = user.get("email")
-                user_name = user.get("username", "Engineer")
-                
-                msg = MIMEMultipart("related")
-                msg["Subject"] = "🚀 Upgrade Your Coding Skills: 79 Interactive Challenges Live on Interleet!"
-                msg["From"] = f"{from_name} <{from_email}>" if from_name else from_email
-                msg["To"] = email
-                
-                html_content = get_advertisement_template(user_name, has_logo=has_logo)
-                
-                msg_alternative = MIMEMultipart("alternative")
-                msg.attach(msg_alternative)
-                msg_alternative.attach(MIMEText(html_content, "html"))
-                
-                if has_logo and img_data:
+            msg = MIMEMultipart("related")
+            msg["Subject"] = "🚀 Upgrade Your Coding Skills: 79 Interactive Challenges Live on Interleet!"
+            msg["From"] = f"{from_name} <{from_email}>" if from_name else from_email
+            msg["To"] = email
+            
+            html_content = get_advertisement_template(user_name, has_logo=has_logo)
+            msg_alternative = MIMEMultipart("alternative")
+            msg.attach(msg_alternative)
+            msg_alternative.attach(MIMEText(html_content, "html"))
+            
+            if has_logo and img_data:
+                try:
+                    msg_image = MIMEImage(img_data)
+                    msg_image.add_header("Content-ID", "<logo>")
+                    msg_image.add_header("Content-Disposition", "inline", filename="logo.png")
+                    msg.attach(msg_image)
+                except Exception:
+                    pass
+            
+            # Send attempt with retry & backoff
+            sent_success = False
+            for attempt in range(3):
+                # Double-check connection
+                if not server:
                     try:
-                        msg_image = MIMEImage(img_data)
-                        msg_image.add_header("Content-ID", "<logo>")
-                        msg_image.add_header("Content-Disposition", "inline", filename="logo.png")
-                        msg.attach(msg_image)
-                    except Exception as e:
-                        pass
+                        server = connect_smtp()
+                    except Exception as conn_err:
+                        print(f"  [Worker {worker_id}] Reconnection failed: {conn_err}. Retrying in 10s...")
+                        time.sleep(10)
+                        continue
                 
-                import time
-                
-                # Retry loop for rate-limiting
-                max_retries = 3
-                for attempt in range(max_retries):
-                    try:
-                        server.sendmail(from_email, email, msg.as_string())
-                        thread_sent += 1
-                        time.sleep(0.5)  # Pace sending to avoid hitting SMTP limits
+                try:
+                    server.sendmail(from_email, email, msg.as_string())
+                    with counter_lock:
+                        sent_count += 1
+                        with open(sent_list_path, "a", encoding="utf-8") as sf:
+                            sf.write(f"{email.lower()}\n")
+                    print(f"  ✓ [Worker {worker_id}] Sent to {email}")
+                    sent_success = True
+                    time.sleep(0.5)  # Pace sending
+                    break
+                except Exception as e:
+                    err_str = str(e)
+                    if "450" in err_str or "421" in err_str or "too much mail" in err_str.lower():
+                        # Set rate limit flag to pause other threads
+                        rate_limit_event.set()
+                        print(f"\n[RATE LIMIT HIT] SMTP Rate limit triggered for {email}. Queue paused. Worker {worker_id} will sleep for 60s...")
+                        time.sleep(60)
                         
-                        # Safe append to sent list file
-                        with counter_lock:
-                            with open(sent_list_path, "a", encoding="utf-8") as sf:
-                                sf.write(f"{email.lower()}\n")
+                        # Disconnect and retry connection
+                        try:
+                            server.quit()
+                        except Exception:
+                            pass
+                        server = None
+                        rate_limit_event.clear()  # Resume other threads
+                    else:
+                        print(f"  [Worker {worker_id}] ✗ Permanent fail for {email}: {e}")
                         break
-                    except Exception as e:
-                        err_str = str(e)
-                        if "450" in err_str or "421" in err_str or "too much mail" in err_str.lower():
-                            print(f"  [Worker {worker_id}] Rate limited for {email}, retrying in 5s... (Attempt {attempt+1}/{max_retries})")
-                            time.sleep(5)
-                            # Reconnect connection
-                            try:
-                                server.noop()
-                            except Exception:
-                                try:
-                                    server.quit()
-                                except Exception:
-                                    pass
-                                if port == 465:
-                                    server = smtplib.SMTP_SSL(host, port, timeout=30)
-                                else:
-                                    server = smtplib.SMTP(host, port, timeout=30)
-                                    server.ehlo()
-                                    if port == 587 or server.has_extn("STARTTLS"):
-                                        server.starttls()
-                                        server.ehlo()
-                                server.login(username, password)
-                        else:
-                            if attempt == max_retries - 1:
-                                print(f"  [Worker {worker_id}] ✗ Failed to send to {email}: {e}")
-                                thread_failed += 1
-                            break
+            
+            if not sent_success:
+                with counter_lock:
+                    failed_count += 1
+                q.task_done()
+            else:
+                q.task_done()
 
-            # Update global counters safely
-            with counter_lock:
-                sent_count += thread_sent
-                failed_count += thread_failed
-            print(f"  ✓ Worker {worker_id} complete. Sent: {thread_sent}, Failed: {thread_failed}")
-        finally:
+        if server:
             try:
                 server.quit()
             except Exception:
@@ -335,24 +341,21 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
         print("No users found to email.")
         return
 
-    # Calculate batch chunks
-    batch_size = (len(users) + num_threads - 1) // num_threads
-    batches = [users[i:i + batch_size] for i in range(0, len(users), batch_size)]
-
-    print(f"Starting parallel execution with {len(batches)} workers...")
+    print(f"Starting parallel execution with {num_threads} workers...")
     
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures = []
-        for idx, batch in enumerate(batches):
+        for idx in range(num_threads):
             # Stagger startup to prevent concurrent SMTP login collisions
             import time
             time.sleep(1)
-            futures.append(executor.submit(worker, batch, idx + 1))
+            futures.append(executor.submit(worker, idx + 1))
         for f in futures:
             try:
                 f.result()
             except Exception as e:
                 print(f"Error in thread execution: {e}")
+
 
 
 
