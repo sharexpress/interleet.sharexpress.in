@@ -41,7 +41,7 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>20 New Frontend Challenges Live on Interleet</title>
+  <title>Boost Your Placement Coding Prep on Interleet</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #050505; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #ffffff;">
   <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #050505; padding: 40px 20px;">
@@ -49,7 +49,7 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
       <td align="center">
         <!-- Main Card Container -->
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #0f0f0f; border: 1px solid #1f1f1f; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-          <!-- Top Accent Line (matching OTP orange theme) -->
+          <!-- Top Accent Line -->
           <tr>
             <td height="4" style="background-color: #ff6500; line-height: 4px; font-size: 4px;">&nbsp;</td>
           </tr>
@@ -69,10 +69,10 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
 
               <!-- Main Title -->
               <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0; color: #ffffff; text-align: center; letter-spacing: -0.5px;">
-                20 New Interactive Frontend Challenges
+                Get Placements Ready on Interleet
               </h1>
               <p style="font-size: 13px; color: #ff6500; text-align: center; margin: 0 0 24px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                No setups. No boilerplate. Just pure UI engineering.
+                Interactive Coding Sandbox for Placements Prep
               </p>
               
               <!-- Greeting -->
@@ -82,24 +82,26 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
               
               <!-- Body Description -->
               <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 20px 0;">
-                We have just expanded the Interleet catalog with <strong>20 premium Frontend challenges</strong>. 
-                Instead of simple algorithms, you can now build, style, and script full-fledged UI components directly in your browser!
+                Campus placements and coding rounds (like TCS, Infosys, and startups) are just around the corner. To stand out from thousands of candidates, practicing static MCQs won't cut it. You need real, hands-on execution.
+              </p>
+              
+              <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 20px 0;">
+                Interleet has just added <strong>20 brand-new Frontend challenges</strong> alongside our <strong>50+ Backend, Database, and DevOps challenges</strong>. You can code in JavaScript, Python, Go, Java, C++, or Rust with real-time feedback and validation!
               </p>
 
               <!-- Features Box -->
               <div style="background-color: #141414; border: 1px solid #262626; border-radius: 8px; padding: 20px; margin: 24px 0;">
-                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #ff6500; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">New UI elements to build:</h3>
+                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #ff6500; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Placement Topics Covered:</h3>
                 <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #d4d4d8; list-style-type: square;">
-                  <li><strong>Interactive Star Rating</strong>: Hover highlights and click selection locks.</li>
-                  <li><strong>Shopping Cart UI</strong>: Live additions, quantity adjustments, and floats total values.</li>
-                  <li><strong>Memory card puzzle game</strong>: Grid flips, match validation, and delays.</li>
-                  <li><strong>Countdowns & Progress bars</strong>: interval controls and styling transitions.</li>
-                  <li><strong>Theme switch widgets</strong>: class toggles and localStorage states.</li>
+                  <li><strong>Data Structures & Algorithms</strong>: Array, Linked List, Monotonic Queue, Sorting.</li>
+                  <li><strong>SQL & Databases</strong>: Multi-table JOIN builders and schema index advisors.</li>
+                  <li><strong>Interactive UI Components</strong>: Star Ratings, Shopping Carts, Autocomplete drop-downs.</li>
+                  <li><strong>Full-Stack APIs</strong>: Build and deploy RESTful services with SQLite and MongoDB.</li>
                 </ul>
               </div>
 
               <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 28px 0;">
-                Every component is evaluated inside our secure browser sandbox in real time. Code your solution, click run to see visual outcomes, and watch behavioral test cases validate your DOM selectors.
+                No setups, no packages, no dependencies. Just click, open the interactive compiler, and write code to pass the behavioral test cases!
               </p>
               
               <!-- CTA Button -->
@@ -107,7 +109,7 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
                 <tr>
                   <td align="center">
                     <a href="https://interleet.sharexpress.in/app/challenges" style="background-color: #ff6500; color: #ffffff !important; text-decoration: none !important; padding: 14px 28px; font-size: 14px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 4px 12px rgba(255, 101, 0, 0.3); border: none; outline: none; text-align: center;">
-                      <span style="color: #ffffff !important; text-decoration: none !important;">Start Building Frontend Now</span>
+                      <span style="color: #ffffff !important; text-decoration: none !important;">Start Practicing Now</span>
                     </a>
                   </td>
                 </tr>
