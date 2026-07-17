@@ -219,18 +219,34 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
     def worker(batch, worker_id):
         nonlocal sent_count, failed_count
         
-        # Open separate SMTP connection per thread/worker
-        if port == 465:
-            server = smtplib.SMTP_SSL(host, port, timeout=30)
-        else:
-            server = smtplib.SMTP(host, port, timeout=30)
-            server.ehlo()
-            if port == 587 or server.has_extn("STARTTLS"):
-                server.starttls()
+        try:
+            # Open separate SMTP connection per thread/worker
+            if port == 465:
+                server = smtplib.SMTP_SSL(host, port, timeout=30)
+            else:
+                server = smtplib.SMTP(host, port, timeout=30)
                 server.ehlo()
+                if port == 587 or server.has_extn("STARTTLS"):
+                    server.starttls()
+                    server.ehlo()
+        except Exception as conn_err:
+            print(f"  [Worker {worker_id}] ✗ Connection failed: {conn_err}")
+            with counter_lock:
+                failed_count += len(batch)
+            return
 
         try:
             server.login(username, password)
+        except Exception as login_err:
+            print(f"  [Worker {worker_id}] ✗ Login failed: {login_err}")
+            with counter_lock:
+                failed_count += len(batch)
+            try:
+                server.quit()
+            except Exception:
+                pass
+            return
+
             
             thread_sent = 0
             thread_failed = 0
