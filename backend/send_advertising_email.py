@@ -164,6 +164,21 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
         users = list(db.users.find({"email": {"$exists": True, "$ne": ""}}))
         print(f"Loaded {len(users)} users from database.")
 
+    # Deduplication logic using sent_emails.txt file
+    sent_list_path = os.path.abspath(os.path.join(CURRENT_DIR, "sent_emails.txt"))
+    already_sent = set()
+    if os.path.exists(sent_list_path):
+        with open(sent_list_path, "r", encoding="utf-8") as sf:
+            for l in sf:
+                e = l.strip()
+                if e:
+                    already_sent.add(e.lower())
+    print(f"Loaded {len(already_sent)} already sent email records from: {sent_list_path}")
+
+    original_count = len(users)
+    users = [u for u in users if u.get("email", "").lower() not in already_sent]
+    print(f"Filtered out {original_count - len(users)} already sent emails. Remaining to send: {len(users)}")
+
     host = config.SMTP_HOST
     port = config.SMTP_PORT
     username = config.SMTP_USERNAME
@@ -252,6 +267,11 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
                         server.sendmail(from_email, email, msg.as_string())
                         thread_sent += 1
                         time.sleep(0.5)  # Pace sending to avoid hitting SMTP limits
+                        
+                        # Safe append to sent list file
+                        with counter_lock:
+                            with open(sent_list_path, "a", encoding="utf-8") as sf:
+                                sf.write(f"{email.lower()}\n")
                         break
                     except Exception as e:
                         err_str = str(e)
