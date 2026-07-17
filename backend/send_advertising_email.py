@@ -342,11 +342,18 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
     print(f"Starting parallel execution with {len(batches)} workers...")
     
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = []
         for idx, batch in enumerate(batches):
             # Stagger startup to prevent concurrent SMTP login collisions
             import time
             time.sleep(1)
-            executor.submit(worker, batch, idx + 1)
+            futures.append(executor.submit(worker, batch, idx + 1))
+        for f in futures:
+            try:
+                f.result()
+            except Exception as e:
+                print(f"Error in thread execution: {e}")
+
 
 
     print(f"\nCompleted Parallel Campaign! Total Sent: {sent_count}, Failed: {failed_count}.")
