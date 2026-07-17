@@ -59,7 +59,7 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
             <td style="padding: 40px 30px; text-align: left;">
               
               <!-- Brand Header -->
-              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 30px;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
                 <tr>
                   <td align="center">
                     {logo_html}
@@ -68,9 +68,12 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
               </table>
 
               <!-- Main Title -->
-              <h1 style="font-size: 20px; font-weight: 700; margin: 0 0 16px 0; color: #ffffff; text-align: center;">
-                🚀 20 New Interactive Frontend Challenges Are Live!
+              <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0; color: #ffffff; text-align: center; letter-spacing: -0.5px;">
+                20 New Interactive Frontend Challenges
               </h1>
+              <p style="font-size: 13px; color: #ff6500; text-align: center; margin: 0 0 24px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                No setups. No boilerplate. Just pure UI engineering.
+              </p>
               
               <!-- Greeting -->
               <p style="font-size: 14px; line-height: 1.6; color: #ffffff; margin: 0 0 16px 0;">
@@ -79,33 +82,32 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
               
               <!-- Body Description -->
               <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 20px 0;">
-                We have just expanded Interleet's interactive practice suite with <strong>20 brand-new, premium Frontend challenges</strong>. 
-                Test your skills in JavaScript, CSS, and DOM manipulation against real-time browser sandbox test cases!
+                We have just expanded the Interleet catalog with <strong>20 premium Frontend challenges</strong>. 
+                Instead of simple algorithms, you can now build, style, and script full-fledged UI components directly in your browser!
               </p>
 
               <!-- Features Box -->
               <div style="background-color: #141414; border: 1px solid #262626; border-radius: 8px; padding: 20px; margin: 24px 0;">
-                <h3 style="font-size: 14px; margin: 0 0 12px 0; color: #ff6500; font-weight: 700;">What's new to build:</h3>
-                <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #a1a1a1;">
-                  <li><strong>Interactive Star Rating Component</strong></li>
-                  <li><strong>Dynamic Shopping Cart Subtotal UI</strong></li>
-                  <li><strong>Memory Match Card Game (Hard)</strong></li>
-                  <li><strong>Autocomplete Dropdown Filter</strong></li>
-                  <li><strong>Progress Bar Animator & Timers</strong></li>
-                  <li><strong>Collapsible Accordion menus</strong></li>
+                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #ff6500; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">New UI elements to build:</h3>
+                <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #d4d4d8; list-style-type: square;">
+                  <li><strong>Interactive Star Rating</strong>: Hover highlights and click selection locks.</li>
+                  <li><strong>Shopping Cart UI</strong>: Live additions, quantity adjustments, and floats total values.</li>
+                  <li><strong>Memory card puzzle game</strong>: Grid flips, match validation, and delays.</li>
+                  <li><strong>Countdowns & Progress bars</strong>: interval controls and styling transitions.</li>
+                  <li><strong>Theme switch widgets</strong>: class toggles and localStorage states.</li>
                 </ul>
               </div>
 
               <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 28px 0;">
-                All challenges execute inside our secure browser sandbox, providing instantaneous visual feedback and validation. Log in today to claim your XP and climb the system leaderboard!
+                Every component is evaluated inside our secure browser sandbox in real time. Code your solution, click run to see visual outcomes, and watch behavioral test cases validate your DOM selectors.
               </p>
               
               <!-- CTA Button -->
               <table border="0" cellpadding="0" cellspacing="0" width="100%">
                 <tr>
                   <td align="center">
-                    <a href="https://interleet.sharexpress.in/app/challenges" style="background-color: #ff6500; color: #ffffff; text-decoration: none; padding: 12px 28px; font-size: 14px; font-weight: 700; border-radius: 8px; display: inline-block; box-shadow: 0 4px 12px rgba(255, 101, 0, 0.3); transition: all 0.2s;">
-                      Start Solving Frontend Challenges
+                    <a href="https://interleet.sharexpress.in/app/challenges" style="background-color: #ff6500; color: #ffffff !important; text-decoration: none !important; padding: 14px 28px; font-size: 14px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 4px 12px rgba(255, 101, 0, 0.3); border: none; outline: none; text-align: center;">
+                      <span style="color: #ffffff !important; text-decoration: none !important;">Start Building Frontend Now</span>
                     </a>
                   </td>
                 </tr>
