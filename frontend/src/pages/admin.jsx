@@ -135,14 +135,13 @@ export default function AdminPage() {
   const [sdTemplateFormMode, setSdTemplateFormMode] = useState("create");
 
   // Mail Dispatcher states
-  // Mail Dispatcher states
-  const [mailSubject, setMailSubject] = useState("🚀 Boost Your Placements Prep: 79 Interactive Coding Challenges Live!");
+  const [mailSubject, setMailSubject] = useState("🚀 Upgrade Your Coding Skills: 79 Interactive Challenges Live on Interleet!");
   const [mailTemplate, setMailTemplate] = useState(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Boost Your Placement Coding Prep on Interleet</title>
+  <title>Build Industry-Ready Coding Skills on Interleet</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #050505; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #ffffff;">
   <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #050505; padding: 40px 20px;">
@@ -170,10 +169,10 @@ export default function AdminPage() {
 
               <!-- Main Title -->
               <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0; color: #ffffff; text-align: center; letter-spacing: -0.5px;">
-                Get Placements Ready on Interleet
+                Build Industry-Ready Skills
               </h1>
               <p style="font-size: 13px; color: #ff6500; text-align: center; margin: 0 0 24px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                Interactive Coding Sandbox for Placements Prep
+                Interactive Platform to Make You Industry Ready
               </p>
               
               <!-- Greeting -->
@@ -183,26 +182,25 @@ export default function AdminPage() {
               
               <!-- Body Description -->
               <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 20px 0;">
-                Campus placements and coding rounds (like TCS, Infosys, and startups) are just around the corner. To stand out from thousands of candidates, practicing static MCQs won't cut it. You need real, hands-on execution.
+                To secure high-paying engineering roles in today's competitive tech industry, theoretical memorization and simple syntax tasks are no longer enough. You need to write, compile, and debug real production-grade code.
               </p>
               
               <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 20px 0;">
-                Interleet has just added <strong>20 brand-new Frontend challenges</strong> alongside our <strong>50+ Backend, Database, and DevOps challenges</strong>. You can code in JavaScript, Python, Go, Java, C++, or Rust with real-time feedback and validation!
+                Interleet provides an interactive browser-sandbox environment where you can solve actual developer challenges in JavaScript, Python, Go, Java, C++, and Rust with live visual feedback and behavioral test validation.
               </p>
 
               <!-- Features Box -->
               <div style="background-color: #141414; border: 1px solid #262626; border-radius: 8px; padding: 20px; margin: 24px 0;">
-                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #ff6500; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Placement Topics Covered:</h3>
+                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #ff6500; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">What you will build:</h3>
                 <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #d4d4d8; list-style-type: square;">
-                  <li><strong>Data Structures & Algorithms</strong>: Array, Linked List, Monotonic Queue, Sorting.</li>
-                  <li><strong>SQL & Databases</strong>: Multi-table JOIN builders and schema index advisors.</li>
-                  <li><strong>Interactive UI Components</strong>: Star Ratings, Shopping Carts, Autocomplete drop-downs.</li>
-                  <li><strong>Full-Stack APIs</strong>: Build and deploy RESTful services with SQLite and MongoDB.</li>
+                  <li><strong>Interactive UI Elements</strong>: Code Star Ratings, Autocomplete drop-downs, and Shopping Carts directly manipulating the DOM.</li>
+                  <li><strong>Full-Stack APIs & Databases</strong>: Script live servers connected to SQLite and MongoDB.</li>
+                  <li><strong>Algorithms & Concurrency</strong>: Resolve resource contentions, caching systems, and high-performance algorithms.</li>
                 </ul>
               </div>
 
               <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 28px 0;">
-                No setups, no packages, no dependencies. Just click, open the interactive compiler, and write code to pass the behavioral test cases!
+                Skip the complex setups and config boilerplates. Open Interleet, pick a challenge, and write code directly in your browser.
               </p>
               
               <!-- CTA Button -->
@@ -210,7 +208,7 @@ export default function AdminPage() {
                 <tr>
                   <td align="center">
                     <a href="https://interleet.sharexpress.in/app/challenges" style="background-color: #ff6500; color: #ffffff !important; text-decoration: none !important; padding: 14px 28px; font-size: 14px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 4px 12px rgba(255, 101, 0, 0.3); border: none; outline: none; text-align: center;">
-                      <span style="color: #ffffff !important; text-decoration: none !important;">Start Practicing Now</span>
+                      <span style="color: #ffffff !important; text-decoration: none !important;">Start Building Industry Skills</span>
                     </a>
                   </td>
                 </tr>
@@ -223,7 +221,7 @@ export default function AdminPage() {
           <tr>
             <td style="background-color: #0a0a0a; border-top: 1px solid #1f1f1f; padding: 20px; text-align: center;">
               <p style="font-size: 11px; color: #525252; margin: 0 0 4px 0;">
-                You received this because you are a registered user of Interleet.
+                You received this as part of Interleet's academic engineering outreach program.
               </p>
               <p style="font-size: 11px; color: #3f3f46; margin: 0; text-transform: uppercase; letter-spacing: 1px;">
                 &copy; 2026 Interleet. All rights reserved.
