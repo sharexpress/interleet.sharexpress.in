@@ -139,11 +139,21 @@ def get_advertisement_template(username: str, has_logo: bool = False) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 # Bulk Email Logic
 # ─────────────────────────────────────────────────────────────────────────────
-def send_bulk_advertisement(test_email=None):
+def send_bulk_advertisement(test_email=None, cold_mode=False):
     db = get_db()
     if test_email:
         users = [{"email": test_email, "username": "Admin (Test)"}]
         print(f"Running in TEST mode targeting: {test_email}")
+    elif cold_mode:
+        import json
+        json_path = os.path.abspath(os.path.join(CURRENT_DIR, "..", "candidates_info.json"))
+        if not os.path.exists(json_path):
+            json_path = os.path.abspath(os.path.join(CURRENT_DIR, "candidates_info.json"))
+        print(f"Loading cold leads from: {json_path}")
+        with open(json_path, "r", encoding="utf-8") as f:
+            candidates = json.load(f)
+        users = [{"email": c["email"], "username": c["name"]} for c in candidates]
+        print(f"Loaded {len(users)} cold leads from JSON.")
     else:
         users = list(db.users.find({"email": {"$exists": True, "$ne": ""}}))
         print(f"Loaded {len(users)} users from database.")
@@ -200,7 +210,7 @@ def send_bulk_advertisement(test_email=None):
             
             # Create MIMEMultipart message with related subtype for inline images
             msg = MIMEMultipart("related")
-            msg["Subject"] = "🚀 20 New Interactive Frontend Challenges Are Live!"
+            msg["Subject"] = "🚀 Upgrade Your Coding Skills: 79 Interactive Challenges Live on Interleet!"
             msg["From"] = f"{from_name} <{from_email}>" if from_name else from_email
             msg["To"] = email
             
@@ -235,10 +245,13 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "run":
             send_bulk_advertisement()
+        elif sys.argv[1] == "cold":
+            send_bulk_advertisement(cold_mode=True)
         elif sys.argv[1] == "test":
             target = sys.argv[2] if len(sys.argv) > 2 else "santushtkotai1221@gmail.com"
             send_bulk_advertisement(test_email=target)
         else:
-            print("Invalid argument. Use 'run' or 'test'.")
+            print("Invalid argument. Use 'run', 'cold', or 'test'.")
     else:
-        print("Dry run complete. Run with 'run' or 'test' argument.")
+        print("Dry run complete. Run with 'run', 'cold', or 'test' argument.")
+
