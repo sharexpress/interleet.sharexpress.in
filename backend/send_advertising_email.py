@@ -302,9 +302,16 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
                     sent_success = True
                     time.sleep(0.5)  # Pace sending
                     break
-                except Exception as e:
-                    err_str = str(e)
-                    if "450" in err_str or "451" in err_str or "421" in err_str or "ratelimit" in err_str.lower() or "too much mail" in err_str.lower():
+                except smtplib.SMTPServerDisconnected as disconnect_err:
+                    print(f"  [Worker {worker_id}] Disconnected from SMTP: {disconnect_err}. Resetting connection...")
+                    server = None
+                    time.sleep(2)
+                    continue
+                except smtplib.SMTPResponseException as smtp_err:
+                    code = smtp_err.smtp_code
+                    err_str = smtp_err.smtp_error.decode("utf-8", errors="ignore") if isinstance(smtp_err.smtp_error, bytes) else str(smtp_err.smtp_error)
+                    
+                    if code == 451 or "ratelimit" in err_str.lower() or "too much mail" in err_str.lower():
                         # Set rate limit flag to pause other threads
                         rate_limit_event.set()
                         print(f"\n[RATE LIMIT HIT] SMTP Rate limit triggered for {email}. Requeueing user and pausing dispatch. Worker {worker_id} will sleep for 300s (5 minutes)...")
@@ -323,6 +330,36 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
                         rate_limit_event.clear()  # Resume other threads
                         sent_success = True  # Avoid counting as failure since we requeued
                         break
+                    elif code >= 500:
+                        # Permanent error
+                        print(f"  [Worker {worker_id}] ✗ Permanent fail for {email} (Code {code}): {err_str}")
+                        break
+                    else:
+                        # Temporary error, retry
+                        print(f"  [Worker {worker_id}] Temporary SMTP error (Code {code}): {err_str}. Retrying...")
+                        server = None
+                        time.sleep(2)
+                        continue
+                except Exception as e:
+                    err_str = str(e)
+                    if "450" in err_str or "451" in err_str or "421" in err_str or "ratelimit" in err_str.lower() or "too much mail" in err_str.lower():
+                        rate_limit_event.set()
+                        print(f"\n[RATE LIMIT HIT] SMTP Rate limit triggered for {email}. Requeueing user and pausing dispatch. Worker {worker_id} will sleep for 300s (5 minutes)...")
+                        q.put(user)
+                        time.sleep(300)
+                        try:
+                            server.quit()
+                        except Exception:
+                            pass
+                        server = None
+                        rate_limit_event.clear()
+                        sent_success = True
+                        break
+                    elif "please run connect() first" in err_str or "connection" in err_str.lower() or "broken pipe" in err_str.lower() or "eof" in err_str.lower():
+                        print(f"  [Worker {worker_id}] Connection error: {e}. Resetting connection...")
+                        server = None
+                        time.sleep(2)
+                        continue
                     else:
                         print(f"  [Worker {worker_id}] ✗ Permanent fail for {email}: {e}")
                         break
