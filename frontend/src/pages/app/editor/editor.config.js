@@ -1139,9 +1139,25 @@ def solution():
 solution()
 `,
   go: `package main
-import "fmt"
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+)
+
 func main() {
-  fmt.Printf("%+v\n", map[string]any{"status": "ready", "message": "Start coding!"})
+	var input interface{}
+	decoder := json.NewDecoder(os.Stdin)
+	if err := decoder.Decode(&input); err != nil {
+		fmt.Fprintln(os.Stderr, "Error reading input:", err)
+		os.Exit(1)
+	}
+
+	// TODO: Implement your solution
+	// Access input fields like: data := input.(map[string]interface{})
+	result := map[string]interface{}{"result": nil}
+	json.NewEncoder(os.Stdout).Encode(result)
 }
 `,
   go_sqlite: `package main
@@ -1285,23 +1301,48 @@ func main() {
 	r.Run("127.0.0.1:" + port)
 }
 `,
-  java: `import java.util.Map;
+  java: `import java.util.*;
+import java.io.*;
 
 public class Solution {
-    public static void main(String[] args) {
-        System.out.println("{\"status\": \"ready\", \"message\": \"Start coding!\"}");
+    public static void main(String[] args) throws Exception {
+        Scanner scanner = new Scanner(System.in);
+        StringBuilder sb = new StringBuilder();
+        while (scanner.hasNextLine()) sb.append(scanner.nextLine());
+        String inputJson = sb.toString().trim();
+
+        // TODO: Implement your solution
+        // Parse inputJson as needed (use org.json or manual parsing)
+        System.out.println("{\"result\": null}");
     }
 }
 `,
   cpp: `#include <iostream>
+#include <string>
+#include <sstream>
 
 int main() {
-    std::cout << "{\"status\": \"ready\", \"message\": \"Start coding!\"}" << std::endl;
+    // Read JSON input from stdin
+    std::ostringstream ss;
+    ss << std::cin.rdbuf();
+    std::string inputJson = ss.str();
+
+    // TODO: Implement your solution
+    // Parse inputJson as needed
+    std::cout << "{\"result\": null}" << std::endl;
     return 0;
 }
 `,
-  rust: `fn main() {
-    println!("{{\"status\": \"ready\", \"message\": \"Start coding!\"}}");
+  rust: `use std::io::{self, Read};
+
+fn main() {
+    let mut input = String::new();
+    io::stdin().read_to_string(&mut input).unwrap();
+    let input_json = input.trim();
+
+    // TODO: Implement your solution
+    // Parse input_json as needed (use serde_json crate if available)
+    println!("{{\"result\": null}}");
 }
 `,
 };
