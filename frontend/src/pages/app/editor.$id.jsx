@@ -223,6 +223,15 @@ function EditorPage() {
     if (runtimeEditor?.mode === "files") {
       return [runtimeEditor.executionLanguage || "multi"];
     }
+    // If the challenge has explicit starter_code keys, derive available langs from them
+    // This prevents Go from appearing for JS/Python-only algorithm challenges
+    const starterKeys = c?.starter_code ? Object.keys(c.starter_code) : [];
+    const langMap = { typescript: "ts", javascript: "js", python: "py", go: "go", java: "java", cpp: "cpp", rust: "rust" };
+    const starterLangs = starterKeys.map(k => langMap[k]).filter(Boolean);
+    if (starterLangs.length > 0) {
+      return starterLangs;
+    }
+    // Fallback: domain-based defaults (for challenges without explicit starter_code)
     if (c?.domain === "APIs") {
       return ["js", "py", "go"];
     }
@@ -251,9 +260,12 @@ function EditorPage() {
         if (matched) initialLang = matched;
       }
     }
+    // Only pass "sqlite" default for DB-related domains, not for algorithm/cli challenges
+    const isDbDomain = c?.domain === "Databases" || c?.domain === "APIs";
+    const defaultDb = isDbDomain ? "sqlite" : undefined;
     return {
       lang: initialLang,
-      code: getStarter(slug, initialLang, c, "sqlite")
+      code: getStarter(slug, initialLang, c, defaultDb)
     };
   };
 

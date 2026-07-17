@@ -1307,7 +1307,7 @@ int main() {
 };
 
 export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
-  const dbKey = `${lang}_${selectedDb}`;
+  const dbKey = selectedDb ? `${lang}_${selectedDb}` : lang;
   if (dbChallenge?.starter_code) {
     if (lang === "multi" && dbChallenge.starter_code.multi) {
       return dbChallenge.starter_code.multi;
@@ -1315,18 +1315,25 @@ export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
     if (lang === "html" && dbChallenge.starter_code.html) {
       return dbChallenge.starter_code.html;
     }
-    if (dbChallenge.starter_code[dbKey]) {
+    if (dbKey && dbChallenge.starter_code[dbKey]) {
       return dbChallenge.starter_code[dbKey];
     }
-    if (selectedDb === "sqlite") {
-      const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
-      if (dbChallenge.starter_code[backendKey]) {
-        return dbChallenge.starter_code[backendKey];
-      }
-      if (dbChallenge.starter_code[lang]) {
-        return dbChallenge.starter_code[lang];
-      }
+    // Map short lang key to full language name used in starter_code
+    const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
+    if (dbChallenge.starter_code[backendKey]) {
+      return dbChallenge.starter_code[backendKey];
+    }
+    if (dbChallenge.starter_code[lang]) {
+      return dbChallenge.starter_code[lang];
+    }
+    // Challenge has starter_code but not for this language — return first available
+    // rather than falling through to unrelated DEFAULT_STARTER DB boilerplate
+    const firstKey = Object.keys(dbChallenge.starter_code)[0];
+    if (firstKey) {
+      return dbChallenge.starter_code[firstKey];
     }
   }
+  // Only reach DEFAULT_STARTER for challenges with no starter_code at all
   return STARTERS[slug]?.[dbKey] ?? STARTERS[slug]?.[lang] ?? DEFAULT_STARTER[dbKey] ?? DEFAULT_STARTER[lang] ?? DEFAULT_STARTER.ts;
 }
+
