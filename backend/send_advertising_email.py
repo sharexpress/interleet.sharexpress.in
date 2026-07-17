@@ -304,11 +304,15 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
                     break
                 except Exception as e:
                     err_str = str(e)
-                    if "450" in err_str or "421" in err_str or "too much mail" in err_str.lower():
+                    if "450" in err_str or "451" in err_str or "421" in err_str or "ratelimit" in err_str.lower() or "too much mail" in err_str.lower():
                         # Set rate limit flag to pause other threads
                         rate_limit_event.set()
-                        print(f"\n[RATE LIMIT HIT] SMTP Rate limit triggered for {email}. Queue paused. Worker {worker_id} will sleep for 60s...")
-                        time.sleep(60)
+                        print(f"\n[RATE LIMIT HIT] SMTP Rate limit triggered for {email}. Requeueing user and pausing dispatch. Worker {worker_id} will sleep for 300s (5 minutes)...")
+                        
+                        # Requeue the user to be retried later
+                        q.put(user)
+                        
+                        time.sleep(300)
                         
                         # Disconnect and retry connection
                         try:
@@ -317,6 +321,8 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
                             pass
                         server = None
                         rate_limit_event.clear()  # Resume other threads
+                        sent_success = True  # Avoid counting as failure since we requeued
+                        break
                     else:
                         print(f"  [Worker {worker_id}] ✗ Permanent fail for {email}: {e}")
                         break
@@ -324,9 +330,9 @@ def send_bulk_advertisement(test_email=None, cold_mode=False):
             if not sent_success:
                 with counter_lock:
                     failed_count += 1
-                q.task_done()
-            else:
-                q.task_done()
+            
+            q.task_done()
+
 
         if server:
             try:
