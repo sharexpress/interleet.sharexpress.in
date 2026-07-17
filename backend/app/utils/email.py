@@ -195,3 +195,82 @@ def get_otp_email_template(otp_code: str, has_logo: bool = False) -> str:
 </body>
 </html>
 """
+
+
+def _send_custom_smtp_html_sync(to_email: str, subject: str, html_body: str):
+    """Synchronous function to send a custom HTML email, attaching the logo if 'cid:logo' is present."""
+    host = config.SMTP_HOST
+    port = config.SMTP_PORT
+    username = config.SMTP_USERNAME
+    password = config.SMTP_PASSWORD
+    from_email = config.SMTP_FROM_EMAIL
+    from_name = config.SMTP_FROM_NAME
+
+    if not username or not password or not from_email:
+        raise ValueError(
+            "SMTP credentials (SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM_EMAIL) "
+            "are not configured in the environment."
+        )
+
+    msg = MIMEMultipart("related")
+    msg["Subject"] = subject
+    msg["From"] = f"{from_name} <{from_email}>" if from_name else from_email
+    msg["To"] = to_email
+
+    has_logo = os.path.exists(LOGO_PATH)
+
+    # Attach HTML content
+    msg_alternative = MIMEMultipart("alternative")
+    msg.attach(msg_alternative)
+    msg_alternative.attach(MIMEText(html_body, "html"))
+
+    # Attach the logo if it exists and is used in the template
+    if has_logo and "cid:logo" in html_body:
+        try:
+            from PIL import Image
+            import io
+
+            with Image.open(LOGO_PATH) as img:
+                img.thumbnail((300, 300))
+                buffer = io.BytesIO()
+                img.save(buffer, format="PNG", optimize=True)
+                img_data = buffer.getvalue()
+
+            msg_image = MIMEImage(img_data)
+            msg_image.add_header("Content-ID", "<logo>")
+            msg_image.add_header("Content-Disposition", "inline", filename="logo.png")
+            msg.attach(msg_image)
+            logger.info("Attached optimized inline logo to custom email")
+        except Exception as img_err:
+            logger.error(f"Failed to attach optimized logo image to custom email: {img_err}")
+
+    # Connect using SSL or STARTTLS
+    if port == 465:
+        server = smtplib.SMTP_SSL(host, port, timeout=30)
+    else:
+        server = smtplib.SMTP(host, port, timeout=30)
+        server.ehlo()
+        if port == 587 or server.has_extn("STARTTLS"):
+            server.starttls()
+            server.ehlo()
+
+    try:
+        server.login(username, password)
+        server.sendmail(from_email, to_email, msg.as_string())
+    finally:
+        server.quit()
+
+
+async def send_custom_html_email(to_email: str, subject: str, html_body: str) -> bool:
+    """Asynchronously send a custom designed HTML email in a background thread."""
+    try:
+        await asyncio.to_thread(_send_custom_smtp_html_sync, to_email, subject, html_body)
+        logger.info(f"Successfully sent custom email to {to_email}")
+        return True
+    except ValueError as ve:
+        logger.warning(f"Skipping custom email sending to {to_email}: {ve}")
+        return False
+    except Exception as e:
+        logger.exception(f"Failed to send custom email to {to_email}: {e}")
+        return False
+

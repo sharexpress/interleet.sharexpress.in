@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from fastapi import APIRouter, Depends, Body
+from fastapi import APIRouter, Depends, Body, BackgroundTasks
 from app.middleware.admin import AdminMiddleware
 from app.controllers.admin import AdminController
 
@@ -65,3 +65,9 @@ async def save_system_design_template(id: str, payload: dict = Body(...)):
 @router.delete("/system-design/templates/{id}", dependencies=[Depends(AdminMiddleware.is_admin)])
 async def delete_system_design_template(id: str):
     return await AdminController.delete_system_design_template(id)
+
+# ─── BULK MAIL SYSTEM ──────────────────────────────────────────────────
+@router.post("/mail/send", dependencies=[Depends(AdminMiddleware.is_admin)])
+async def send_mail_campaign(background_tasks: BackgroundTasks, payload: dict = Body(...)):
+    return await AdminController.send_mail_campaign(payload, background_tasks)
+

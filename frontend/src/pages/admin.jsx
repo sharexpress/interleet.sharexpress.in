@@ -52,7 +52,9 @@ import {
   Briefcase,
   Layers,
   Sparkles,
-  Bot
+  Bot,
+  Mail,
+  Send
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -132,6 +134,111 @@ export default function AdminPage() {
   const [sdTemplateEdgesJson, setSdTemplateEdgesJson] = useState("[]");
   const [sdTemplateFormMode, setSdTemplateFormMode] = useState("create");
 
+  // Mail Dispatcher states
+  const [mailSubject, setMailSubject] = useState("🚀 20 New Interactive Frontend Challenges Are Live!");
+  const [mailTemplate, setMailTemplate] = useState(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>20 New Frontend Challenges Live on Interleet</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #050505; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #ffffff;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #050505; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card Container -->
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #0f0f0f; border: 1px solid #1f1f1f; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+          <!-- Top Accent Line -->
+          <tr>
+            <td height="4" style="background-color: #ff6500; line-height: 4px; font-size: 4px;">&nbsp;</td>
+          </tr>
+          
+          <!-- Content Padding -->
+          <tr>
+            <td style="padding: 40px 30px; text-align: left;">
+              
+              <!-- Brand Header -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                <tr>
+                  <td align="center">
+                    <span style="font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px; font-family: sans-serif;">
+                      INTER<span style="color: #ff6500;">LEET</span>
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Main Title -->
+              <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0; color: #ffffff; text-align: center; letter-spacing: -0.5px;">
+                20 New Interactive Frontend Challenges
+              </h1>
+              <p style="font-size: 13px; color: #ff6500; text-align: center; margin: 0 0 24px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                No setups. No boilerplate. Just pure UI engineering.
+              </p>
+              
+              <!-- Greeting -->
+              <p style="font-size: 14px; line-height: 1.6; color: #ffffff; margin: 0 0 16px 0;">
+                Hey {{username}},
+              </p>
+              
+              <!-- Body Description -->
+              <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 20px 0;">
+                We have just expanded the Interleet catalog with <strong>20 premium Frontend challenges</strong>. 
+                Instead of simple algorithms, you can now build, style, and script full-fledged UI components directly in your browser!
+              </p>
+
+              <!-- Features Box -->
+              <div style="background-color: #141414; border: 1px solid #262626; border-radius: 8px; padding: 20px; margin: 24px 0;">
+                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #ff6500; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">New UI elements to build:</h3>
+                <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #d4d4d8; list-style-type: square;">
+                  <li><strong>Interactive Star Rating</strong>: Hover highlights and click selection locks.</li>
+                  <li><strong>Shopping Cart UI</strong>: Live additions, quantity adjustments, and floats total values.</li>
+                  <li><strong>Memory card puzzle game</strong>: Grid flips, match validation, and delays.</li>
+                  <li><strong>Countdowns & Progress bars</strong>: interval controls and styling transitions.</li>
+                  <li><strong>Theme switch widgets</strong>: class toggles and localStorage states.</li>
+                </ul>
+              </div>
+
+              <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 28px 0;">
+                Every component is evaluated inside our secure browser sandbox in real time. Code your solution, click run to see visual outcomes, and watch behavioral test cases validate your DOM selectors.
+              </p>
+              
+              <!-- CTA Button -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                <tr>
+                  <td align="center">
+                    <a href="https://interleet.sharexpress.in/app/challenges" style="background-color: #ff6500; color: #ffffff !important; text-decoration: none !important; padding: 14px 28px; font-size: 14px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 4px 12px rgba(255, 101, 0, 0.3); border: none; outline: none; text-align: center;">
+                      <span style="color: #ffffff !important; text-decoration: none !important;">Start Building Frontend Now</span>
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #0a0a0a; border-top: 1px solid #1f1f1f; padding: 20px; text-align: center;">
+              <p style="font-size: 11px; color: #525252; margin: 0 0 4px 0;">
+                You received this because you are a registered user of Interleet.
+              </p>
+              <p style="font-size: 11px; color: #3f3f46; margin: 0; text-transform: uppercase; letter-spacing: 1px;">
+                &copy; 2026 Interleet. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`);
+  const [testEmail, setTestEmail] = useState("");
+  const [dispatchingMail, setDispatchingMail] = useState(false);
+
+
   // Fetch admin items
   useEffect(() => {
     if (user?.role === "admin") {
@@ -189,6 +296,39 @@ export default function AdminPage() {
       toast.error("Failed to update user status.");
     }
   };
+
+  const handleSendMail = async (isTest = false) => {
+    if (!mailSubject.trim() || !mailTemplate.trim()) {
+      toast.error("Subject and Template are required.");
+      return;
+    }
+    if (isTest && !testEmail.trim()) {
+      toast.error("Please provide a test target email address.");
+      return;
+    }
+
+    if (!isTest && !window.confirm("ARE YOU SURE? This will send this email campaign to ALL registered users immediately!")) {
+      return;
+    }
+
+    setDispatchingMail(true);
+    try {
+      const payload = {
+        subject: mailSubject,
+        html_template: mailTemplate,
+        test_email: isTest ? testEmail.trim() : undefined,
+      };
+      const response = await API.post("/api/admin/mail/send", payload);
+      if (response.data.success) {
+        toast.success(isTest ? "Test email dispatched." : "Bulk email campaign queued in background.");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to dispatch email.");
+    } finally {
+      setDispatchingMail(false);
+    }
+  };
+
 
   // Preset Actions (AI Interview Roles)
   const fetchPresets = async () => {
@@ -618,6 +758,7 @@ export default function AdminPage() {
             <TabsTrigger value="interviews" className="cursor-pointer">AI Interviews</TabsTrigger>
             <TabsTrigger value="systemdesign" className="cursor-pointer">System Design</TabsTrigger>
             <TabsTrigger value="users" className="cursor-pointer">Users & Roles</TabsTrigger>
+            <TabsTrigger value="mail" className="cursor-pointer">Mail Dispatcher</TabsTrigger>
           </TabsList>
 
           {/* TAB: CODING CHALLENGES */}
@@ -879,6 +1020,108 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </Card>
+          </TabsContent>
+
+          {/* TAB: MAIL DISPATCHER */}
+          <TabsContent value="mail" className="mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Panel: Creator */}
+              <div className="space-y-4">
+                <Card className="border-zinc-850 bg-zinc-950 p-6 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-zinc-850 pb-4">
+                    <Mail className="h-5 w-5 text-indigo-400" />
+                    <div>
+                      <h3 className="font-bold text-white text-base">Create Campaign</h3>
+                      <p className="text-xs text-zinc-400">Design and send bulk HTML emails to all active platform users.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Subject Line</label>
+                    <input
+                      type="text"
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                      placeholder="e.g. 🚀 20 New Interactive Frontend Challenges Are Live!"
+                      value={mailSubject}
+                      onChange={(e) => setMailSubject(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">HTML Template Code</label>
+                      <span className="text-[10px] text-zinc-500">Inject: <code className="text-zinc-300">{"{{username}}"}</code>, logo: <code className="text-zinc-300">{"cid:logo"}</code></span>
+                    </div>
+                    <textarea
+                      className="w-full h-[320px] bg-zinc-900 border border-zinc-800 rounded-md p-3 text-xs text-zinc-300 font-mono focus:outline-none focus:border-indigo-500 resize-y"
+                      value={mailTemplate}
+                      onChange={(e) => setMailTemplate(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-850 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="email"
+                        className="bg-zinc-900 border border-zinc-800 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 w-44"
+                        placeholder="test@example.com"
+                        value={testEmail}
+                        onChange={(e) => setTestEmail(e.target.value)}
+                      />
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        className="text-xs"
+                        disabled={dispatchingMail}
+                        onClick={() => handleSendMail(true)}
+                      >
+                        {dispatchingMail ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send Test"}
+                      </Button>
+                    </div>
+
+                    <Button
+                      className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs"
+                      disabled={dispatchingMail}
+                      onClick={() => handleSendMail(false)}
+                    >
+                      {dispatchingMail ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Send to All Users
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Right Panel: Interactive Live Render Preview */}
+              <div className="space-y-4">
+                <Card className="border-zinc-850 bg-zinc-950 p-6 flex flex-col h-[570px]">
+                  <div className="flex items-center justify-between border-b border-zinc-850 pb-4 mb-4">
+                    <div>
+                      <h3 className="font-bold text-white text-base">Live Preview</h3>
+                      <p className="text-xs text-zinc-400">Real-time render of your customized HTML template.</p>
+                    </div>
+                  </div>
+                  <div className="flex-1 bg-white rounded-md overflow-hidden border border-zinc-200">
+                    <iframe
+                      title="Email Preview"
+                      className="w-full h-full border-none"
+                      srcDoc={mailTemplate
+                        .replace(/\{\{username\}\}/g, "Jane Doe")
+                        .replace(/cid:logo/g, "https://interleet.sharexpress.in/assets/logo.png")
+                      }
+                    />
+                  </div>
+                </Card>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

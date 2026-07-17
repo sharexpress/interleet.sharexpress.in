@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from datetime import datetime
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 from app.core.db import get_db
 
 db = get_db()
@@ -428,3 +428,34 @@ class AdminController:
         if res.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Template not found")
         return {"success": True, "message": "Template deleted"}
+
+    @staticmethod
+    async def send_mail_campaign(payload: dict, background_tasks: BackgroundTasks):
+        from app.utils.email import send_custom_html_email
+
+        subject = payload.get("subject")
+        html_template = payload.get("html_template")
+        test_email = payload.get("test_email")
+
+        if not subject or not html_template:
+            raise HTTPException(status_code=400, detail="subject and html_template are required")
+
+        async def run_dispatch():
+            if test_email:
+                html_body = html_template.replace("{{username}}", "Admin (Test)")
+                await send_custom_html_email(test_email, subject, html_body)
+            else:
+                cursor = db.users.find({"email": {"$exists": True, "$ne": ""}})
+                users = [doc async for doc in cursor]
+                for user in users:
+                    email = user.get("email")
+                    username = user.get("username", "Engineer")
+                    html_body = html_template.replace("{{username}}", username)
+                    await send_custom_html_email(email, subject, html_body)
+
+        background_tasks.add_task(run_dispatch)
+        return {
+            "success": True,
+            "message": "Mail dispatch campaign queued successfully in background"
+        }
+
