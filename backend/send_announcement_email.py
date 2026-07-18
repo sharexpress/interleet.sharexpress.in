@@ -144,7 +144,7 @@ def main():
             print(f"Warning: Failed to fetch MongoDB users: {e}")
 
     # 2. Off-platform candidate leads (candidates_info.json)
-    if args.off-platform or args.all:
+    if args.off_platform or args.all:
         candidates_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "candidates_info.json")
         if os.path.exists(candidates_file):
             with open(candidates_file, "r") as f:
