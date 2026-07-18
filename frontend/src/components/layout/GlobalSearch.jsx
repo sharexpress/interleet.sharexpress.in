@@ -70,6 +70,7 @@ export function GlobalSearch() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [dbUsers, setDbUsers] = useState([]);
   const [dbChallenges, setDbChallenges] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   // Infinite scroll pagination state
   const [challengePage, setChallengePage] = useState(1);
   const [hasMoreChallenges, setHasMoreChallenges] = useState(false);
@@ -133,8 +134,12 @@ export function GlobalSearch() {
       setDbChallenges([]);
       setChallengePage(1);
       setHasMoreChallenges(false);
+      setIsSearching(false);
       return;
     }
+
+    // Show skeleton immediately — before the 250ms debounce fires
+    setIsSearching(true);
 
     const handler = setTimeout(async () => {
       try {
@@ -152,6 +157,8 @@ export function GlobalSearch() {
         }
       } catch (error) {
         console.error("Search error", error);
+      } finally {
+        setIsSearching(false);
       }
     }, 250);
 
@@ -509,8 +516,41 @@ export function GlobalSearch() {
                     </div>
                   )}
 
-                  {/* No results state */}
-                  {query && groupedResultSections.length === 0 && (
+                  {/* Skeleton loading — shown while search is in flight */}
+                  {query && isSearching && (
+                    <div className="space-y-1 px-1 py-1">
+                      <div className="px-3 py-1 font-mono text-[9px] font-bold tracking-widest text-[#FF6500]/40 uppercase mb-1.5">
+                        Searching...
+                      </div>
+                      {[...Array(5)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+                          style={{ opacity: 1 - i * 0.15 }}
+                        >
+                          {/* Icon skeleton */}
+                          <div className="h-5 w-5 rounded bg-zinc-800 animate-pulse shrink-0" />
+                          <div className="flex-1 space-y-1.5">
+                            {/* Title skeleton — varying widths for realism */}
+                            <div
+                              className="h-2.5 rounded bg-zinc-800 animate-pulse"
+                              style={{ width: `${55 + (i % 3) * 15}%` }}
+                            />
+                            {/* Subtitle skeleton */}
+                            <div
+                              className="h-2 rounded bg-zinc-900 animate-pulse"
+                              style={{ width: `${35 + (i % 4) * 10}%` }}
+                            />
+                          </div>
+                          {/* Badge skeleton */}
+                          <div className="h-4 w-10 rounded bg-zinc-800 animate-pulse shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* No results state — only shown AFTER search completes with 0 results */}
+                  {query && !isSearching && groupedResultSections.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                       <div className="p-3 rounded-full bg-white/[0.02] border border-white/[0.04] mb-3">
                         <Sparkles className="h-6 w-6 text-[#FF6500] opacity-50" />
