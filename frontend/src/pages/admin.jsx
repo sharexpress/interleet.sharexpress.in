@@ -138,101 +138,193 @@ export default function AdminPage() {
   const [mailTarget, setMailTarget] = useState("all"); // "all" | "on_platform" | "off_platform"
   const [mailSubject, setMailSubject] = useState("🎉 Great News! Interleet Is Now Free");
   const [mailTemplate, setMailTemplate] = useState(`<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Build Industry-Ready Coding Skills on Interleet</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interleet is Now Free</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #050505; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #ffffff;">
-  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #050505; padding: 40px 20px;">
-    <tr>
-      <td align="center">
-        <!-- Main Card Container -->
-        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #0f0f0f; border: 1px solid #1f1f1f; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-          <!-- Top Accent Line -->
-          <tr>
-            <td height="4" style="background-color: #ff6500; line-height: 4px; font-size: 4px;">&nbsp;</td>
-          </tr>
-          
-          <!-- Content Padding -->
-          <tr>
-            <td style="padding: 40px 30px; text-align: left;">
-              
-              <!-- Brand Header -->
-              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
-                <tr>
-                  <td align="center">
-                    <img src="cid:logo" alt="Interleet Logo" style="height: 45px; width: auto; max-width: 180px; object-fit: contain; margin: 0 auto; display: block;" />
-                  </td>
-                </tr>
-              </table>
 
-              <!-- Main Title -->
-              <h1 style="font-size: 20px; font-weight: 800; margin: 0 0 4px 0; color: #ffffff; text-align: center; letter-spacing: -0.5px;">
-                Build Industry-Ready Skills
-              </h1>
-              <p style="font-size: 13px; color: #ff6500; text-align: center; margin: 0 0 24px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-                Interactive Platform to Make You Industry Ready
-              </p>
-              
-              <!-- Greeting -->
-              <p style="font-size: 14px; line-height: 1.6; color: #ffffff; margin: 0 0 16px 0;">
-                Hey {{username}},
-              </p>
-              
-              <!-- Body Description -->
-              <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 20px 0;">
-                To secure high-paying engineering roles in today's competitive tech industry, theoretical memorization and simple syntax tasks are no longer enough. You need to write, compile, and debug real production-grade code.
-              </p>
-              
-              <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 20px 0;">
-                Interleet provides an interactive browser-sandbox environment where you can solve actual developer challenges in JavaScript, Python, Go, Java, C++, and Rust with live visual feedback and behavioral test validation.
-              </p>
+<body style="margin:0;padding:0;background:#050505;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;color:#ffffff;">
 
-              <!-- Features Box -->
-              <div style="background-color: #141414; border: 1px solid #262626; border-radius: 8px; padding: 20px; margin: 24px 0;">
-                <h3 style="font-size: 13px; margin: 0 0 12px 0; color: #ff6500; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">What you will build:</h3>
-                <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #d4d4d8; list-style-type: square;">
-                  <li><strong>Interactive UI Elements</strong>: Code Star Ratings, Autocomplete drop-downs, and Shopping Carts directly manipulating the DOM.</li>
-                  <li><strong>Full-Stack APIs & Databases</strong>: Script live servers connected to SQLite and MongoDB.</li>
-                  <li><strong>Algorithms & Concurrency</strong>: Resolve resource contentions, caching systems, and high-performance algorithms.</li>
-                </ul>
-              </div>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#050505;padding:40px 20px;">
+<tr>
+<td align="center">
 
-              <p style="font-size: 14px; line-height: 1.6; color: #a1a1a1; margin: 0 0 28px 0;">
-                Skip the complex setups and config boilerplates. Open Interleet, pick a challenge, and write code directly in your browser.
-              </p>
-              
-              <!-- CTA Button -->
-              <table border="0" cellpadding="0" cellspacing="0" width="100%">
-                <tr>
-                  <td align="center">
-                    <a href="https://interleet.sharexpress.in/app/challenges" style="background-color: #ff6500; color: #ffffff !important; text-decoration: none !important; padding: 14px 28px; font-size: 14px; font-weight: 700; border-radius: 6px; display: inline-block; box-shadow: 0 4px 12px rgba(255, 101, 0, 0.3); border: none; outline: none; text-align: center;">
-                      <span style="color: #ffffff !important; text-decoration: none !important;">Start Building Industry Skills</span>
-                    </a>
-                  </td>
-                </tr>
-              </table>
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#0f0f0f;border:1px solid #1f1f1f;border-radius:12px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.45);">
 
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #0a0a0a; border-top: 1px solid #1f1f1f; padding: 20px; text-align: center;">
-              <p style="font-size: 11px; color: #525252; margin: 0 0 4px 0;">
-                You received this as part of Interleet's academic engineering outreach program.
-              </p>
-              <p style="font-size: 11px; color: #3f3f46; margin: 0; text-transform: uppercase; letter-spacing: 1px;">
-                &copy; 2026 Interleet. All rights reserved.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+<!-- Accent -->
+<tr>
+<td height="4" style="background:#ff6500;font-size:4px;line-height:4px;">&nbsp;</td>
+</tr>
+
+<!-- Content -->
+<tr>
+<td style="padding:42px 34px;">
+
+<!-- Logo -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+<tr>
+<td align="center">
+<img src="cid:logo"
+alt="Interleet"
+style="height:46px;width:auto;display:block;border:0;">
+</td>
+</tr>
+</table>
+
+<!-- Badge -->
+<div style="text-align:center;margin-bottom:18px;">
+<span style="display:inline-block;padding:7px 15px;background:rgba(255,101,0,.12);border:1px solid rgba(255,101,0,.35);border-radius:999px;color:#ff6500;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">
+🚀 Product Update
+</span>
+</div>
+
+<!-- Heading -->
+<h1 style="margin:0;font-size:30px;font-weight:800;color:#ffffff;text-align:center;letter-spacing:-1px;">
+Interleet is Now
+<span style="color:#ff6500;">Free</span>
+</h1>
+
+<p style="margin:14px 0 36px;font-size:15px;color:#9ca3af;line-height:1.8;text-align:center;">
+Real-world engineering practice, AI-powered learning,
+and mock interviews—all available at no cost.
+</p>
+
+<!-- Greeting -->
+<p style="margin:0 0 18px;font-size:15px;color:#ffffff;line-height:1.8;">
+Hey <strong>{{username}}</strong>,
+</p>
+
+<p style="margin:0 0 18px;font-size:15px;color:#b6b6b6;line-height:1.9;">
+We built Interleet to help developers practice what companies actually expect during placements and interviews—not just solve theoretical coding problems.
+</p>
+
+<p style="margin:0 0 18px;font-size:15px;color:#b6b6b6;line-height:1.9;">
+Today, we're excited to announce that <strong style="color:#ffffff;">Interleet is completely free for everyone.</strong>
+Whether you're preparing for campus placements, internships, or software engineering roles, you now have full access to our interactive platform.
+</p>
+
+<!-- Features Card -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+style="margin:34px 0;background:#141414;border:1px solid #262626;border-radius:10px;">
+<tr>
+<td style="padding:26px;">
+
+<p style="margin:0 0 20px;color:#ff6500;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;">
+Everything You Can Access
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0">
+
+<tr>
+<td width="26" valign="top" style="color:#ff6500;font-size:17px;">✓</td>
+<td style="padding-bottom:16px;font-size:14px;color:#d4d4d8;line-height:1.8;">
+<strong style="color:#ffffff;">Personalized AI Mentor</strong><br>
+Receive learning recommendations based on your coding performance, strengths, and areas for improvement.
+</td>
+</tr>
+
+<tr>
+<td valign="top" style="color:#ff6500;font-size:17px;">✓</td>
+<td style="padding-bottom:16px;font-size:14px;color:#d4d4d8;line-height:1.8;">
+<strong style="color:#ffffff;">AI Mock Interviews</strong><br>
+Practice realistic technical interviews with AI, receive detailed feedback, and improve your confidence before real interviews.
+</td>
+</tr>
+
+<tr>
+<td valign="top" style="color:#ff6500;font-size:17px;">✓</td>
+<td style="padding-bottom:16px;font-size:14px;color:#d4d4d8;line-height:1.8;">
+<strong style="color:#ffffff;">Professional Coding Challenges</strong><br>
+Solve frontend, backend, DevOps, database, system design, and full-stack problems inspired by real engineering work.
+</td>
+</tr>
+
+<tr>
+<td valign="top" style="color:#ff6500;font-size:17px;">✓</td>
+<td style="padding-bottom:16px;font-size:14px;color:#d4d4d8;line-height:1.8;">
+<strong style="color:#ffffff;">Interactive Browser Sandbox</strong><br>
+Write, compile, execute, and debug code instantly without installing anything.
+</td>
+</tr>
+
+<tr>
+<td valign="top" style="color:#ff6500;font-size:17px;">✓</td>
+<td style="padding-bottom:16px;font-size:14px;color:#d4d4d8;line-height:1.8;">
+<strong style="color:#ffffff;">Instant AI Code Reviews</strong><br>
+Get explanations, debugging assistance, optimization suggestions, and best practices after every submission.
+</td>
+</tr>
+
+<tr>
+<td valign="top" style="color:#ff6500;font-size:17px;">✓</td>
+<td style="font-size:14px;color:#d4d4d8;line-height:1.8;">
+<strong style="color:#ffffff;">Leaderboards, Progress Tracking & More</strong><br>
+Track your growth, compete with other developers, and continue improving with every challenge you complete.
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+<!-- Quote -->
+<div style="padding:20px 24px;border-left:4px solid #ff6500;background:#111111;margin-bottom:34px;">
+<p style="margin:0;font-size:20px;font-weight:600;color:#ffffff;line-height:1.7;">
+Learn real skills.<br>
+Practice with AI.<br>
+Ace your next interview.
+</p>
+</div>
+
+<!-- CTA -->
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:26px;">
+<tr>
+<td align="center">
+
+<a href="https://interleet.sharexpress.in/app/challenges"
+style="display:inline-block;padding:15px 36px;background:#ff6500;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;border-radius:8px;">
+Start Learning for Free →
+</a>
+
+</td>
+</tr>
+</table>
+
+<p style="margin:0;text-align:center;font-size:13px;color:#7d7d7d;line-height:1.8;">
+No subscriptions.<br>
+No setup required.<br>
+Just open your browser and start building.
+</p>
+
+</td>
+</tr>
+
+<!-- Footer -->
+<tr>
+<td style="background:#0a0a0a;border-top:1px solid #1f1f1f;padding:24px;text-align:center;">
+
+<p style="margin:0 0 8px;font-size:11px;color:#6b7280;">
+You're receiving this email because you have an Interleet account.
+</p>
+
+<p style="margin:0;font-size:11px;color:#525252;text-transform:uppercase;letter-spacing:1px;">
+© 2026 Interleet. All Rights Reserved.
+</p>
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
 </body>
 </html>`);
   const [testEmail, setTestEmail] = useState("");
