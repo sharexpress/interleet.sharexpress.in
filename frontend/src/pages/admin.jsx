@@ -135,7 +135,8 @@ export default function AdminPage() {
   const [sdTemplateFormMode, setSdTemplateFormMode] = useState("create");
 
   // Mail Dispatcher states
-  const [mailSubject, setMailSubject] = useState("🚀 Upgrade Your Coding Skills: 79 Interactive Challenges Live on Interleet!");
+  const [mailTarget, setMailTarget] = useState("all"); // "all" | "on_platform" | "off_platform"
+  const [mailSubject, setMailSubject] = useState("🎉 Great News! Interleet Is Now Free");
   const [mailTemplate, setMailTemplate] = useState(`<!DOCTYPE html>
 <html>
 <head>
@@ -316,10 +317,11 @@ export default function AdminPage() {
         subject: mailSubject,
         html_template: mailTemplate,
         test_email: isTest ? testEmail.trim() : undefined,
+        target: mailTarget,
       };
       const response = await API.post("/api/admin/mail/send", payload);
       if (response.data.success) {
-        toast.success(isTest ? "Test email dispatched." : "Bulk email campaign queued in background.");
+        toast.success(isTest ? "Test email dispatched." : `Bulk email campaign (${mailTarget}) queued in background.`);
       }
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to dispatch email.");
@@ -1078,23 +1080,35 @@ export default function AdminPage() {
                       </Button>
                     </div>
 
-                    <Button
-                      className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs"
-                      disabled={dispatchingMail}
-                      onClick={() => handleSendMail(false)}
-                    >
-                      {dispatchingMail ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="mr-2 h-4 w-4" />
-                          Send to All Users
-                        </>
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:border-orange-500 font-semibold cursor-pointer"
+                        value={mailTarget}
+                        onChange={(e) => setMailTarget(e.target.value)}
+                      >
+                        <option value="all">🌐 Both On-Platform & Off-Platform Users (1,413)</option>
+                        <option value="on_platform">🟢 On-Platform Registered Users Only (16)</option>
+                        <option value="off_platform">🔵 Off-Platform Student Leads Only (1,397)</option>
+                      </select>
+
+                      <Button
+                        className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs"
+                        disabled={dispatchingMail}
+                        onClick={() => handleSendMail(false)}
+                      >
+                        {dispatchingMail ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="mr-2 h-4 w-4" />
+                            Send Campaign
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               </div>

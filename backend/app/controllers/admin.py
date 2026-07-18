@@ -432,10 +432,13 @@ class AdminController:
     @staticmethod
     async def send_mail_campaign(payload: dict, background_tasks: BackgroundTasks):
         from app.utils.email import send_custom_html_email
+        import os
+        import json
 
         subject = payload.get("subject")
         html_template = payload.get("html_template")
         test_email = payload.get("test_email")
+        target_group = payload.get("target", "all") # "all", "on_platform", "off_platform"
 
         if not subject or not html_template:
             raise HTTPException(status_code=400, detail="subject and html_template are required")
@@ -444,18 +447,47 @@ class AdminController:
             if test_email:
                 html_body = html_template.replace("{{username}}", "Admin (Test)")
                 await send_custom_html_email(test_email, subject, html_body)
-            else:
+                return
+
+            targets = []
+            seen = set()
+
+            # 1. On-platform users (MongoDB)
+            if target_group in ["on_platform", "all"]:
                 cursor = db.users.find({"email": {"$exists": True, "$ne": ""}})
                 users = [doc async for doc in cursor]
                 for user in users:
                     email = user.get("email")
-                    username = user.get("username", "Engineer")
-                    html_body = html_template.replace("{{username}}", username)
-                    await send_custom_html_email(email, subject, html_body)
+                    if email and email not in seen:
+                        seen.add(email)
+                        username = user.get("username") or user.get("full_name") or "Engineer"
+                        targets.append((email, username))
+
+            # 2. Off-platform candidates (candidates_info.json)
+            if target_group in ["off_platform", "all"]:
+                root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                candidates_file = os.path.join(root_dir, "candidates_info.json")
+                if os.path.exists(candidates_file):
+                    try:
+                        with open(candidates_file, "r") as f:
+                            candidates = json.load(f)
+                            for c in candidates:
+                                email = c.get("Email") or c.get("email")
+                                if email and email not in seen:
+                                    seen.add(email)
+                                    name = c.get("Name") or c.get("name") or email.split("@")[0].capitalize()
+                                    targets.append((email, name))
+                    except Exception as e:
+                        print(f"Error reading candidates_info.json: {e}")
+
+            print(f"Dispatching campaign '{subject}' to {len(targets)} recipient(s)...")
+            for email, uname in targets:
+                html_body = html_template.replace("{{username}}", uname)
+                await send_custom_html_email(email, subject, html_body)
 
         background_tasks.add_task(run_dispatch)
         return {
             "success": True,
-            "message": "Mail dispatch campaign queued successfully in background"
+            "message": f"Mail dispatch campaign ({target_group}) queued successfully in background"
         }
 
