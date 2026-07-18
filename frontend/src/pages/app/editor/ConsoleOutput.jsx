@@ -17,69 +17,227 @@
 import { memo } from "react";
 import { Loader2, X, Check, AlertTriangle, Info, Bug } from "lucide-react";
 
-function fmt(v) {
-  if (v === null || v === undefined) return String(v);
-  if (typeof v === "string") return `"${v}"`;
-  if (typeof v === "boolean" || typeof v === "number") return String(v);
-  if (Array.isArray(v)) return `[${v.map(fmt).join(", ")}]`;
-  if (typeof v === "object") return JSON.stringify(v);
-  return String(v);
-}
+import { useState } from "react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 
-function valColor(v) {
-  if (typeof v === "boolean") return v ? "#4FC1FF" : "#F44747";
-  if (typeof v === "number") return "#B5CEA8";
-  if (typeof v === "string") return "#CE9178";
-  return "#858585";
-}
+// ─── Interactive DevTools Value Renderer ────────────────────────────────────
+function DOMElementToken({ data }) {
+  const [expanded, setExpanded] = useState(false);
+  const tag = data.tagName || "element";
+  const idStr = data.id ? `#${data.id}` : "";
+  const clsStr = data.className && typeof data.className === "string" ? `.${data.className.trim().replace(/\s+/g, ".")}` : "";
 
-const ObjToken = memo(function ObjToken({ data }) {
-  const entries = Object.entries(data);
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 2,
-        border: "1px solid #333",
-        borderRadius: 4,
-        padding: "1px 6px",
-        background: "#1a1a1a",
-        fontFamily: "inherit",
-      }}
-    >
-      <span style={{ color: "#858585" }}>{"{"}</span>
-      {entries.map(([k, v], i) => (
-        <span key={k}>
-          <span style={{ color: "#9CDCFE" }}>{k}</span>
-          <span style={{ color: "#858585" }}>: </span>
-          <span style={{ color: valColor(v) }}>{fmt(v)}</span>
-          {i < entries.length - 1 && <span style={{ color: "#858585" }}>, </span>}
-        </span>
-      ))}
-      <span style={{ color: "#858585" }}>{"}"}</span>
+    <span className="inline-flex flex-col font-mono text-[11px] align-baseline">
+      <span
+        onClick={() => setExpanded(!expanded)}
+        className="cursor-pointer select-none rounded bg-cyan-950/60 hover:bg-cyan-900/60 px-1.5 py-0.5 text-cyan-300 border border-cyan-800/40 inline-flex items-center gap-1 transition-colors"
+        title="Click to inspect HTML"
+      >
+        <span className="text-purple-400 font-semibold">&lt;{tag}</span>
+        {idStr && <span className="text-amber-300 font-semibold">{idStr}</span>}
+        {clsStr && <span className="text-teal-300">{clsStr}</span>}
+        <span className="text-purple-400 font-semibold">&gt;</span>
+        {data.outerHTML && (
+          <span className="ml-1 text-[9px] text-cyan-400/60">
+            {expanded ? "▲" : "▼"}
+          </span>
+        )}
+      </span>
+
+      {expanded && data.outerHTML && (
+        <div className="mt-1 rounded border border-cyan-800/40 bg-zinc-950 p-2 font-mono text-[10px] text-zinc-300 shadow-lg max-w-full overflow-x-auto whitespace-pre-wrap">
+          <div className="text-[9px] font-semibold text-cyan-400/80 mb-1 border-b border-zinc-800 pb-0.5">DOM Inspector</div>
+          <code>{data.outerHTML}</code>
+        </div>
+      )}
     </span>
   );
-});
+}
 
-// ─── Log Type Styles ─────────────────────────────────────────────────────────
-const TYPE_STYLES = {
-  log:   { bg: "",                  text: "text-foreground/90",   border: "",                    icon: null,          label: null },
-  info:  { bg: "bg-blue-950/30",    text: "text-blue-300",        border: "border-l-2 border-blue-500/50",  icon: Info,          label: "info"  },
-  warn:  { bg: "bg-yellow-950/30",  text: "text-yellow-300",      border: "border-l-2 border-yellow-500/50", icon: AlertTriangle, label: "warn"  },
-  error: { bg: "bg-red-950/30",     text: "text-red-300",         border: "border-l-2 border-red-500/50",   icon: X,             label: "error" },
-  debug: { bg: "bg-zinc-900/40",    text: "text-zinc-400",        border: "border-l-2 border-zinc-600/40",  icon: Bug,           label: "debug" },
-};
+function DeepValueRenderer({ val, name, isLast = true }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Null & Undefined
+  if (val === null || val === undefined) {
+    return (
+      <span className="font-mono">
+        {name && <span className="text-zinc-400">{name}: </span>}
+        <span className="text-zinc-500 italic">{String(val)}</span>
+        {!isLast && <span className="text-zinc-600">, </span>}
+      </span>
+    );
+  }
+
+  // Primitive strings, numbers, booleans, bigint
+  if (typeof val === "number") {
+    return (
+      <span className="font-mono">
+        {name && <span className="text-zinc-300">{name}: </span>}
+        <span className="text-emerald-400">{val}</span>
+        {!isLast && <span className="text-zinc-600">, </span>}
+      </span>
+    );
+  }
+
+  if (typeof val === "boolean") {
+    return (
+      <span className="font-mono">
+        {name && <span className="text-zinc-300">{name}: </span>}
+        <span className="text-sky-400 font-semibold">{String(val)}</span>
+        {!isLast && <span className="text-zinc-600">, </span>}
+      </span>
+    );
+  }
+
+  if (typeof val === "string") {
+    return (
+      <span className="font-mono">
+        {name && <span className="text-zinc-300">{name}: </span>}
+        <span className="text-amber-300">"{val}"</span>
+        {!isLast && <span className="text-zinc-600">, </span>}
+      </span>
+    );
+  }
+
+  // Special Serialized Objects (__type)
+  if (typeof val === "object" && val.__type) {
+    if (val.__type === "DOMElement") {
+      return (
+        <span className="font-mono">
+          {name && <span className="text-zinc-300">{name}: </span>}
+          <DOMElementToken data={val} />
+          {!isLast && <span className="text-zinc-600">, </span>}
+        </span>
+      );
+    }
+    if (val.__type === "Error") {
+      return (
+        <span className="font-mono text-red-400 bg-red-950/40 border border-red-900/50 px-1.5 py-0.5 rounded">
+          {name && <span className="text-zinc-300">{name}: </span>}
+          <span className="font-bold">{val.name || "Error"}: </span>
+          <span>{val.message}</span>
+        </span>
+      );
+    }
+    if (val.__type === "Date") {
+      return (
+        <span className="font-mono">
+          {name && <span className="text-zinc-300">{name}: </span>}
+          <span className="text-purple-300 italic">{val.value}</span>
+          {!isLast && <span className="text-zinc-600">, </span>}
+        </span>
+      );
+    }
+  }
+
+  // Functions
+  if (typeof val === "string" && val.startsWith("[Function")) {
+    return (
+      <span className="font-mono">
+        {name && <span className="text-zinc-300">{name}: </span>}
+        <span className="text-yellow-300/80 italic">{val}</span>
+        {!isLast && <span className="text-zinc-600">, </span>}
+      </span>
+    );
+  }
+
+  // Arrays
+  if (Array.isArray(val)) {
+    if (val.length === 0) {
+      return (
+        <span className="font-mono text-zinc-400">
+          {name && <span className="text-zinc-300">{name}: </span>}
+          <span>[]</span>
+          {!isLast && <span className="text-zinc-600">, </span>}
+        </span>
+      );
+    }
+
+    return (
+      <div className="inline-flex flex-col font-mono align-baseline">
+        <span
+          onClick={() => setExpanded(!expanded)}
+          className="cursor-pointer select-none text-zinc-300 hover:text-white inline-flex items-center gap-0.5"
+        >
+          {expanded ? <ChevronDown className="h-3 w-3 text-zinc-400" /> : <ChevronRight className="h-3 w-3 text-zinc-400" />}
+          {name && <span>{name}: </span>}
+          <span className="text-zinc-400">Array({val.length})</span>
+          {!expanded && (
+            <span className="text-zinc-500 text-[10px] ml-1">
+              [{val.slice(0, 3).map(v => (typeof v === "object" ? "{...}" : String(v))).join(", ")}{val.length > 3 ? ", ..." : ""}]
+            </span>
+          )}
+        </span>
+
+        {expanded && (
+          <div className="ml-4 pl-2 border-l border-zinc-800 my-1 space-y-0.5">
+            {val.map((item, idx) => (
+              <div key={idx}>
+                <DeepValueRenderer val={item} name={String(idx)} isLast={idx === val.length - 1} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!isLast && !expanded && <span className="text-zinc-600">, </span>}
+      </div>
+    );
+  }
+
+  // General Objects
+  if (typeof val === "object") {
+    const keys = Object.keys(val);
+    if (keys.length === 0) {
+      return (
+        <span className="font-mono text-zinc-400">
+          {name && <span className="text-zinc-300">{name}: </span>}
+          <span>{"{}"}</span>
+          {!isLast && <span className="text-zinc-600">, </span>}
+        </span>
+      );
+    }
+
+    return (
+      <div className="inline-flex flex-col font-mono align-baseline">
+        <span
+          onClick={() => setExpanded(!expanded)}
+          className="cursor-pointer select-none text-zinc-300 hover:text-white inline-flex items-center gap-0.5"
+        >
+          {expanded ? <ChevronDown className="h-3 w-3 text-zinc-400" /> : <ChevronRight className="h-3 w-3 text-zinc-400" />}
+          {name && <span>{name}: </span>}
+          <span className="text-zinc-400">Object</span>
+          {!expanded && (
+            <span className="text-zinc-500 text-[10px] ml-1">
+              {"{"} {keys.slice(0, 3).join(", ")}{keys.length > 3 ? ", ..." : ""} {"}"}
+            </span>
+          )}
+        </span>
+
+        {expanded && (
+          <div className="ml-4 pl-2 border-l border-zinc-800 my-1 space-y-0.5">
+            {keys.map((k, idx) => (
+              <div key={k}>
+                <DeepValueRenderer val={val[k]} name={k} isLast={idx === keys.length - 1} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!isLast && !expanded && <span className="text-zinc-600">, </span>}
+      </div>
+    );
+  }
+
+  return (
+    <span className="font-mono text-zinc-200">
+      {name && <span className="text-zinc-300">{name}: </span>}
+      <span>{String(val)}</span>
+      {!isLast && <span className="text-zinc-600">, </span>}
+    </span>
+  );
+}
 
 function renderArg(a, j) {
-  if (typeof a === "object" && a !== null) {
-    return <ObjToken key={j} data={a} />;
-  }
-  return (
-    <span key={j} className="text-foreground/90">
-      {String(a)}
-    </span>
-  );
+  return <DeepValueRenderer key={j} val={a} isLast={true} />;
 }
 
 // ─── Live Browser Console Entry (from iframe postMessage) ─────────────────────

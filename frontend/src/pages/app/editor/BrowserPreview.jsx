@@ -98,19 +98,86 @@ function getFrontendSrcDoc(slug, title) {
 const CONSOLE_INTERCEPTOR = `<script>
 (function() {
   var _c = window.console;
+
+  function serialize(val, seen) {
+    if (val === null || val === undefined) return val;
+    if (typeof val === 'number' || typeof val === 'boolean' || typeof val === 'string') return val;
+    if (typeof val === 'bigint') return val.toString() + 'n';
+    if (typeof val === 'symbol') return val.toString();
+    if (typeof val === 'function') return '[Function' + (val.name ? ': ' + val.name : '') + ']';
+
+    // DOM Node / Element serialization
+    if (typeof Node !== 'undefined' && val instanceof Node) {
+      if (val.nodeType === 1) { // Element
+        var tag = val.tagName.toLowerCase();
+        var id = val.id ? '#' + val.id : '';
+        var cls = val.className && typeof val.className === 'string' ? '.' + val.className.trim().replace(/\\s+/g, '.') : '';
+        var attrs = Array.from(val.attributes || []).map(function(attr) {
+          return { name: attr.name, value: attr.value };
+        });
+        return {
+          __type: 'DOMElement',
+          tagName: tag,
+          id: val.id || '',
+          className: val.className || '',
+          preview: '<' + tag + id + cls + '>',
+          outerHTML: val.outerHTML ? (val.outerHTML.length > 500 ? val.outerHTML.slice(0, 500) + '...' : val.outerHTML) : '',
+          textContent: val.textContent || '',
+          attributes: attrs
+        };
+      }
+      return val.nodeName || String(val);
+    }
+
+    if (val instanceof Error) {
+      return { __type: 'Error', name: val.name, message: val.message, stack: val.stack };
+    }
+    if (val instanceof Date) {
+      return { __type: 'Date', value: val.toISOString() };
+    }
+    if (val instanceof RegExp) {
+      return val.toString();
+    }
+
+    seen = seen || new WeakSet();
+    if (typeof val === 'object') {
+      if (seen.has(val)) return '[Circular]';
+      seen.add(val);
+
+      if (Array.isArray(val)) {
+        return val.map(function(item) { return serialize(item, seen); });
+      }
+
+      var res = {};
+      var keys = Object.keys(val);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        try {
+          res[k] = serialize(val[k], seen);
+        } catch(e) {
+          res[k] = '[Unreadable]';
+        }
+      }
+      return res;
+    }
+    return String(val);
+  }
+
   ['log','warn','error','info','debug'].forEach(function(type) {
-    var orig = _c[type].bind(_c);
+    var orig = _c[type] ? _c[type].bind(_c) : function(){};
     _c[type] = function() {
-      var args = Array.prototype.slice.call(arguments).map(function(a) {
-        try { return typeof a === 'object' ? JSON.parse(JSON.stringify(a)) : a; }
+      var rawArgs = Array.prototype.slice.call(arguments);
+      var args = rawArgs.map(function(a) {
+        try { return serialize(a); }
         catch(e) { return String(a); }
       });
-      orig.apply(_c, arguments);
+      orig.apply(_c, rawArgs);
       try { window.parent.postMessage({ __interleet_console: true, type: type, args: args, ts: Date.now() }, '*'); } catch(e) {}
     };
   });
+
   window.addEventListener('error', function(e) {
-    try { window.parent.postMessage({ __interleet_console: true, type: 'error', args: [e.message + (e.filename ? ' (' + e.filename + ':' + e.lineno + ')' : '')], ts: Date.now() }, '*'); } catch(err) {}
+    try { window.parent.postMessage({ __interleet_console: true, type: 'error', args: [{ __type: 'Error', message: e.message + (e.filename ? ' (' + e.filename + ':' + e.lineno + ')' : ''), stack: e.error ? e.error.stack : '' }], ts: Date.now() }, '*'); } catch(err) {}
   });
 })();
 <\/script>`;
