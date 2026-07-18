@@ -16,7 +16,8 @@
 
 import { useState, useEffect, useLayoutEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { FetchChallenges, selectChallengesList } from "@/redux/slices/challengesSlice";
 import { toast } from "sonner";
 import { API } from "@/api/api";
 
@@ -54,8 +55,14 @@ import { BadgeIcon } from "@/components/BadgeIcon";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const dbChallenges = useSelector(selectChallengesList);
   // state.user.user is the flat user object — no double-nesting needed
   const { user } = useSelector((state) => state.user);
+
+  useEffect(() => {
+    dispatch(FetchChallenges());
+  }, [dispatch]);
 
   const handleStartInterview = () => {
     const roles = [
@@ -180,7 +187,9 @@ function Dashboard() {
 
   const activeWeekly = dashboardData?.activityWeekly || activityWeekly;
   const activeRecentActivity = dashboardData?.recentActivity || recentActivity;
-  const activeChallenges = dashboardData?.recommendedChallenges || challenges;
+  const activeChallenges = (dashboardData?.recommendedChallenges && dashboardData.recommendedChallenges.length > 0)
+    ? dashboardData.recommendedChallenges
+    : dbChallenges;
   const activeInterviewTrend = dashboardData?.interviewTrend || [
     { d: "W1", s: 62 },
     { d: "W2", s: 65 },

@@ -36,7 +36,6 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import { challenges as localSystemDesignChallenges } from "@/lib/simulator/challenges";
 import { leaderboard as mockLeaderboard } from "@/lib/mock";
 import { API } from "@/api/api";
 
@@ -223,14 +222,8 @@ export function GlobalSearch() {
 
   const filteredSystemDesign = useMemo(() => {
     if (!query.trim()) return [];
-    const term = query.toLowerCase();
-    return (localSystemDesignChallenges || []).filter(
-      (c) =>
-        c.title?.toLowerCase().includes(term) ||
-        c.brief?.toLowerCase().includes(term) ||
-        (c.tags && c.tags.some((t) => t?.toLowerCase().includes(term)))
-    );
-  }, [query]);
+    return dbChallenges.filter((c) => c.domain === "System Design");
+  }, [query, dbChallenges]);
 
   const filteredCodingChallenges = useMemo(() => {
     // Use live DB results — already filtered by the backend

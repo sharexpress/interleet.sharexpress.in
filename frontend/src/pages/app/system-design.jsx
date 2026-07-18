@@ -1642,7 +1642,7 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState("recommended");
 
-  const finalChallenges = customChallenges.length > 0 ? customChallenges : challenges;
+  const finalChallenges = customChallenges;
   const all = useMemo(() => [blankChallenge, ...finalChallenges], [customChallenges]);
 
   // Enrich challenges with metadata for a better UI experience
