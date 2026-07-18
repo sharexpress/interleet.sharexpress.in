@@ -62,7 +62,6 @@ const nav = [
   { to: "/app/system-design", label: "System Design", icon: Network },
   { to: "/app/leaderboard", label: "Leaderboard", icon: Trophy },
   { to: "/app/contest", label: "Contest", icon: Swords },
-  { to: "/app/store", label: "Store", icon: ShoppingBag },
 ];
 
 function NavLinks({ user, orientation = "horizontal", onNavigate }) {
@@ -332,7 +331,7 @@ export function AppShell({ children }) {
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-md p-1 pr-2 hover:bg-accent cursor-pointer">
                 <div className="relative flex-shrink-0">
-                  <Avatar className={`h-7 w-7 border ${user?.is_premium ? "border-[#FF6500]" : "border-border"}`}>
+                  <Avatar className="h-7 w-7 border border-border">
                     {user?.avatar ? (
                       <img
                         src={user.avatar}
@@ -343,16 +342,8 @@ export function AppShell({ children }) {
                       <AvatarFallback className="bg-accent text-[11px]">{initials}</AvatarFallback>
                     )}
                   </Avatar>
-                  {user?.is_premium && (
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2 rounded-full bg-[#FF6500] border border-background shadow-sm" />
-                  )}
                 </div>
                 <span className="hidden text-sm font-medium md:inline">{firstName}</span>
-                {user?.is_premium && (
-                  <Badge variant="outline" className="bg-[#FF6500]/10 border-[#FF6500]/30 text-[#FF6500] text-[9px] font-black uppercase tracking-wider px-1.5 py-0">
-                    Pro
-                  </Badge>
-                )}
               </button>
             </DropdownMenuTrigger>
 
@@ -361,11 +352,6 @@ export function AppShell({ children }) {
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium">{user?.full_name || "Engineer"}</span>
-                    {user?.is_premium && (
-                      <Badge variant="outline" className="bg-[#FF6500]/10 border-[#FF6500]/30 text-[#FF6500] text-[9px] font-black uppercase tracking-wider px-1.5 py-0">
-                        Pro
-                      </Badge>
-                    )}
                   </div>
                   <span className="text-xs text-muted-foreground">@{user?.username || ""}</span>
                 </div>
