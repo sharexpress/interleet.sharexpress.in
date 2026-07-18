@@ -20,6 +20,15 @@ import { Loader2, X, Check, AlertTriangle, Info, Bug } from "lucide-react";
 import { useState } from "react";
 import { ChevronRight, ChevronDown } from "lucide-react";
 
+// ─── Log Type Styles ─────────────────────────────────────────────────────────
+const TYPE_STYLES = {
+  log:   { bg: "",                  text: "text-foreground/90",   border: "",                    icon: null,          label: null },
+  info:  { bg: "bg-blue-950/30",    text: "text-blue-300",        border: "border-l-2 border-blue-500/50",  icon: Info,          label: "info"  },
+  warn:  { bg: "bg-yellow-950/30",  text: "text-yellow-300",      border: "border-l-2 border-yellow-500/50", icon: AlertTriangle, label: "warn"  },
+  error: { bg: "bg-red-950/30",     text: "text-red-300",         border: "border-l-2 border-red-500/50",   icon: X,             label: "error" },
+  debug: { bg: "bg-zinc-900/40",    text: "text-zinc-400",        border: "border-l-2 border-zinc-600/40",  icon: Bug,           label: "debug" },
+};
+
 // ─── Interactive DevTools Value Renderer ────────────────────────────────────
 function DOMElementToken({ data }) {
   const [expanded, setExpanded] = useState(false);
