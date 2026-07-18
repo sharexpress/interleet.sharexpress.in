@@ -109,17 +109,23 @@ class ServiceExecutor(BaseExecutor):
 
                 if isinstance(responses, list) and isinstance(expected_data, list):
                     for act_res, exp_res in zip(responses, expected_data):
-                        exp_headers = exp_res.get("response", {}).get("headers", {})
-                        act_headers = act_res.get("response", {}).get("headers", {})
-                        
-                        filtered_headers = {}
-                        for k in exp_headers.keys():
-                            val = next((act_headers[ah] for ah in act_headers if ah.lower() == k.lower()), None)
-                            if val is not None:
-                                filtered_headers[k] = val
-                        
-                        if "response" in act_res:
-                            act_res["response"]["headers"] = filtered_headers
+                        exp_response = exp_res.get("response", {})
+                        # Only include headers in actual if the expected explicitly specifies them
+                        if "headers" not in exp_response:
+                            # Expected has no headers key — remove from actual so comparison doesn't fail
+                            if "response" in act_res:
+                                act_res["response"].pop("headers", None)
+                        else:
+                            # Expected has headers — filter actual to only the expected header keys
+                            exp_headers = exp_response.get("headers", {})
+                            act_headers = act_res.get("response", {}).get("headers", {})
+                            filtered_headers = {}
+                            for k in exp_headers.keys():
+                                val = next((act_headers[ah] for ah in act_headers if ah.lower() == k.lower()), None)
+                                if val is not None:
+                                    filtered_headers[k] = val
+                            if "response" in act_res:
+                                act_res["response"]["headers"] = filtered_headers
 
                 # We format the 'stdout' as a JSON string of the responses so JudgeEngine can compare it semantically
                 sr.stdout = json.dumps(responses)
