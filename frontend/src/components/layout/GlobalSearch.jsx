@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -70,6 +70,12 @@ export function GlobalSearch() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [dbUsers, setDbUsers] = useState([]);
   const [dbChallenges, setDbChallenges] = useState([]);
+  // Infinite scroll pagination state
+  const [challengePage, setChallengePage] = useState(1);
+  const [hasMoreChallenges, setHasMoreChallenges] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const sentinelRef = useRef(null);
+  const PAGE_LIMIT = 8;
 
   // Load recent searches on mount
   useEffect(() => {
@@ -120,11 +126,13 @@ export function GlobalSearch() {
     }
   }, [isOpen]);
 
-  // Debounced backend query for users
+  // Debounced initial search — resets page and replaces results
   useEffect(() => {
     if (!query.trim()) {
       setDbUsers([]);
       setDbChallenges([]);
+      setChallengePage(1);
+      setHasMoreChallenges(false);
       return;
     }
 
@@ -134,10 +142,13 @@ export function GlobalSearch() {
         const userResp = await API.get(`/api/leaderboard?q=${encodeURIComponent(query)}&limit=10`);
         if (userResp.data?.items) setDbUsers(userResp.data.items);
 
-        // Fetch matching challenges from real DB
-        const cResp = await API.get(`/challenges?q=${encodeURIComponent(query)}&limit=8`);
+        // Fetch first page of matching challenges from real DB
+        const cResp = await API.get(`/challenges?q=${encodeURIComponent(query)}&limit=${PAGE_LIMIT}&page=1`);
         if (cResp.data?.data) {
           setDbChallenges(cResp.data.data);
+          setChallengePage(1);
+          const total = cResp.data?.pagination?.total ?? cResp.data?.total ?? 0;
+          setHasMoreChallenges(cResp.data.data.length >= PAGE_LIMIT && total > PAGE_LIMIT);
         }
       } catch (error) {
         console.error("Search error", error);
@@ -146,6 +157,42 @@ export function GlobalSearch() {
 
     return () => clearTimeout(handler);
   }, [query]);
+
+  // Fetch next page and APPEND to existing results
+  const fetchMoreChallenges = useCallback(async () => {
+    if (!query.trim() || isFetchingMore || !hasMoreChallenges) return;
+    setIsFetchingMore(true);
+    try {
+      const nextPage = challengePage + 1;
+      const cResp = await API.get(`/challenges?q=${encodeURIComponent(query)}&limit=${PAGE_LIMIT}&page=${nextPage}`);
+      if (cResp.data?.data && cResp.data.data.length > 0) {
+        setDbChallenges((prev) => [...prev, ...cResp.data.data]);
+        setChallengePage(nextPage);
+        const total = cResp.data?.pagination?.total ?? cResp.data?.total ?? 0;
+        setHasMoreChallenges(cResp.data.data.length >= PAGE_LIMIT && total > nextPage * PAGE_LIMIT);
+      } else {
+        setHasMoreChallenges(false);
+      }
+    } catch (error) {
+      console.error("fetchMoreChallenges error", error);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  }, [query, challengePage, isFetchingMore, hasMoreChallenges]);
+
+  // IntersectionObserver: fire fetchMoreChallenges when sentinel enters viewport
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) fetchMoreChallenges();
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchMoreChallenges]);
 
   // Client-side search filters with safety checks
   const filteredPages = useMemo(() => {
@@ -343,7 +390,7 @@ export function GlobalSearch() {
                 {/* Middle Results Content */}
                 <div 
                   ref={dropdownRef}
-                  className="max-h-[300px] overflow-y-auto p-2 space-y-3 scrollbar-thin"
+                  className="max-h-[420px] overflow-y-auto p-2 space-y-3 scrollbar-thin"
                 >
                   {/* Search query entered - Results list */}
                   {query && groupedResultSections.map((section) => (
@@ -440,6 +487,27 @@ export function GlobalSearch() {
                       </div>
                     </div>
                   ))}
+                  {/* Infinite scroll sentinel — sits at bottom of Coding Challenges section */}
+                  {query && hasMoreChallenges && (
+                    <div ref={sentinelRef} className="flex items-center justify-center py-3 gap-2">
+                      {isFetchingMore ? (
+                        <>
+                          <svg className="animate-spin h-3.5 w-3.5 text-[#FF6500]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                          </svg>
+                          <span className="text-[10px] text-muted-foreground/60 font-mono">Loading more...</span>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground/40 font-mono">Scroll for more results</span>
+                      )}
+                    </div>
+                  )}
+                  {query && !hasMoreChallenges && dbChallenges.length > PAGE_LIMIT && (
+                    <div className="flex items-center justify-center py-2">
+                      <span className="text-[10px] text-muted-foreground/30 font-mono">All {dbChallenges.length} results shown</span>
+                    </div>
+                  )}
 
                   {/* No results state */}
                   {query && groupedResultSections.length === 0 && (
