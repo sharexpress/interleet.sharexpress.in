@@ -37,7 +37,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { challenges as localSystemDesignChallenges } from "@/lib/simulator/challenges";
-import { challenges as mockCodingChallenges, leaderboard as mockLeaderboard } from "@/lib/mock";
+import { leaderboard as mockLeaderboard } from "@/lib/mock";
 import { API } from "@/api/api";
 
 // Static pages configuration for fast client-side navigation search
@@ -69,6 +69,7 @@ export function GlobalSearch() {
   const [recentSearches, setRecentSearches] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [dbUsers, setDbUsers] = useState([]);
+  const [dbChallenges, setDbChallenges] = useState([]);
 
   // Load recent searches on mount
   useEffect(() => {
@@ -119,21 +120,27 @@ export function GlobalSearch() {
     }
   }, [isOpen]);
 
-  // Debounced backend query for matching actual database users
+  // Debounced backend query for users
   useEffect(() => {
     if (!query.trim()) {
       setDbUsers([]);
+      setDbChallenges([]);
       return;
     }
 
     const handler = setTimeout(async () => {
       try {
-        const response = await API.get(`/api/leaderboard?q=${encodeURIComponent(query)}&limit=10`);
-        if (response.data && response.data.items) {
-          setDbUsers(response.data.items);
+        // Fetch matching users
+        const userResp = await API.get(`/api/leaderboard?q=${encodeURIComponent(query)}&limit=10`);
+        if (userResp.data?.items) setDbUsers(userResp.data.items);
+
+        // Fetch matching challenges from real DB
+        const cResp = await API.get(`/challenges?q=${encodeURIComponent(query)}&limit=8`);
+        if (cResp.data?.data) {
+          setDbChallenges(cResp.data.data);
         }
       } catch (error) {
-        console.error("Failed to query users from backend", error);
+        console.error("Search error", error);
       }
     }, 250);
 
@@ -159,15 +166,16 @@ export function GlobalSearch() {
   }, [query]);
 
   const filteredCodingChallenges = useMemo(() => {
-    if (!query.trim()) return [];
-    const term = query.toLowerCase();
-    return (mockCodingChallenges || []).filter(
-      (c) =>
-        c.title?.toLowerCase().includes(term) ||
-        c.summary?.toLowerCase().includes(term) ||
-        (c.tags && c.tags.some((t) => t?.toLowerCase().includes(term)))
-    );
-  }, [query]);
+    // Use live DB results — already filtered by the backend
+    return dbChallenges.map((c) => ({
+      ...c,
+      title: c.title,
+      slug: c.slug,
+      summary: c.summary || c.short_description || "",
+      difficulty: c.difficulty,
+      tags: c.tags || [],
+    }));
+  }, [dbChallenges]);
 
   const filteredUsers = useMemo(() => {
     if (!query.trim()) return [];
