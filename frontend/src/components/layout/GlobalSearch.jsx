@@ -178,28 +178,41 @@ export function GlobalSearch() {
         const total = cResp.data?.pagination?.total ?? cResp.data?.total ?? 0;
         setHasMoreChallenges(cResp.data.data.length >= PAGE_LIMIT && total > nextPage * PAGE_LIMIT);
       } else {
+        // Empty page — no more results
         setHasMoreChallenges(false);
       }
     } catch (error) {
-      console.error("fetchMoreChallenges error", error);
+      // 404 or any error — stop retrying immediately
+      setHasMoreChallenges(false);
+      if (error?.response?.status !== 404) {
+        console.error("fetchMoreChallenges error", error);
+      }
     } finally {
       setIsFetchingMore(false);
     }
   }, [query, challengePage, isFetchingMore, hasMoreChallenges]);
 
-  // IntersectionObserver: fire fetchMoreChallenges when sentinel enters viewport
+  // Stable ref so the observer never needs to reconnect when the callback changes
+  const fetchMoreRef = useRef(fetchMoreChallenges);
+  useEffect(() => { fetchMoreRef.current = fetchMoreChallenges; }, [fetchMoreChallenges]);
+
+  // IntersectionObserver: fire ONCE when sentinel enters viewport.
+  // Using a stable ref means the observer is created only once per sentinel mount,
+  // preventing the reconnect-and-immediate-fire loop.
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) fetchMoreChallenges();
+        if (entries[0].isIntersecting) fetchMoreRef.current();
       },
-      { threshold: 0.1 }
+      { threshold: 0.1, rootMargin: "0px 0px 40px 0px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [fetchMoreChallenges]);
+  // Only re-create observer when the sentinel DOM element itself changes
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMoreChallenges]);
 
   // Client-side search filters with safety checks
   const filteredPages = useMemo(() => {
