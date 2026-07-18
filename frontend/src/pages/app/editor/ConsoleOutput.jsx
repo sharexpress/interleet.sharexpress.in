@@ -64,66 +64,92 @@ function DOMElementToken({ data }) {
   );
 }
 
-function DeepValueRenderer({ val, name, isLast = true }) {
+// ─── One-line summary for collapsed preview ───────────────────────────────────
+function collapsedPreview(val, depth) {
+  if (depth === undefined) depth = 0;
+  if (val === null || val === undefined) return String(val);
+  if (typeof val !== "object") return typeof val === "string" ? ("'" + val.slice(0, 30) + (val.length > 30 ? "…" : "") + "'") : String(val);
+  if (val.__type === "DOMElement") return "<" + (val.tagName || "el") + (val.id ? "#" + val.id : "") + ">";
+  if (val.__type === "Error")      return (val.name || "Error") + ": " + val.message;
+  if (val.__type === "Date")       return val.value;
+  if (Array.isArray(val)) {
+    if (depth > 0) return "[…]";
+    const inner = val.slice(0, 4).map(function(v) { return collapsedPreview(v, depth + 1); }).join(", ");
+    return "(" + val.length + ") [" + inner + (val.length > 4 ? ", …" : "") + "]";
+  }
+  if (depth > 0) return "{…}";
+  const keys = Object.keys(val);
+  const inner = keys.slice(0, 3).map(function(k) { return k + ": " + collapsedPreview(val[k], depth + 1); }).join(", ");
+  return "{" + inner + (keys.length > 3 ? ", …" : "") + "}";
+}
+
+// ─── Chrome-style vertical tree renderer ─────────────────────────────────────
+function DeepValueRenderer({ val, name, depth }) {
+  if (depth === undefined) depth = 0;
   const [expanded, setExpanded] = useState(false);
 
-  // Null & Undefined
+  // — Null / Undefined
   if (val === null || val === undefined) {
     return (
-      <span className="font-mono">
-        {name && <span className="text-zinc-400">{name}: </span>}
+      <span className="font-mono text-[11px]">
+        {name !== undefined && <span className="text-zinc-400">{name}: </span>}
         <span className="text-zinc-500 italic">{String(val)}</span>
-        {!isLast && <span className="text-zinc-600">, </span>}
       </span>
     );
   }
 
-  // Primitive strings, numbers, booleans, bigint
+  // — Number
   if (typeof val === "number") {
     return (
-      <span className="font-mono">
-        {name && <span className="text-zinc-300">{name}: </span>}
-        <span className="text-emerald-400">{val}</span>
-        {!isLast && <span className="text-zinc-600">, </span>}
+      <span className="font-mono text-[11px]">
+        {name !== undefined && <span className="text-zinc-400">{name}: </span>}
+        <span className="text-cyan-300">{val}</span>
       </span>
     );
   }
 
+  // — Boolean
   if (typeof val === "boolean") {
     return (
-      <span className="font-mono">
-        {name && <span className="text-zinc-300">{name}: </span>}
-        <span className="text-sky-400 font-semibold">{String(val)}</span>
-        {!isLast && <span className="text-zinc-600">, </span>}
+      <span className="font-mono text-[11px]">
+        {name !== undefined && <span className="text-zinc-400">{name}: </span>}
+        <span className="text-cyan-300">{String(val)}</span>
       </span>
     );
   }
 
+  // — String (or function label)
   if (typeof val === "string") {
+    if (val.startsWith("[Function")) {
+      return (
+        <span className="font-mono text-[11px]">
+          {name !== undefined && <span className="text-zinc-400">{name}: </span>}
+          <span className="text-zinc-400 italic">{val}</span>
+        </span>
+      );
+    }
     return (
-      <span className="font-mono">
-        {name && <span className="text-zinc-300">{name}: </span>}
-        <span className="text-amber-300">"{val}"</span>
-        {!isLast && <span className="text-zinc-600">, </span>}
+      <span className="font-mono text-[11px]">
+        {name !== undefined && <span className="text-zinc-400">{name}: </span>}
+        <span className="text-amber-300">'{val}'</span>
       </span>
     );
   }
 
-  // Special Serialized Objects (__type)
+  // — Special __type objects
   if (typeof val === "object" && val.__type) {
     if (val.__type === "DOMElement") {
       return (
-        <span className="font-mono">
-          {name && <span className="text-zinc-300">{name}: </span>}
+        <span className="font-mono text-[11px]">
+          {name !== undefined && <span className="text-zinc-400">{name}: </span>}
           <DOMElementToken data={val} />
-          {!isLast && <span className="text-zinc-600">, </span>}
         </span>
       );
     }
     if (val.__type === "Error") {
       return (
-        <span className="font-mono text-red-400 bg-red-950/40 border border-red-900/50 px-1.5 py-0.5 rounded">
-          {name && <span className="text-zinc-300">{name}: </span>}
+        <span className="font-mono text-[11px] text-red-400">
+          {name !== undefined && <span className="text-zinc-400">{name}: </span>}
           <span className="font-bold">{val.name || "Error"}: </span>
           <span>{val.message}</span>
         </span>
@@ -131,11 +157,9 @@ function DeepValueRenderer({ val, name, isLast = true }) {
     }
     if (val.__type === "Date") {
       return (
-        <span className="font-mono">
-          {name && <span className="text-zinc-300">{name}: </span>}
+        <span className="font-mono text-[11px]">
+          {name !== undefined && <span className="text-zinc-400">{name}: </span>}
           <span className="text-purple-300 italic">{val.value}</span>
-          {!isLast && <span className="text-zinc-600">, </span>}
-        </span>
       );
     }
   }
@@ -246,7 +270,7 @@ function DeepValueRenderer({ val, name, isLast = true }) {
 }
 
 function renderArg(a, j) {
-  return <DeepValueRenderer key={j} val={a} isLast={true} />;
+  return <DeepValueRenderer key={j} val={a} />;
 }
 
 // ─── Live Browser Console Entry (from iframe postMessage) ─────────────────────
@@ -256,20 +280,30 @@ const LiveEntry = memo(function LiveEntry({ entry, index }) {
   const Icon = s.icon;
   const time = entry.ts ? new Date(entry.ts).toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }) : null;
 
+  const args = entry.args || [];
+
   return (
-    <div className={`mb-1 flex items-start gap-2 rounded px-2 py-1 ${s.bg} ${s.border}`}>
-      <span className="select-none text-[10px] text-muted-foreground/40 mt-0.5 w-5 shrink-0 text-right">
-        {String(index + 1).padStart(2, "0")}
-      </span>
-      {Icon && <Icon className={`mt-0.5 h-3 w-3 shrink-0 ${s.text}`} />}
-      <div className={`flex flex-wrap gap-1.5 flex-1 ${s.text}`}>
-        {(entry.args || []).map((a, j) => renderArg(a, j))}
-      </div>
-      {time && (
-        <span className="ml-auto text-[9px] text-muted-foreground/30 shrink-0 font-mono mt-0.5">
-          {time}
+    <div className={`border-b border-zinc-800/50 px-2 py-1 ${s.bg} ${s.border} hover:bg-zinc-800/20 transition-colors`}>
+      {/* Row header: line number + icon + timestamp */}
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="select-none text-[10px] text-muted-foreground/30 w-5 shrink-0 text-right font-mono">
+          {String(index + 1).padStart(2, "0")}
         </span>
-      )}
+        {Icon && <Icon className={`h-3 w-3 shrink-0 ${s.text}`} />}
+        {time && (
+          <span className="ml-auto text-[9px] text-muted-foreground/25 shrink-0 font-mono">
+            {time}
+          </span>
+        )}
+      </div>
+      {/* Arguments — each on its own line for objects/arrays */}
+      <div className={`ml-7 space-y-0.5 ${s.text}`}>
+        {args.map((a, j) => (
+          <div key={j} className="w-full">
+            {renderArg(a, j)}
+          </div>
+        ))}
+      </div>
     </div>
   );
 });
