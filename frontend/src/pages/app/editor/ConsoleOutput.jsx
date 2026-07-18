@@ -374,5 +374,7 @@ const ConsoleOutput = memo(function ConsoleOutput({ result, isRunning, liveLogs,
   return <LegacyConsoleOutput result={result} isRunning={isRunning} />;
 });
 
+const ObjToken = DeepValueRenderer;
+
 export default ConsoleOutput;
-export { ObjToken };
+export { ObjToken, DeepValueRenderer };
