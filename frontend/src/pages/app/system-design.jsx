@@ -2332,7 +2332,6 @@ export default function SystemDesignSimulator() {
         requirements: t.requirements || [],
         hints: t.hints || [],
       });
-    }
   };
 
   return (
