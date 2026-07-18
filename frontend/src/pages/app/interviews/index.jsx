@@ -26,35 +26,43 @@ import { cn } from "@/lib/utils";
 import { API } from "@/api/api";
 import UpgradeModal from "@/components/UpgradeModal";
 
+/* ─── Global In-Memory Cache for AI Interviews ─── */
+let cachedInterviewPresets = null;
+let cachedInterviewHistory = null;
+
 function InterviewsPage() {
   const navigate = useNavigate();
   const [view, setView] = useState("grid");
   const user = useSelector((state) => state.user?.user);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [interviewHistory, setInterviewHistory] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(true);
-  const [roles, setRoles] = useState([]);
-  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [interviewHistory, setInterviewHistory] = useState(cachedInterviewHistory || []);
+  const [loadingHistory, setLoadingHistory] = useState(!cachedInterviewHistory);
+  const [roles, setRoles] = useState(cachedInterviewPresets || []);
+  const [loadingRoles, setLoadingRoles] = useState(!cachedInterviewPresets);
 
   useEffect(() => {
     let isMounted = true;
     const fetchPresets = async () => {
+      if (cachedInterviewPresets) {
+        setRoles(cachedInterviewPresets);
+        setLoadingRoles(false);
+      }
       try {
-        const response = await API.get("/interview/presets");
-        if (isMounted) {
-          const mapped = response.data.map(p => ({
-            t: p.title,
+        const response = await API.get("/api/v1/interviews/presets");
+        if (isMounted && response.data?.presets) {
+          const mapped = response.data.presets.map((p) => ({
+            t: p.title || p.role_title,
             d: p.description,
-            m: p.duration_minutes,
-            id: p.id
+            m: p.duration_minutes || 45,
           }));
+          cachedInterviewPresets = mapped;
           setRoles(mapped);
           setLoadingRoles(false);
         }
       } catch (err) {
         console.error("Failed to load interview presets, falling back to defaults.", err);
         if (isMounted) {
-          setRoles([
+          const fallback = cachedInterviewPresets || [
             { t: "Senior Backend Engineer", d: "Concurrency, services, databases, scaling.", m: 45 },
             { t: "Frontend Architect", d: "Performance, state, design systems, accessibility.", m: 45 },
             { t: "System Design (L5)", d: "End-to-end architecture for production systems.", m: 60 },
@@ -62,22 +70,31 @@ function InterviewsPage() {
             { t: "API Design", d: "REST, contracts, versioning, evolvability.", m: 30 },
             { t: "Full-Stack Generalist", d: "Mixed scenarios across the stack.", m: 50 },
             { t: "MERN Stack Developer", d: "MongoDB, Express, React, Node.js integration.", m: 45 }
-          ]);
+          ];
+          cachedInterviewPresets = fallback;
+          setRoles(fallback);
           setLoadingRoles(false);
         }
       }
     };
     const fetchHistory = async () => {
+      if (cachedInterviewHistory) {
+        setInterviewHistory(cachedInterviewHistory);
+        setLoadingHistory(false);
+      }
       try {
         const response = await API.get("/interview/reports/recent");
         if (isMounted) {
+          cachedInterviewHistory = response.data;
           setInterviewHistory(response.data);
           setLoadingHistory(false);
         }
       } catch (err) {
         console.error("Failed to load interview history, falling back to empty.", err);
         if (isMounted) {
-          setInterviewHistory([]);
+          const fallback = cachedInterviewHistory || [];
+          cachedInterviewHistory = fallback;
+          setInterviewHistory(fallback);
           setLoadingHistory(false);
         }
       }

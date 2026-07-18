@@ -2241,6 +2241,8 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
     </AppShell>
   );
 }
+/* ─── Global In-Memory Cache for System Design ─── */
+let cachedSystemDesignData = null;
 
 // ---------- Page ----------
 export default function SystemDesignSimulator() {
@@ -2249,22 +2251,36 @@ export default function SystemDesignSimulator() {
   const [template, setTemplate] = useState(null);
   const user = useSelector((state) => state.user?.user);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [customChallenges, setCustomChallenges] = useState([]);
-  const [customTemplates, setCustomTemplates] = useState([]);
-  const [userProgress, setUserProgress] = useState({});
+  const [customChallenges, setCustomChallenges] = useState(cachedSystemDesignData?.challenges || []);
+  const [customTemplates, setCustomTemplates] = useState(cachedSystemDesignData?.templates || []);
+  const [userProgress, setUserProgress] = useState(cachedSystemDesignData?.progress || {});
   const [userCanvas, setUserCanvas] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedSystemDesignData);
 
   const challengeId = searchParams.get("c");
   const templateId = searchParams.get("t");
 
   const loadSystemDesign = useCallback(async () => {
+    if (cachedSystemDesignData) {
+      setCustomChallenges(cachedSystemDesignData.challenges || []);
+      setCustomTemplates(cachedSystemDesignData.templates || []);
+      setUserProgress(cachedSystemDesignData.progress || {});
+      setLoading(false);
+    }
     try {
       const response = await API.get("/api/system-design");
-      if (response.data.challenges) setCustomChallenges(response.data.challenges);
-      if (response.data.templates) setCustomTemplates(response.data.templates);
-      if (response.data.userProgress) setUserProgress(response.data.userProgress);
-      if (response.data.userCanvas) setUserCanvas(response.data.userCanvas);
+      const { challenges, templates, userProgress: progress, userCanvas } = response.data;
+      
+      cachedSystemDesignData = {
+        challenges: challenges || [],
+        templates: templates || [],
+        progress: progress || {},
+      };
+      
+      if (challenges) setCustomChallenges(challenges);
+      if (templates) setCustomTemplates(templates);
+      if (progress) setUserProgress(progress);
+      if (userCanvas) setUserCanvas(userCanvas);
       setLoading(false);
     } catch (err) {
       console.error("Failed to load system design API configurations", err);

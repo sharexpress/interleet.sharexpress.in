@@ -213,27 +213,41 @@ const PodiumCard = ({ userData, spot, visible }) => {
   );
 };
 
+/* ─── Global In-Memory Cache for Instant Tab Switching ─── */
+let cachedLeaderboardData = null;
+
 /* ─── Main Component ──────────────────────────────────────── */
-function Leaderboard() {
+import { memo } from "react";
+
+const Leaderboard = memo(function Leaderboard() {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.user);
-  const [leaderboardData, setLeaderboardData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [podiumVisible, setPodiumVisible] = useState(false);
+  const [leaderboardData, setLeaderboardData] = useState(cachedLeaderboardData || []);
+  const [loading, setLoading] = useState(!cachedLeaderboardData);
+  const [podiumVisible, setPodiumVisible] = useState(!!cachedLeaderboardData);
 
   useEffect(() => {
     let isMounted = true;
     const fetchLeaderboard = async () => {
+      if (cachedLeaderboardData) {
+        setLeaderboardData(cachedLeaderboardData);
+        setLoading(false);
+        setPodiumVisible(true);
+      }
       try {
         const response = await API.get("/api/leaderboard");
         if (isMounted) {
-          setLeaderboardData(response.data?.items || mockLeaderboard);
+          const items = response.data?.items || mockLeaderboard;
+          cachedLeaderboardData = items;
+          setLeaderboardData(items);
           setLoading(false);
         }
       } catch (err) {
         console.error("Failed to load live leaderboard, falling back to mock.", err);
         if (isMounted) {
-          setLeaderboardData(mockLeaderboard);
+          const items = cachedLeaderboardData || mockLeaderboard;
+          cachedLeaderboardData = items;
+          setLeaderboardData(items);
           setLoading(false);
         }
       }

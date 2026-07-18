@@ -80,9 +80,9 @@ function Dashboard() {
     navigate(`/app/interviews/setup?role=${encodeURIComponent(randomRole)}&difficulty=${encodeURIComponent(randomDiff)}`);
   };
 
-  const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isReady, setIsReady] = useState(false);
+  const [dashboardData, setDashboardData] = useState(cachedDashboardData);
+  const [loading, setLoading] = useState(!cachedDashboardData);
+  const [isReady, setIsReady] = useState(!!cachedDashboardData);
 
   useLayoutEffect(() => {
     if (!loading) {
@@ -99,9 +99,14 @@ function Dashboard() {
   useEffect(() => {
     let isMounted = true;
     const fetchDashboard = async () => {
+      if (cachedDashboardData) {
+        setDashboardData(cachedDashboardData);
+        setLoading(false);
+      }
       try {
         const response = await API.get("/api/dashboard");
         if (isMounted) {
+          cachedDashboardData = response.data;
           setDashboardData(response.data);
           setLoading(false);
         }
