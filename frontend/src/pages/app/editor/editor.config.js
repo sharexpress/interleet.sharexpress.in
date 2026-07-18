@@ -44,29 +44,33 @@ export const BACKEND_LANG_TO_SHORT = {
 export const STARTERS = {};
 export const DEFAULT_STARTER = {};
 
-export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
+export function getStarterWithDb(slug, lang, dbChallenge, selectedDb = "sqlite") {
   if (!dbChallenge || !dbChallenge.starter_code) {
-    return "";
+    return { code: "", matchedDb: selectedDb };
   }
 
+  const KNOWN_DBS = ["sqlite", "mongodb", "postgres", "mysql"];
   const dbKey = selectedDb ? `${lang}_${selectedDb}` : lang;
+
   if (lang === "multi" && dbChallenge.starter_code.multi) {
-    return dbChallenge.starter_code.multi;
+    return { code: dbChallenge.starter_code.multi, matchedDb: selectedDb };
   }
   if (lang === "html" && dbChallenge.starter_code.html) {
-    return dbChallenge.starter_code.html;
+    return { code: dbChallenge.starter_code.html, matchedDb: selectedDb };
   }
   if (dbKey && dbChallenge.starter_code[dbKey]) {
-    return dbChallenge.starter_code[dbKey];
+    return { code: dbChallenge.starter_code[dbKey], matchedDb: selectedDb };
   }
+
+  const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
+
   // Check exact short language key match
   if (dbChallenge.starter_code[lang]) {
-    return dbChallenge.starter_code[lang];
+    return { code: dbChallenge.starter_code[lang], matchedDb: selectedDb };
   }
   // Check backend language name key (e.g. "javascript", "python")
-  const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
   if (dbChallenge.starter_code[backendKey]) {
-    return dbChallenge.starter_code[backendKey];
+    return { code: dbChallenge.starter_code[backendKey], matchedDb: selectedDb };
   }
 
   // Check any starter_code key matching target language (e.g. "js_mongodb" or "py_mongodb")
@@ -74,10 +78,27 @@ export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
     (k) => k.startsWith(`${lang}_`) || k.startsWith(`${backendKey}_`)
   );
   if (langPrefixMatch && dbChallenge.starter_code[langPrefixMatch]) {
-    return dbChallenge.starter_code[langPrefixMatch];
+    const parts = langPrefixMatch.split("_");
+    const inferredDbFromKey = parts.length > 1 && KNOWN_DBS.includes(parts[parts.length - 1])
+      ? parts[parts.length - 1]
+      : selectedDb;
+    return { code: dbChallenge.starter_code[langPrefixMatch], matchedDb: inferredDbFromKey };
   }
 
   // Strictly return from database (no local fallbacks)
-  const firstVal = Object.values(dbChallenge.starter_code)[0];
-  return typeof firstVal === "string" ? firstVal : "";
+  const firstKey = Object.keys(dbChallenge.starter_code)[0];
+  const firstVal = dbChallenge.starter_code[firstKey];
+  const firstParts = firstKey ? firstKey.split("_") : [];
+  const firstDb = firstParts.length > 1 && KNOWN_DBS.includes(firstParts[firstParts.length - 1])
+    ? firstParts[firstParts.length - 1]
+    : selectedDb;
+
+  return {
+    code: typeof firstVal === "string" ? firstVal : "",
+    matchedDb: firstDb,
+  };
+}
+
+export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
+  return getStarterWithDb(slug, lang, dbChallenge, selectedDb).code;
 }

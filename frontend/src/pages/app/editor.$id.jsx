@@ -80,6 +80,7 @@ import {
   LANG_FILE,
   BACKEND_LANG_TO_SHORT,
   getStarter,
+  getStarterWithDb,
 } from "./editor/editor.config";
 
 // ─── Markdown Parser Helpers ──────────────────────────────────────────────────
@@ -709,7 +710,11 @@ function EditorPage() {
 
   const updateWorkspaceCode = useCallback(
     (targetLang, targetDb) => {
-      const starterRaw = getStarter(slug, targetLang, c, targetDb);
+      const { code: starterRaw, matchedDb } = getStarterWithDb(slug, targetLang, c, targetDb);
+
+      if (matchedDb && matchedDb !== targetDb) {
+        setSelectedDb(matchedDb);
+      }
 
       if (isMultiFileDomain) {
         let parsedFiles = null;
