@@ -265,7 +265,9 @@ function EditorPage() {
   const [code, setCode] = useState(() => getInitialState().code);
   const [consoleResult, setResult] = useState(null);
   const [liveLogs, setLiveLogs] = useState([]);
+  const onClearLiveLogs = useCallback(() => setLiveLogs([]), []);
   const onConsoleLog = useCallback((entry) => {
+    if (entry.type === "clear") { setLiveLogs([]); return; }
     setLiveLogs((prev) => [...prev, entry]);
   }, []);
   const [activeTab, setActiveTab] = useState(() => typeof window !== "undefined" && window.innerWidth < 768 ? "description" : "testcase");
@@ -1439,12 +1441,13 @@ function EditorPage() {
                   )}
                 </TabsContent>
 
-                <TabsContent value="console" className="m-0 overflow-auto p-3" style={{ height: "calc(100% - 36px)" }}>
+                <TabsContent value="console" className="m-0 overflow-hidden p-0" style={{ height: "calc(100% - 36px)" }}>
                   <ConsoleOutput
                     result={consoleResult}
                     isRunning={false}
                     liveLogs={liveLogs}
                     isFrontend={c?.domain === "Frontend"}
+                    onClear={onClearLiveLogs}
                   />
                 </TabsContent>
 

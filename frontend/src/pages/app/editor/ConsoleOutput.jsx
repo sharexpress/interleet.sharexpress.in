@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { memo, useState } from "react";
+import { memo, useState, useCallback } from "react";
 import { Loader2, X, Check, AlertTriangle, Info, Bug, ChevronRight, ChevronDown } from "lucide-react";
 
 // ─── Log Type Styles ──────────────────────────────────────────────────────────
@@ -378,18 +378,30 @@ const LegacyConsoleOutput = memo(function LegacyConsoleOutput({ result, isRunnin
 });
 
 // ─── Main export: live browser console for Frontend, legacy for others ────────
-const ConsoleOutput = memo(function ConsoleOutput({ result, isRunning, liveLogs, isFrontend }) {
+const ConsoleOutput = memo(function ConsoleOutput({ result, isRunning, liveLogs, isFrontend, onClear }) {
   if (isFrontend) {
     const logs = liveLogs || [];
     const errorCount = logs.filter((e) => e.type === "error").length;
     const warnCount  = logs.filter((e) => e.type === "warn").length;
 
     return (
-      <div className="h-full overflow-auto font-mono text-[11px] leading-relaxed">
+      <div className="h-full flex flex-col overflow-hidden font-mono text-[11px] leading-relaxed">
         {/* DevTools-style header */}
-        <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/90 px-3 py-1.5 text-[10px] text-muted-foreground backdrop-blur">
-          <span className="font-semibold text-foreground/70">Console</span>
-          <span className="ml-1">{logs.length} message{logs.length !== 1 ? "s" : ""}</span>
+        <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-background/90 px-2 py-1.5 text-[10px] text-muted-foreground backdrop-blur shrink-0">
+          {/* Clear console button — exactly like Chrome */}
+          <button
+            onClick={onClear}
+            title="Clear console (Ctrl+L)"
+            className="flex items-center justify-center rounded p-0.5 hover:bg-zinc-700/60 text-zinc-500 hover:text-zinc-200 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+            </svg>
+          </button>
+          <div className="w-px h-3 bg-zinc-700/60 shrink-0" />
+          <span className="font-semibold text-foreground/60">Console</span>
+          <span>{logs.length} message{logs.length !== 1 ? "s" : ""}</span>
           {errorCount > 0 && (
             <span className="flex items-center gap-1 text-red-400">
               <X className="h-3 w-3" /> {errorCount}
@@ -400,10 +412,10 @@ const ConsoleOutput = memo(function ConsoleOutput({ result, isRunning, liveLogs,
               <AlertTriangle className="h-3 w-3" /> {warnCount}
             </span>
           )}
-          <span className="ml-auto text-[9px] text-muted-foreground/40 italic">Live · iframe console</span>
+          <span className="ml-auto text-[9px] text-muted-foreground/40 italic">Live · iframe</span>
         </div>
 
-        <div className="py-1">
+        <div className="py-1 overflow-auto flex-1">
           {logs.length === 0 ? (
             <p className="p-3 text-muted-foreground/60 italic text-[11px]">
               No console output yet. Use <code className="text-amber-400">console.log()</code> in your JavaScript to see output here.
