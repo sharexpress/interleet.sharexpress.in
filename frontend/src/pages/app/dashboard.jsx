@@ -53,6 +53,9 @@ import { ChallengeCard } from "@/components/domain/ChallengeCard";
 import UpgradeModal from "@/components/UpgradeModal";
 import { BadgeIcon } from "@/components/BadgeIcon";
 
+/* ─── Global In-Memory Cache for Dashboard ─── */
+let cachedDashboardData = null;
+
 function Dashboard() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
