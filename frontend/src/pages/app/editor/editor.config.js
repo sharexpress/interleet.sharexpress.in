@@ -51,29 +51,26 @@ export function getStarterWithDb(slug, lang, dbChallenge, selectedDb = "sqlite")
 
   const KNOWN_DBS = ["sqlite", "mongodb", "postgres", "mysql"];
   const dbKey = selectedDb ? `${lang}_${selectedDb}` : lang;
+  const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
+  const backendDbKey = selectedDb ? `${backendKey}_${selectedDb}` : backendKey;
 
+  // 1. Exact match for multi or html
   if (lang === "multi" && dbChallenge.starter_code.multi) {
     return { code: dbChallenge.starter_code.multi, matchedDb: selectedDb };
   }
   if (lang === "html" && dbChallenge.starter_code.html) {
     return { code: dbChallenge.starter_code.html, matchedDb: selectedDb };
   }
+
+  // 2. Exact match for specific language + database combination (e.g. "js_sqlite", "py_mongodb", "go_postgres")
   if (dbKey && dbChallenge.starter_code[dbKey]) {
     return { code: dbChallenge.starter_code[dbKey], matchedDb: selectedDb };
   }
-
-  const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
-
-  // Check exact short language key match
-  if (dbChallenge.starter_code[lang]) {
-    return { code: dbChallenge.starter_code[lang], matchedDb: selectedDb };
-  }
-  // Check backend language name key (e.g. "javascript", "python")
-  if (dbChallenge.starter_code[backendKey]) {
-    return { code: dbChallenge.starter_code[backendKey], matchedDb: selectedDb };
+  if (backendDbKey && dbChallenge.starter_code[backendDbKey]) {
+    return { code: dbChallenge.starter_code[backendDbKey], matchedDb: selectedDb };
   }
 
-  // Check any starter_code key matching target language (e.g. "js_mongodb" or "py_mongodb")
+  // 3. Match any key starting with `${lang}_` (e.g. "js_mongodb") if specific dbKey wasn't found
   const langPrefixMatch = Object.keys(dbChallenge.starter_code).find(
     (k) => k.startsWith(`${lang}_`) || k.startsWith(`${backendKey}_`)
   );
@@ -85,7 +82,15 @@ export function getStarterWithDb(slug, lang, dbChallenge, selectedDb = "sqlite")
     return { code: dbChallenge.starter_code[langPrefixMatch], matchedDb: inferredDbFromKey };
   }
 
-  // Strictly return from database (no local fallbacks)
+  // 4. Standalone language keys without DB suffix (e.g. "js", "javascript", "py", "python")
+  if (dbChallenge.starter_code[lang]) {
+    return { code: dbChallenge.starter_code[lang], matchedDb: selectedDb };
+  }
+  if (dbChallenge.starter_code[backendKey]) {
+    return { code: dbChallenge.starter_code[backendKey], matchedDb: selectedDb };
+  }
+
+  // 5. First available entry in MongoDB starter_code
   const firstKey = Object.keys(dbChallenge.starter_code)[0];
   const firstVal = dbChallenge.starter_code[firstKey];
   const firstParts = firstKey ? firstKey.split("_") : [];
