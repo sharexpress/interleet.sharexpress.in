@@ -68,7 +68,7 @@ const DOMAIN_THEMES = {
 
 export function ChallengeCard({ c }) {
   const user = useSelector((state) => state.user?.user);
-  const isLocked = c.is_premium && !user?.is_premium;
+  const isLocked = false;
 
   const domain = c.domain || "Backend";
   const theme = DOMAIN_THEMES[domain] || DOMAIN_THEMES.Backend;

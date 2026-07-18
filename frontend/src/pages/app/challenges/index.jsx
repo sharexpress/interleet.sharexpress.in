@@ -159,11 +159,7 @@ function ChallengesPage() {
   }, [dispatch, debouncedQ, domain, diff, sort]);
 
   const openChallenge = (c) => {
-    if (c.is_premium && !user?.is_premium) {
-      setUpgradeOpen(true);
-    } else {
-      navigate(`/app/challenges/${c.slug}`);
-    }
+    navigate(`/app/challenges/${c.slug}`);
   };
 
   const handleRandomChallenge = () => {
@@ -480,8 +476,7 @@ function ChallengesPage() {
                   >
                     <td className="px-3 py-3 font-medium md:px-4">
                       <div className="flex items-center gap-1.5">
-                        {c.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] flex-shrink-0" />}
-                        <span>{c.title}</span>
+                        <span className="truncate">{c.title}</span>
                       </div>
                     </td>
                     <td className="px-3 py-3 md:px-4">

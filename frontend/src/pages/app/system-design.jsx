@@ -2051,7 +2051,6 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
                       </Badge>
                     </div>
                     <h3 className="text-xl font-bold group-hover:text-primary transition-colors flex items-center gap-2">
-                      {!user?.is_premium && <Lock className="h-4 w-4 text-[#FF6500] shrink-0" />}
                       <span>{featuredChallenge.title}</span>
                       {featuredChallenge.progress === "Completed" && (
                         <span className="h-2 w-2 rounded-full bg-emerald-500" title="Completed" />
@@ -2135,7 +2134,6 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
                     </div>
                     <h3 className="mt-3 text-base font-semibold leading-snug tracking-tight group-hover:text-primary transition-colors flex items-center justify-between gap-2">
                       <span className="flex items-center gap-1.5">
-                        {ch.id !== "blank" && !user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
                         <span>{ch.title}</span>
                       </span>
                       {ch.progress === "Completed" && (
@@ -2194,7 +2192,6 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
                     </div>
                     <h3 className="mt-3 text-base font-semibold leading-snug tracking-tight group-hover:text-primary transition-colors flex items-center justify-between gap-2">
                       <span className="flex items-center gap-1.5">
-                        {!user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
                         <span>{t.name}</span>
                       </span>
                       {t.progress === "Completed" && (
@@ -2301,43 +2298,32 @@ export default function SystemDesignSimulator() {
     if (templateId && !template && customTemplates.length > 0) {
       const found = customTemplates.find((t) => t.id === templateId);
       if (found) {
-        if (!user?.is_premium) {
-          setUpgradeOpen(true);
-        } else {
-          setTemplate(found);
-          setChallenge({
-            id: `tpl-${found.id}`,
-            title: found.name,
-            difficulty: "Template",
-            tags: ["Practice"],
-            brief:
-              found.description ||
-              `Prebuilt ${found.name} reference architecture. Study it, tweak nodes, or simulate load.`,
-            requirements: found.requirements || [],
-            hints: found.hints || [],
-          });
-        }
+        setTemplate(found);
+        setChallenge({
+          id: `tpl-${found.id}`,
+          title: found.name,
+          difficulty: "Template",
+          tags: ["Practice"],
+          brief:
+            found.description ||
+            `Prebuilt ${found.name} reference architecture. Study it, tweak nodes, or simulate load.`,
+          requirements: found.requirements || [],
+          hints: found.hints || [],
+        });
       }
     }
   }, [templateId, customTemplates, template, user]);
 
   const handlePickChallenge = (c) => {
-    if (c.id !== "blank" && !user?.is_premium) {
-      setUpgradeOpen(true);
-    } else {
-      setChallenge(c);
-      setTemplate(null);
-    }
+    setChallenge(c);
+    setTemplate(null);
   };
 
   const handlePickTemplate = (t) => {
-    if (!user?.is_premium) {
-      setUpgradeOpen(true);
-    } else {
-      setTemplate(t);
-      setChallenge({
-        id: `tpl-${t.id}`,
-        title: t.name,
+    setTemplate(t);
+    setChallenge({
+      id: `tpl-${t.id}`,
+      title: t.name,
         difficulty: "Template",
         tags: ["Practice"],
         brief:

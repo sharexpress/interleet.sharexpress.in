@@ -1021,7 +1021,7 @@ function EditorPage() {
 
       {/* Workspace Area: Locked check */}
 
-      {c?.locked ? (
+      {false ? (
         <div className="flex flex-col items-center justify-center h-[calc(100vh-56px-49px)] bg-zinc-950 px-4 text-center">
           <div className="max-w-md w-full bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-8 space-y-6 shadow-xl relative overflow-hidden">
             {/* Ambient orange glow */}

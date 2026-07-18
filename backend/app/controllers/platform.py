@@ -441,7 +441,7 @@ class PlatformController:
             if q and not _matches_text(challenge, q):
                 continue
             # Inject is_premium dynamically
-            challenge["is_premium"] = challenge.get("is_premium", False) or challenge.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
+            challenge["is_premium"] = False
             items.append(challenge)
 
         if sort == "xp":
@@ -463,19 +463,9 @@ class PlatformController:
             raise HTTPException(status_code=404, detail="Challenge not found")
         challenge = _serialize(challenge_doc)
         
-        # Inject is_premium dynamically
-        challenge["is_premium"] = challenge.get("is_premium", False) or challenge.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"}
-        
-        # Access control: redact sensitive details for non-premium users on premium challenges
-        if challenge.get("is_premium"):
-            is_premium_user = requesting_user.get("is_premium", False) if requesting_user else False
-            if not is_premium_user:
-                redacted = dict(challenge)
-                redacted["locked"] = True
-                redacted["starter_code"] = {k: "/* PREMIUM CONTENT LOCKED */" for k in redacted.get("starter_code", {})}
-                redacted["test_cases"] = []
-                redacted["description"] = "This is a premium engineering challenge. Subscribe to unlock the interactive editor, test cases, and AI review."
-                return redacted
+        # All challenges are 100% free and unlocked
+        challenge["is_premium"] = False
+        challenge["locked"] = False
                 
         return challenge
 

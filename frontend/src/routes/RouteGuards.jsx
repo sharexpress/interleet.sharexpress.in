@@ -73,12 +73,5 @@ export function ProtectedRoute() {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (!onboardingCompleted) return <Navigate to="/onboarding" replace />;
 
-  const isPremiumUser = user?.is_premium || user?.role === "admin";
-
-  // Gate AI Mock Interviews under premium subscription
-  if (location.pathname.startsWith("/app/interviews") && !isPremiumUser) {
-    return <Navigate to="/app/store" replace />;
-  }
-
   return <Outlet />;
 }

@@ -60,11 +60,6 @@ def _interviewer_message(state: dict) -> str:
 @router.post("/start")
 async def start_interview(payload: dict, user_auth=Depends(UserMiddleware.me)):
     user_doc = user_auth.get("user")
-    if not user_doc.get("is_premium", False):
-        raise HTTPException(
-            status_code=403,
-            detail="AI Mock Interviews require an active Premium subscription.",
-        )
     state = build_initial_state(payload, user_id=user_doc.get("user_id"))
     state = await run_interview_graph(state)
     await SessionService.create_session(state["session_id"], state)

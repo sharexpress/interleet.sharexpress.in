@@ -58,7 +58,7 @@ def _to_frontend(doc: dict) -> dict:
         "test_cases": doc.get("test_cases", []),
         "is_featured": doc.get("is_featured", False),
         "is_published": doc.get("is_published", True),
-        "is_premium": doc.get("is_premium", False) or doc.get("slug") in {"responsive-data-table", "design-twitter-feed", "k8s-blue-green"},
+        "is_premium": False,
         "runtime": runtime_id,
         "runtime_config": runtime_config or None,
         "execution_mode": doc.get("execution_mode") or (runtime_config.get("executionMode") if runtime_config else "cli"),
@@ -140,32 +140,8 @@ class ChallengeController:
             raise HTTPException(status_code=404, detail="Challenge not found")
 
         challenge_data = _to_frontend(_serialize(doc))
-
-        # Access control: redact sensitive details for non-premium users on premium challenges
-        if challenge_data.get("is_premium"):
-            bypassed = False
-            if contest_id and requesting_user:
-                contest = await db.contests.find_one({
-                    "$or": [
-                        {"room_code": contest_id.upper()},
-                        {"contest_id": contest_id}
-                    ],
-                    "status": {"$in": ["lobby", "active"]}
-                })
-                if contest:
-                    is_participant = any(str(p.get("user_id")) == str(requesting_user.get("user_id")) for p in contest.get("participants", []))
-                    slug_in_contest = slug in contest.get("challenges", [])
-                    if is_participant and slug_in_contest:
-                        bypassed = True
-
-            if not bypassed:
-                is_premium_user = requesting_user.get("is_premium", False) if requesting_user else False
-                is_admin_user = requesting_user.get("role") == "admin" if requesting_user else False
-                if not is_premium_user and not is_admin_user:
-                    challenge_data["locked"] = True
-                    challenge_data["starter_code"] = {k: "/* PREMIUM CONTENT LOCKED */" for k in challenge_data.get("starter_code", {})}
-                    challenge_data["test_cases"] = []
-                    challenge_data["description"] = "This is a premium engineering challenge. Subscribe to unlock the interactive editor, test cases, and AI review."
+        challenge_data["is_premium"] = False
+        challenge_data["locked"] = False
 
         return {"success": True, "data": challenge_data}
 

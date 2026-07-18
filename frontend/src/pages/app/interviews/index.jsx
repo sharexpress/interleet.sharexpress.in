@@ -90,10 +90,6 @@ function InterviewsPage() {
   const handleRandomInterview = (e) => {
     if (e) e.preventDefault();
     if (roles.length === 0) return;
-    if (!user?.is_premium) {
-      setUpgradeOpen(true);
-      return;
-    }
     const randomRole = roles[Math.floor(Math.random() * roles.length)];
     const difficulties = ["Easy", "Intermediate", "Hard"];
     const randomDiff = difficulties[Math.floor(Math.random() * difficulties.length)];
@@ -157,7 +153,6 @@ function InterviewsPage() {
                       <Bot className="h-4 w-4 text-primary" />
                     </span>
                     <h3 className="text-sm font-semibold flex items-center gap-1.5">
-                      {!user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
                       <span>{r.t}</span>
                     </h3>
                   </div>
@@ -174,11 +169,7 @@ function InterviewsPage() {
                         <div
                           key={d.l}
                           onClick={() => {
-                            if (!user?.is_premium) {
-                              setUpgradeOpen(true);
-                            } else {
-                              navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`);
-                            }
+                            navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`);
                           }}
                           className={`rounded-md border px-2 py-1.5 text-center text-[11px] font-medium transition-colors cursor-pointer ${d.c}`}
                         >
@@ -194,11 +185,7 @@ function InterviewsPage() {
                     </span>
                     <div 
                       onClick={() => {
-                        if (!user?.is_premium) {
-                          setUpgradeOpen(true);
-                        } else {
-                          navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`);
-                        }
+                        navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`);
                       }}
                       className="inline-flex items-center text-primary hover:underline cursor-pointer"
                     >
@@ -228,7 +215,6 @@ function InterviewsPage() {
                           <span className="flex h-8 w-8 items-center justify-center rounded-md border border-border bg-background">
                             <Bot className="h-4 w-4 text-primary" />
                           </span>
-                          {!user?.is_premium && <Lock className="h-3.5 w-3.5 text-[#FF6500] shrink-0" />}
                           <span>{r.t}</span>
                         </td>
                         <td className="px-4 py-4 text-muted-foreground text-xs">{r.d}</td>
@@ -247,11 +233,7 @@ function InterviewsPage() {
                               <div
                                 key={d.l}
                                 onClick={() => {
-                                  if (!user?.is_premium) {
-                                    setUpgradeOpen(true);
-                                  } else {
-                                    navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`);
-                                  }
+                                  navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=${encodeURIComponent(d.l)}`);
                                 }}
                                 className={`rounded border px-2 py-1 text-[10px] font-medium transition-colors cursor-pointer ${d.c}`}
                               >
@@ -263,11 +245,7 @@ function InterviewsPage() {
                         <td className="px-4 py-4 text-right">
                           <div 
                             onClick={() => {
-                              if (!user?.is_premium) {
-                                setUpgradeOpen(true);
-                              } else {
-                                navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`);
-                              }
+                              navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`);
                             }}
                             className="inline-flex items-center text-xs text-primary hover:underline font-semibold cursor-pointer"
                           >

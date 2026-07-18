@@ -178,125 +178,40 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-[460px] bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader className="flex flex-col items-center text-center space-y-2 pb-4">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-[#FF6500]/10 border border-[#FF6500]/20 text-[#FF6500] mb-2">
-            <Lock className="w-5 h-5 animate-pulse" />
+          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-2">
+            <Sparkles className="w-5 h-5 animate-pulse" />
           </div>
-          <DialogTitle className="text-2xl font-bold tracking-tight bg-gradient-to-r from-orange-200 via-[#FF6500] to-orange-600 bg-clip-text text-transparent">
-            Upgrade to Pro Elite
+          <DialogTitle className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-200 via-emerald-400 to-teal-500 bg-clip-text text-transparent">
+            Interleet Pro is 100% Free!
           </DialogTitle>
           <DialogDescription className="text-zinc-400 text-sm">
-            Elevate your engineering preparation to FAANG-grade level.
+            All engineering challenges, AI mock interviews, and system design tools are unlocked for everyone.
           </DialogDescription>
         </DialogHeader>
 
-        {sandboxOrder ? (
-          <div className="bg-[#FF6500]/10 border border-[#FF6500]/25 rounded-xl p-5 space-y-4 my-2 text-center">
-            <div className="flex items-center justify-center gap-2 text-[#FF6500] font-semibold text-sm">
-              <Sparkles className="w-4 h-4" />
-              Razorpay Sandbox Simulator
-            </div>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              No Razorpay credentials detected in backend <code>.env</code>. You can safely simulate a successful payment locally to unlock premium services.
-            </p>
-            <div className="border border-dashed border-zinc-800 bg-zinc-900/60 p-3 rounded text-left font-mono text-[11px] text-zinc-500 space-y-1">
-              <div>Order ID: {sandboxOrder.order_id}</div>
-              <div>Amount: ₹{sandboxOrder.amount / 100} (INR)</div>
-              <div>Currency: INR</div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1 border-zinc-800 hover:bg-zinc-900 text-zinc-300"
-                onClick={() => setSandboxOrder(null)}
-                disabled={loading}
-              >
-                Back
-              </Button>
-              <Button
-                className="flex-1 bg-[#FF6500] text-white font-semibold hover:bg-[#E05900]"
-                onClick={handleSimulatePayment}
-                disabled={loading}
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-1.5" />
-                ) : (
-                  <ShieldCheck className="w-4 h-4 mr-1.5" />
-                )}
-                Simulate Payment
-              </Button>
-            </div>
+        <div className="space-y-4 my-2">
+          <div className="space-y-2.5 bg-zinc-900/40 p-4 rounded-xl border border-zinc-900">
+            <div className="text-xs font-semibold text-emerald-400 mb-2 uppercase tracking-wide">Included for Free:</div>
+            {benefits.map((benefit, idx) => (
+              <div key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300">
+                <div className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
+                  <Check className="w-2.5 h-2.5" />
+                </div>
+                <span>{benefit}</span>
+              </div>
+            ))}
           </div>
-        ) : (
-          <div className="space-y-4 my-2">
-            {/* Plan Selector */}
-            <div className="grid grid-cols-2 gap-3 p-1 rounded-xl bg-zinc-900/50 border border-zinc-800/60">
-              <button
-                type="button"
-                className={`flex flex-col items-center justify-center p-3.5 rounded-lg border transition-all ${
-                  plan === "monthly"
-                    ? "bg-[#FF6500]/10 border-[#FF6500] text-white"
-                    : "border-transparent hover:bg-zinc-900 text-zinc-400"
-                }`}
-                onClick={() => setPlan("monthly")}
-              >
-                <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Monthly</span>
-                <div className="flex items-baseline mt-1">
-                  <span className="text-xl font-bold text-white">₹149</span>
-                  <span className="text-[10px] text-zinc-500 ml-0.5">/ mo</span>
-                </div>
-              </button>
-              <button
-                type="button"
-                className={`relative flex flex-col items-center justify-center p-3.5 rounded-lg border transition-all ${
-                  plan === "yearly"
-                    ? "bg-[#FF6500]/10 border-[#FF6500] text-white"
-                    : "border-transparent hover:bg-zinc-900 text-zinc-400"
-                }`}
-                onClick={() => setPlan("yearly")}
-              >
-                <span className="absolute -top-2.5 right-2 bg-gradient-to-r from-orange-500 to-amber-500 text-black font-extrabold text-[8px] px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow">
-                  Save 50%
-                </span>
-                <span className="text-[10px] uppercase font-mono tracking-wider text-zinc-500">Yearly</span>
-                <div className="flex items-baseline mt-1">
-                  <span className="text-xl font-bold text-white">₹899</span>
-                  <span className="text-[10px] text-zinc-500 ml-0.5">/ yr</span>
-                </div>
-              </button>
-            </div>
 
-            {/* Benefits list */}
-            <div className="space-y-2.5 bg-zinc-900/40 p-4 rounded-xl border border-zinc-900">
-              <div className="text-xs font-semibold text-zinc-400 mb-2 uppercase tracking-wide">Included Features:</div>
-              {benefits.map((benefit, idx) => (
-                <div key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300">
-                  <div className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
-                    <Check className="w-2.5 h-2.5" />
-                  </div>
-                  <span>{benefit}</span>
-                </div>
-              ))}
-            </div>
+          <Button
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-black font-bold py-5 mt-2 rounded-xl transition-all shadow-lg"
+            onClick={() => setIsOpen(false)}
+          >
+            Start Exploring Now
+          </Button>
+        </div>
 
-            <Button
-              className="w-full bg-gradient-to-r from-[#FF6500] to-orange-500 hover:from-[#E05900] hover:to-orange-600 text-white font-bold py-5 mt-2 rounded-xl transition-all shadow-lg hover:shadow-orange-500/10"
-              onClick={handleUpgrade}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <span className="flex items-center justify-center gap-1.5">
-                  <Star className="w-4 h-4 fill-zinc-950" />
-                  Upgrade Now
-                </span>
-              )}
-            </Button>
-          </div>
-        )}
-
-        <div className="text-center text-[10px] text-zinc-600 mt-2">
-          Secure checkout verified by Razorpay. Zero risk sandbox testing.
+        <div className="text-center text-[10px] text-zinc-500 mt-2">
+          Enjoy unlimited access to all features. Happy coding!
         </div>
       </DialogContent>
     </Dialog>

@@ -151,9 +151,9 @@ class SettingsController:
         return {
             "success": True,
             "billing": {
-                "is_premium": is_premium,
-                "premium_until": premium_until,
-                "plan": user_doc.get("plan", "free"),
+                "is_premium": True,
+                "premium_until": "Lifetime Free Pro",
+                "plan": "Pro",
                 "last_payment": last_payment,
                 "payment_history": orders,
                 "total_spent": sum(
