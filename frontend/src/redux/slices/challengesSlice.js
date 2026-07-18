@@ -21,7 +21,16 @@ import { API } from "@/api/api";
 
 export const FetchChallenges = createAsyncThunk(
   "CHALLENGES/FETCH_LIST",
-  async (params = {}, { rejectWithValue }) => {
+  async (params = {}, { getState, rejectWithValue }) => {
+    const q = params.q || "";
+    const domain = params.domain || "all";
+    const difficulty = params.difficulty || "all";
+    const sort = params.sort || "popular";
+    const cacheKey = `${q}:${domain}:${difficulty}:${sort}`;
+
+    const cached = getState().challenges.listCache?.[cacheKey];
+    if (cached) return cached;
+
     try {
       const response = await API.get("/challenges", { params });
       return response.data;
@@ -56,6 +65,7 @@ const initialState = {
   total: 0,
   loading: false,
   error: null,
+  listCache: {}, // cache search / domain results by params key
 
   // Detail / editor — keyed by slug for cache
   detail: {}, // { [slug]: challengeObject }
@@ -76,8 +86,13 @@ const challengesSlice = createSlice({
   extraReducers: (builder) => {
     // ── FetchChallenges ──────────────────────────────────────────────────────
     builder
-      .addCase(FetchChallenges.pending, (state) => {
-        state.loading = true;
+      .addCase(FetchChallenges.pending, (state, action) => {
+        // Only set loading to true if the item isn't in cache
+        const params = action.meta.arg || {};
+        const key = `${params.q || ""}:${params.domain || "all"}:${params.difficulty || "all"}:${params.sort || "popular"}`;
+        if (!state.listCache[key]) {
+          state.loading = true;
+        }
         state.error = null;
       })
       .addCase(FetchChallenges.fulfilled, (state, action) => {
@@ -85,6 +100,11 @@ const challengesSlice = createSlice({
         state.items = action.payload.data ?? [];
         state.domains = action.payload.domains ?? [];
         state.total = action.payload.total ?? state.items.length;
+
+        // Store in cache
+        const params = action.meta.arg || {};
+        const key = `${params.q || ""}:${params.domain || "all"}:${params.difficulty || "all"}:${params.sort || "popular"}`;
+        state.listCache[key] = action.payload;
       })
       .addCase(FetchChallenges.rejected, (state, action) => {
         state.loading = false;
