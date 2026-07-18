@@ -693,34 +693,62 @@ function EditorPage() {
     return () => { cancelled = true; };
   }, [slug, user]);
 
-  const handleLangChange = useCallback(
-    (l) => {
-      setLang(l);
-      const starterRaw = getStarter(slug, l, c, selectedDb);
-      setCode(starterRaw);
-      // For multi-file domains, immediately hydrate file tabs when switching language
+  const updateWorkspaceCode = useCallback(
+    (targetLang, targetDb) => {
+      const starterRaw = getStarter(slug, targetLang, c, targetDb);
+
       if (isMultiFileDomain) {
+        let parsedFiles = null;
         try {
           const parsed = JSON.parse(starterRaw);
-          if (parsed && typeof parsed === "object") {
-            setMultiFiles(parsed);
-            const firstKey = Object.keys(parsed)[0];
-            if (firstKey) setActiveFile(firstKey);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            parsedFiles = parsed;
           }
         } catch (_) {}
+
+        if (!parsedFiles) {
+          const ext = targetLang === "py" ? "main.py"
+                    : targetLang === "go" ? "main.go"
+                    : targetLang === "rs" ? "main.rs"
+                    : targetLang === "java" ? "Main.java"
+                    : targetLang === "cpp" ? "main.cpp"
+                    : targetLang === "ts" ? "solution.ts"
+                    : "solution.js";
+          const filename = (runtimeEditor?.entryFile && runtimeEditor?.entryFile !== "main.txt")
+            ? runtimeEditor.entryFile
+            : ext;
+          parsedFiles = { [filename]: starterRaw };
+        }
+
+        setMultiFiles(parsedFiles);
+        isLocalChange.current = true;
+        setCode(JSON.stringify(parsedFiles));
+        const keys = Object.keys(parsedFiles);
+        if (keys.length > 0) {
+          setActiveFile(keys[0]);
+        }
+      } else {
+        setCode(starterRaw);
       }
       setResult(null);
     },
-    [slug, c, selectedDb, isMultiFileDomain],
+    [slug, c, isMultiFileDomain, runtimeEditor?.entryFile]
+  );
+
+  const handleLangChange = useCallback(
+    (l) => {
+      setLang(l);
+      updateWorkspaceCode(l, selectedDb);
+    },
+    [selectedDb, updateWorkspaceCode],
   );
 
   const handleDbChange = useCallback(
     (dbName) => {
       setSelectedDb(dbName);
-      setCode(getStarter(slug, lang, c, dbName));
-      setResult(null);
+      updateWorkspaceCode(lang, dbName);
     },
-    [slug, c, lang],
+    [lang, updateWorkspaceCode],
   );
 
   const handleCodeChange = useCallback((newValue) => {
@@ -742,25 +770,23 @@ function EditorPage() {
   const handleRun = useCallback(() => {
     dispatch(resetExecution());
     setActiveTab("result");
-    const executionLang = runtimeEditor?.executionLanguage || lang;
+    const executionLang = (c?.domain === "APIs" || c?.domain === "Backend") ? lang : (runtimeEditor?.executionLanguage || lang);
     dispatch(runCode({ code, language: executionLang, testCases: customTestCases, executionMode: c?.execution_mode || "cli", runtime: c?.runtime }));
-  }, [code, lang, customTestCases, dispatch, runtimeEditor?.executionLanguage, c?.execution_mode, c?.runtime]);
+  }, [code, lang, customTestCases, dispatch, runtimeEditor?.executionLanguage, c?.domain, c?.execution_mode, c?.runtime]);
 
   // Submit — runs against all test cases (including hidden) via backend DB
   const handleSubmit = useCallback(() => {
     dispatch(resetExecution());
     setActiveTab("result");
-    const executionLang = runtimeEditor?.executionLanguage || lang;
+    const executionLang = (c?.domain === "APIs" || c?.domain === "Backend") ? lang : (runtimeEditor?.executionLanguage || lang);
     dispatch(submitCode({ code, language: executionLang, slug, userId: user?.user_id, executionMode: c?.execution_mode || "cli", runtime: c?.runtime }));
-  }, [code, lang, slug, dispatch, user, runtimeEditor?.executionLanguage, c?.execution_mode, c?.runtime]);
+  }, [code, lang, slug, dispatch, user, runtimeEditor?.executionLanguage, c?.domain, c?.execution_mode, c?.runtime]);
 
   // Reset editor to default starter code, dismissing previous submission
   const handleResetToStarter = useCallback(() => {
-    const starterCode = getStarter(slug, lang, c);
-    setCode(starterCode);
+    updateWorkspaceCode(lang, selectedDb);
     setUsingPrevCode(false);
-    setResult(null);
-  }, [slug, lang, c]);
+  }, [lang, selectedDb, updateWorkspaceCode]);
 
   if (loading && !c)
     return (
