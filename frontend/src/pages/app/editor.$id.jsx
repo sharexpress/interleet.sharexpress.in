@@ -80,7 +80,6 @@ import {
   LANG_FILE,
   BACKEND_LANG_TO_SHORT,
   getStarter,
-  DEFAULT_STARTER
 } from "./editor/editor.config";
 
 // ─── Markdown Parser Helpers ──────────────────────────────────────────────────
@@ -495,9 +494,8 @@ function EditorPage() {
         }
       } catch (e) {}
 
-      // If the code is one of the default starters (initial loading state placeholder) or empty,
-      // do NOT run the fallback logic and overwrite the user's multi-files.
-      if (Object.values(DEFAULT_STARTER).includes(code) || !code) {
+      // If the code is empty, do NOT run the fallback logic.
+      if (!code) {
         return;
       }
 
@@ -788,7 +786,7 @@ function EditorPage() {
     setUsingPrevCode(false);
   }, [lang, selectedDb, updateWorkspaceCode]);
 
-  if (loading && !c)
+  if (!c)
     return (
       <AppShell>
         {/* Mock workspace toolbar */}
