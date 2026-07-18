@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node prerender.mjs",
+    "build": "vite build --outDir dist_temp && node prerender.mjs && rm -rf dist && mv dist_temp dist",
     "build:no-prerender": "vite build",
     "prerender": "node prerender.mjs",
     "preview": "vite preview",
