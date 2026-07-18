@@ -218,9 +218,22 @@ function EditorPage() {
   const detailError = useSelector(selectDetailError);
   const runtimeEditor = c?.runtime_config?.editor;
 
-  const availableLangs = (() => {
+  const availableLangs = useMemo(() => {
     if (runtimeEditor?.mode === "files") {
       return [runtimeEditor.executionLanguage || "multi"];
+    }
+    if (c?.starter_code) {
+      const keys = Object.keys(c.starter_code);
+      const langs = new Set();
+      const SHORT_MAP = { javascript: "js", typescript: "ts", python: "py", go: "go", java: "java", cpp: "cpp", rust: "rust" };
+      keys.forEach((k) => {
+        const langPart = k.split("_")[0];
+        const short = SHORT_MAP[langPart] || langPart;
+        if (["js", "ts", "py", "go", "java", "cpp", "rust"].includes(short)) {
+          langs.add(short);
+        }
+      });
+      if (langs.size > 0) return Array.from(langs);
     }
     if (c?.domain === "APIs") {
       return ["js", "py", "go"];
@@ -229,7 +242,20 @@ function EditorPage() {
       return ["ts", "js", "py", "go", "java", "cpp", "rust"];
     }
     return ["ts", "js", "py", "go"];
-  })();
+  }, [c, runtimeEditor]);
+
+  const availableDbs = useMemo(() => {
+    if (!c?.starter_code) return [];
+    const keys = Object.keys(c.starter_code);
+    const KNOWN_DBS = ["sqlite", "mongodb", "postgres", "mysql"];
+    const found = new Set();
+    keys.forEach((k) => {
+      KNOWN_DBS.forEach((db) => {
+        if (k.endsWith(`_${db}`) || k === db) found.add(db);
+      });
+    });
+    return Array.from(found);
+  }, [c]);
 
   const getInitialState = () => {
     let initialLang = "ts";
@@ -621,17 +647,7 @@ function EditorPage() {
         || (keys.includes("multi") ? "multi" : keys.includes("html") ? "html"
           : (c?.domain === "APIs" ? (lang === "py" ? "py" : lang === "go" ? "go" : "js") : lang));
       setLang(multiLang);
-      const starterRaw = getStarter(slug, multiLang, c, inferredDb);
-      setCode(starterRaw);
-      // Immediately hydrate multiFiles so the file tabs appear on first load
-      try {
-        const parsed = JSON.parse(starterRaw);
-        if (parsed && typeof parsed === "object") {
-          setMultiFiles(parsed);
-          const firstKey = Object.keys(parsed)[0];
-          if (firstKey) setActiveFile(firstKey);
-        }
-      } catch (_) { /* non-JSON starter — handled by existing code */ }
+      updateWorkspaceCode(multiLang, inferredDb);
       return;
     }
 
@@ -892,16 +908,21 @@ function EditorPage() {
             </SelectContent>
           </Select>
           )}
-          {c?.domain === "APIs" && (
+          {c?.domain === "APIs" && availableDbs.length > 0 && (
             <Select value={selectedDb} onValueChange={handleDbChange}>
               <SelectTrigger className="h-8 w-[120px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="sqlite">SQLite</SelectItem>
-                <SelectItem value="postgres">PostgreSQL</SelectItem>
-                <SelectItem value="mongodb">MongoDB</SelectItem>
-                <SelectItem value="mysql">MySQL</SelectItem>
+                {availableDbs.map((dbVal) => (
+                  <SelectItem key={dbVal} value={dbVal}>
+                    {dbVal === "sqlite" ? "SQLite"
+                     : dbVal === "mongodb" ? "MongoDB"
+                     : dbVal === "postgres" ? "PostgreSQL"
+                     : dbVal === "mysql" ? "MySQL"
+                     : dbVal}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           )}

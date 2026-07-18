@@ -58,13 +58,22 @@ export function getStarter(slug, lang, dbChallenge, selectedDb = "sqlite") {
   if (dbKey && dbChallenge.starter_code[dbKey]) {
     return dbChallenge.starter_code[dbKey];
   }
-  // Map short lang key to full language name used in starter_code
+  // Check exact short language key match
+  if (dbChallenge.starter_code[lang]) {
+    return dbChallenge.starter_code[lang];
+  }
+  // Check backend language name key (e.g. "javascript", "python")
   const backendKey = lang === "ts" ? "typescript" : lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "go" ? "go" : lang;
   if (dbChallenge.starter_code[backendKey]) {
     return dbChallenge.starter_code[backendKey];
   }
-  if (dbChallenge.starter_code[lang]) {
-    return dbChallenge.starter_code[lang];
+
+  // Check any starter_code key matching target language (e.g. "js_mongodb" or "py_mongodb")
+  const langPrefixMatch = Object.keys(dbChallenge.starter_code).find(
+    (k) => k.startsWith(`${lang}_`) || k.startsWith(`${backendKey}_`)
+  );
+  if (langPrefixMatch && dbChallenge.starter_code[langPrefixMatch]) {
+    return dbChallenge.starter_code[langPrefixMatch];
   }
 
   // Fallback to the first available string in database starter_code
