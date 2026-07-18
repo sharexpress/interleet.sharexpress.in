@@ -612,6 +612,7 @@ const Leaderboard = memo(function Leaderboard() {
         </Tabs>
         </div>{/* end px-4 md:px-8 wrapper */}
       </div>{/* end outer spacer */}
+    </AppShell>
   );
 });
 
