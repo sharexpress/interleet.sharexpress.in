@@ -363,8 +363,8 @@ class BaseExecutor(ABC):
     @staticmethod
     async def _create_workspace() -> Path:
         """Create an isolated temp directory for this execution."""
-        base = Path(os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces"))
-        base.mkdir(parents=True, exist_ok=True)
+        from app.engine.docker.sandbox import get_workspace_base
+        base = get_workspace_base()
         tmp_dir = Path(tempfile.mkdtemp(dir=base, prefix="exec_"))
         tmp_dir.chmod(0o777)
         return tmp_dir

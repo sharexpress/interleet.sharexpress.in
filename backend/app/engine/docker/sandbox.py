@@ -78,6 +78,20 @@ def get_docker_client() -> docker.DockerClient:
     return _docker_client
 
 
+def get_workspace_base() -> Path:
+    """Get workspace base directory, with fallback to user home if /tmp is not writable."""
+    preferred = Path(os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces"))
+    try:
+        preferred.mkdir(parents=True, exist_ok=True)
+        test_file = preferred / ".writable_check"
+        test_file.touch(exist_ok=True)
+        test_file.unlink(missing_ok=True)
+        return preferred
+    except Exception:
+        fallback = Path.home() / ".interleet_workspaces"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
 def _create_persistent_container(client: docker.DockerClient, image: str) -> Container:
     """Create a new persistent container for the given image.
     
@@ -86,8 +100,7 @@ def _create_persistent_container(client: docker.DockerClient, image: str) -> Con
     we simply reuse it instead of crashing.
     """
     container_name = f"interleet-engine-{image.replace(':', '-').replace('/', '-')}"
-    workspace_base = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
-    os.makedirs(workspace_base, exist_ok=True)
+    workspace_base = get_workspace_base()
 
     # Try to reuse existing container first (another PM2 instance may have created it)
     try:

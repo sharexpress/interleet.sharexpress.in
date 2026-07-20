@@ -401,9 +401,7 @@ import uuid
 import os
 import shutil
 from pathlib import Path
-from app.engine.docker.sandbox import get_docker_client
-
-WORKSPACE_BASE = os.environ.get("EXECUTION_WORKSPACE_DIR", "/tmp/interleet_workspaces")
+from app.engine.docker.sandbox import get_docker_client, get_workspace_base
 
 class DevOpsSessionStartRequest(BaseModel):
     slug: str
@@ -435,8 +433,9 @@ async def api_start_devops_session(request: DevOpsSessionStartRequest):
     session_id = str(uuid.uuid4())
     client = get_docker_client()
     
-    # Create the host workspace directory
-    workspace_dir = Path(WORKSPACE_BASE) / f"devops_{session_id}"
+    # Create the host workspace directory safely
+    workspace_base = get_workspace_base()
+    workspace_dir = workspace_base / f"devops_{session_id}"
     os.makedirs(workspace_dir, exist_ok=True)
     
     # Write initial starter files to workspace
@@ -486,7 +485,8 @@ async def api_start_devops_session(request: DevOpsSessionStartRequest):
 
 @engine_router.post("/devops/session/{session_id}/sync", summary="Sync files to DevOps container workspace")
 async def api_sync_devops_session(session_id: str, request: DevOpsSessionSyncRequest):
-    workspace_dir = Path(WORKSPACE_BASE) / f"devops_{session_id}"
+    workspace_base = get_workspace_base()
+    workspace_dir = workspace_base / f"devops_{session_id}"
     if not workspace_dir.exists():
         # Re-create if deleted somehow but container is still running
         os.makedirs(workspace_dir, exist_ok=True)
@@ -547,7 +547,8 @@ async def api_stop_devops_session(session_id: str):
         pass
         
     # Remove workspace dir
-    workspace_dir = Path(WORKSPACE_BASE) / f"devops_{session_id}"
+    workspace_base = get_workspace_base()
+    workspace_dir = workspace_base / f"devops_{session_id}"
     if workspace_dir.exists():
         shutil.rmtree(workspace_dir, ignore_errors=True)
         

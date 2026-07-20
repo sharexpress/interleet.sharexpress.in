@@ -78,6 +78,14 @@ async def lifespan(app: FastAPI):
     logger.info("  Interleet Judge Engine — Starting Up")
     logger.info("=" * 60)
 
+    # Initialize execution workspace base directory
+    try:
+        from app.engine.docker.sandbox import get_workspace_base
+        wb = get_workspace_base()
+        logger.info("Execution workspace base initialized at %s", wb)
+    except Exception as exc:
+        logger.warning("Could not initialize workspace base directory: %s", exc)
+
     # Check Docker sandbox images
     try:
         statuses = await verify_sandbox_images()
