@@ -211,7 +211,19 @@ class ComposeExecutor(BaseExecutor):
                                 exit_code = 124
                                 stdout_result = "Verification script timed out."
                         else:
-                            stdout_result = "OK"
+                            # Run container health check fallback
+                            chk_proc = await asyncio.create_subprocess_exec(
+                                "docker", "compose", "-p", proj_name, "ps",
+                                cwd=str(workspace),
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE
+                            )
+                            c_stdout, _ = await chk_proc.communicate()
+                            if b"running" in c_stdout.lower() or b"Up" in c_stdout:
+                                stdout_result = "PASS\n"
+                            else:
+                                exit_code = 1
+                                stdout_result = "FAIL: Docker compose services failed to start or exited prematurely."
                 finally:
                     # ALWAYS bring down the stack
                     down_proc = await asyncio.create_subprocess_exec(
