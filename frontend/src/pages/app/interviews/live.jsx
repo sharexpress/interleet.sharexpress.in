@@ -22,7 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Mic, MicOff, PhoneOff, ArrowLeft, MessageSquare,
   Send, Loader2, Volume2, VolumeX, AlertTriangle, CheckCircle2,
-  GitBranch, Layers, Zap, BrainCircuit, Sparkles, Bot, Award, TrendingUp
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -41,19 +40,28 @@ const SpeechRecognition =
 let _activeAudio = null;
 let _activeUtterance = null;
 
+// ─── Voice state machine phases ───────────────────────────────────────────────
+// The single source of truth for what the interview audio pipeline is doing.
+//
+//   idle ──► speaking ──► listening ──► reviewing ──► submitting
+//    ▲          │              │              │            │
+//    └──────────┴──────────────┴──────────────┴────────────┘ (loop until completed)
+//
 const PHASE = {
-  IDLE: "idle",
-  SPEAKING: "speaking",
-  LISTENING: "listening",
-  REVIEWING: "reviewing",
-  SUBMITTING: "submitting",
-  COMPLETED: "completed",
+  IDLE: "idle",       // No audio activity
+  SPEAKING: "speaking",   // Sara TTS is playing
+  LISTENING: "listening",  // STT active, waiting for user to speak
+  REVIEWING: "reviewing",  // Speech detected, silence countdown running
+  SUBMITTING: "submitting", // Answer sent, waiting for AI response
+  COMPLETED: "completed",  // Interview finished
 };
 
 // ─── TTS helpers ──────────────────────────────────────────────────────────────
 
 function speakText(text, { baseUrl, onStart, onEnd } = {}) {
+  // Kill any active audio first
   _stopAllAudio();
+
   const url = `${baseUrl}/interview/tts?text=${encodeURIComponent(text)}&voice=nova`;
   const audio = new Audio(url);
   _activeAudio = audio;
@@ -73,12 +81,13 @@ function _browserSpeak(text, { onStart, onEnd } = {}) {
   window.speechSynthesis.cancel();
 
   const utter = new SpeechSynthesisUtterance(text);
-  _activeUtterance = utter;
+  _activeUtterance = utter; // Pin to module scope to prevent GC mid-speech
 
   utter.rate = 0.95;
   utter.pitch = 1.05;
   utter.volume = 1;
 
+  // Best available English voice
   const voices = window.speechSynthesis.getVoices();
   const preferred = voices.find(v =>
     v.name.toLowerCase().includes("samantha") ||
@@ -105,143 +114,40 @@ function _stopAllAudio() {
   }
 }
 
-// ─── AI Holographic Avatar ("Sara") ──────────────────────────────────────────
+// ─── AI Avatar ────────────────────────────────────────────────────────────────
 function AIAvatar({ phase }) {
   const isSpeaking = phase === PHASE.SPEAKING;
-  const isListening = phase === PHASE.LISTENING;
-  const isReviewing = phase === PHASE.REVIEWING;
+  const isActive = phase === PHASE.LISTENING || phase === PHASE.REVIEWING;
   const isThinking = phase === PHASE.IDLE || phase === PHASE.SUBMITTING;
 
   return (
-    <div className="relative flex items-center justify-center select-none py-6">
-      {/* Outer ambient wave rings */}
-      <span
-        className={`absolute rounded-full border transition-all duration-700 ${
-          isSpeaking ? 'border-primary/40 scale-125 opacity-60 animate-ping' : isListening ? 'border-emerald-500/30 scale-110 opacity-40' : 'border-zinc-800 opacity-20'
-        }`}
-        style={{ width: 280, height: 280 }}
-      />
-      <span
-        className={`absolute rounded-full border transition-all duration-500 ${
-          isSpeaking ? 'border-amber-500/50 scale-110 opacity-75' : isListening ? 'border-emerald-400/40 opacity-50' : 'border-zinc-800 opacity-30'
-        }`}
-        style={{ width: 220, height: 220 }}
-      />
-      <span
-        className={`absolute rounded-full bg-gradient-to-tr transition-all duration-300 ${
-          isSpeaking ? 'from-primary/20 via-orange-500/20 to-amber-500/20 scale-105' : isListening ? 'from-emerald-500/20 to-teal-500/20' : 'from-zinc-900 to-zinc-900'
-        }`}
-        style={{ width: 170, height: 170 }}
-      />
-
-      {/* Holographic Avatar Core */}
-      <div
-        className={`relative z-10 flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br from-primary via-orange-600 to-amber-500 text-5xl font-black text-white shadow-[0_0_50px_rgba(255,101,0,0.45)] border-2 border-white/20 transition-all duration-300 ${
-          isSpeaking ? 'scale-105 shadow-[0_0_70px_rgba(255,101,0,0.7)]' : ''
-        }`}
-      >
-        <Sparkles className="h-14 w-14 text-white drop-shadow-md animate-pulse" />
+    <div className="relative flex items-center justify-center select-none">
+      {/* Outer ring */}
+      <span className="absolute rounded-full border border-primary/10 transition-all duration-700"
+        style={{ width: isSpeaking ? 260 : 220, height: isSpeaking ? 260 : 220, opacity: isSpeaking ? 0.45 : 0.15 }} />
+      {/* Middle ring */}
+      <span className="absolute rounded-full border border-primary/20 transition-all duration-500"
+        style={{ width: isSpeaking ? 210 : 180, height: isSpeaking ? 210 : 180, opacity: isSpeaking ? 0.6 : 0.2 }} />
+      {/* Inner glow */}
+      <span className="absolute rounded-full bg-primary/10 transition-all duration-300"
+        style={{ width: isSpeaking ? 165 : 145, height: isSpeaking ? 165 : 145 }} />
+      {/* Avatar */}
+      <div className="relative z-10 flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-primary via-orange-600 to-amber-600 text-4xl font-bold text-white shadow-[0_0_40px_rgba(255,101,0,0.35)]">
+        S
       </div>
-
-      {/* Dynamic Status HUD Badge */}
-      <div className="absolute -bottom-6 flex items-center gap-2 rounded-full border border-zinc-800/80 bg-zinc-950/90 px-4 py-1.5 backdrop-blur shadow-xl z-20">
+      {/* Status label */}
+      <div className="absolute -bottom-8 flex items-center gap-1.5 text-xs font-medium">
         {isThinking ? (
-          <><Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" /><span className="text-xs font-semibold text-amber-400">Sara is thinking…</span></>
+          <><Loader2 className="h-3 w-3 animate-spin text-amber-400" /><span className="text-amber-400">Processing…</span></>
         ) : isSpeaking ? (
-          <><Volume2 className="h-3.5 w-3.5 text-primary animate-bounce" /><span className="text-xs font-semibold text-primary">Sara is speaking</span></>
-        ) : isListening ? (
-          <><Mic className="h-3.5 w-3.5 text-emerald-400 animate-pulse" /><span className="text-xs font-semibold text-emerald-400">Listening to your voice…</span></>
-        ) : isReviewing ? (
-          <><CheckCircle2 className="h-3.5 w-3.5 text-amber-400 animate-pulse" /><span className="text-xs font-semibold text-amber-400">Processing response…</span></>
+          <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /><span className="text-primary">Sara is speaking</span></>
+        ) : phase === PHASE.LISTENING ? (
+          <><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /><span className="text-emerald-400">Listening…</span></>
+        ) : phase === PHASE.REVIEWING ? (
+          <><span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" /><span className="text-amber-400">Got it…</span></>
         ) : (
-          <><Bot className="h-3.5 w-3.5 text-zinc-400" /><span className="text-xs font-semibold text-zinc-400">Sara is ready</span></>
+          <span className="text-zinc-500">Ready</span>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ─── AI Decision Tree Visualizer Widget ───────────────────────────────────────
-function DecisionTreeVisualizer({ treeNodes, activeNodeId, currentLevel, thresholdScore }) {
-  if (!treeNodes || treeNodes.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center p-8 text-center text-zinc-500 space-y-3">
-        <BrainCircuit className="h-10 w-10 text-primary/60 animate-pulse" />
-        <p className="text-xs font-medium text-zinc-400">Dynamic Decision Tree scaffolding...</p>
-        <p className="text-[11px] text-zinc-600 max-w-xs">Introduce yourself in Question #1 to build your customized role decision tree.</p>
-      </div>
-    );
-  }
-
-  const statusColors = {
-    mastered: "border-emerald-500/50 bg-emerald-950/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.15)]",
-    probing: "border-amber-500/60 bg-amber-950/30 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.15)]",
-    unvisited: "border-zinc-800/80 bg-zinc-900/40 text-zinc-400",
-    weak: "border-rose-500/50 bg-rose-950/30 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.15)]",
-  };
-
-  const statusIcons = {
-    mastered: <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />,
-    probing: <Zap className="h-4 w-4 text-amber-400 animate-pulse shrink-0" />,
-    unvisited: <Layers className="h-4 w-4 text-zinc-500 shrink-0" />,
-    weak: <AlertTriangle className="h-4 w-4 text-rose-400 shrink-0" />,
-  };
-
-  return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
-        <div className="flex items-center gap-2">
-          <GitBranch className="h-4 w-4 text-primary" />
-          <span className="text-xs font-semibold text-zinc-100 uppercase tracking-wider">Decision Tree Graph</span>
-        </div>
-        <Badge variant="outline" className="text-[10px] font-mono border-amber-800/40 bg-amber-950/30 text-amber-300">
-          Threshold: {thresholdScore}/10
-        </Badge>
-      </div>
-
-      <div className="relative space-y-2.5 pl-3 border-l-2 border-dashed border-zinc-800/80">
-        {treeNodes.map((node, i) => {
-          const isActive = node.id === activeNodeId;
-          const statusClass = statusColors[node.status] || statusColors.unvisited;
-          const icon = statusIcons[node.status] || statusIcons.unvisited;
-
-          return (
-            <div
-              key={node.id || i}
-              className={`relative flex items-center justify-between rounded-xl border p-3 transition-all duration-200 ${statusClass} ${
-                isActive ? 'ring-2 ring-primary/80 scale-[1.02] bg-primary/10 border-primary/60' : 'hover:border-zinc-700'
-              }`}
-            >
-              {/* Connector dot */}
-              <div
-                className={`absolute -left-[19px] top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border-2 border-zinc-950 transition-all ${
-                  isActive ? 'bg-primary animate-ping' : node.status === 'mastered' ? 'bg-emerald-500' : 'bg-zinc-700'
-                }`}
-              />
-
-              <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                {icon}
-                <div className="min-w-0">
-                  <p className="text-xs font-bold truncate text-zinc-100">{node.topic}</p>
-                  <p className="text-[10px] opacity-75 font-mono capitalize text-zinc-400">
-                    {node.category || "Technical"} · {node.difficulty}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-end shrink-0">
-                {node.depth_score > 0 && (
-                  <span className="text-[10px] font-mono font-bold text-amber-400">
-                    {node.depth_score.toFixed(1)}/10
-                  </span>
-                )}
-                <span className="text-[9px] uppercase tracking-wider opacity-60 font-semibold">
-                  {node.status}
-                </span>
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
@@ -331,7 +237,6 @@ function LiveInterview() {
   }, []);
 
   // ── UI state ─────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState("transcript"); // "transcript" | "tree"
   const [isMuted, setIsMuted] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [interimText, setInterimText] = useState("");
@@ -947,86 +852,48 @@ function LiveInterview() {
           </div>
         </div>
 
-        {/* ── Right: Sidebar (Transcript & AI Decision Tree Tabs) ── */}
-        <aside className="flex w-full flex-col border-t border-zinc-900 bg-zinc-950/80 lg:w-[380px] lg:border-l lg:border-t-0">
-          <div className="flex items-center gap-2 border-b border-zinc-900 px-3 py-2 bg-zinc-950">
-            <button
-              type="button"
-              onClick={() => setActiveTab("transcript")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === "transcript"
-                  ? "bg-primary/15 border border-primary/40 text-primary"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
-              }`}
-            >
-              <MessageSquare className="h-3.5 w-3.5" />
-              <span>Transcript</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab("tree")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === "tree"
-                  ? "bg-primary/15 border border-primary/40 text-primary"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
-              }`}
-            >
-              <GitBranch className="h-3.5 w-3.5" />
-              <span>Decision Tree</span>
-              {treeNodes && treeNodes.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px] bg-primary/20 text-primary font-mono">
-                  {treeNodes.length}
-                </Badge>
-              )}
-            </button>
+        {/* ── Right: Transcript sidebar ── */}
+        <aside className="flex w-full flex-col border-t border-zinc-900 bg-zinc-950/80 lg:w-[360px] lg:border-l lg:border-t-0">
+          <div className="flex items-center gap-2 border-b border-zinc-900 px-4 py-3">
+            <MessageSquare className="h-4 w-4 text-primary" />
+            <p className="text-sm font-semibold text-zinc-100">Live Transcript</p>
+            <Badge variant="outline" className="ml-auto text-[10px] border-zinc-800 text-zinc-500">Auto</Badge>
           </div>
 
-          {activeTab === "transcript" ? (
-            <div
-              ref={transcriptRef}
-              className="flex-1 space-y-4 overflow-auto px-4 py-4 scroll-smooth"
-              style={{ maxHeight: "calc(100vh - 57px - 49px)" }}
-            >
-              {transcript.length === 0 && !isStarting && (
-                <p className="text-center text-xs text-zinc-600 pt-8">Transcript will appear here…</p>
-              )}
-              {isStarting && (
-                <div className="flex flex-col items-center gap-2 pt-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
-                  <p className="text-xs text-zinc-600">Connecting…</p>
-                </div>
-              )}
+          <div
+            ref={transcriptRef}
+            className="flex-1 space-y-4 overflow-auto px-4 py-4 scroll-smooth"
+            style={{ maxHeight: "calc(100vh - 57px - 49px)" }}>
 
-              {transcript.map(msg => <TranscriptMessage key={msg.id} msg={msg} />)}
+            {transcript.length === 0 && !isStarting && (
+              <p className="text-center text-xs text-zinc-600 pt-8">Transcript will appear here…</p>
+            )}
+            {isStarting && (
+              <div className="flex flex-col items-center gap-2 pt-8">
+                <Loader2 className="h-5 w-5 animate-spin text-zinc-600" />
+                <p className="text-xs text-zinc-600">Connecting…</p>
+              </div>
+            )}
 
-              {/* Live interim preview */}
-              {interimText && (
-                <div className="flex flex-col items-end">
-                  <div className="mb-1 text-[10px] text-muted-foreground font-semibold">You (live)</div>
-                  <div className="max-w-[92%] rounded-2xl rounded-tr-sm bg-primary/30 border border-primary/20 px-3.5 py-2.5 text-sm text-zinc-200 italic">
-                    {interimText}…
-                  </div>
-                </div>
-              )}
+            {transcript.map(msg => <TranscriptMessage key={msg.id} msg={msg} />)}
 
-              {/* AI thinking indicator */}
-              {isSubmitting && (
-                <div className="flex items-center gap-2 text-xs text-zinc-500 pl-1">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Sara is thinking…
+            {/* Live interim preview */}
+            {interimText && (
+              <div className="flex flex-col items-end">
+                <div className="mb-1 text-[10px] text-muted-foreground font-semibold">You (live)</div>
+                <div className="max-w-[92%] rounded-2xl rounded-tr-sm bg-primary/30 border border-primary/20 px-3.5 py-2.5 text-sm text-zinc-200 italic">
+                  {interimText}…
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex-1 overflow-auto">
-              <DecisionTreeVisualizer
-                treeNodes={treeNodes}
-                activeNodeId={activeNodeId}
-                currentLevel={currentLevel}
-                thresholdScore={thresholdScore}
-              />
-            </div>
-          )}
+              </div>
+            )}
+
+            {/* AI thinking indicator */}
+            {isSubmitting && (
+              <div className="flex items-center gap-2 text-xs text-zinc-500 pl-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Sara is thinking…
+              </div>
+            )}
+          </div>
 
           {!hasSttSupport && (
             <div className="flex items-start gap-2 border-t border-zinc-900 px-4 py-3 text-[11px] text-amber-500/80">
