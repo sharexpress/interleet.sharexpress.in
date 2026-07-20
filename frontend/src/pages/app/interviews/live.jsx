@@ -87,18 +87,29 @@ function _browserSpeak(text, { onStart, onEnd } = {}) {
   utter.pitch = 1.05;
   utter.volume = 1;
 
-  // Best available English Female voice for browser synthesis fallback
+  // Filter out any male voice identifiers to guarantee female voice
+  const isMale = (v) => {
+    const n = v.name.toLowerCase();
+    return (
+      n.includes("male") || n.includes("david") || n.includes("mark") ||
+      n.includes("george") || n.includes("alex") || n.includes("fred") ||
+      n.includes("guy") || n.includes("daniel") || n.includes("thomas") || n.includes("oliver")
+    );
+  };
+
   const voices = window.speechSynthesis.getVoices();
   const femaleVoice = voices.find(v =>
+    !isMale(v) && v.lang.startsWith("en") &&
     (v.name.toLowerCase().includes("female") ||
      v.name.toLowerCase().includes("samantha") ||
      v.name.toLowerCase().includes("zira") ||
      v.name.toLowerCase().includes("victoria") ||
      v.name.toLowerCase().includes("karen") ||
      v.name.toLowerCase().includes("google us english") ||
-     v.name.toLowerCase().includes("natural")) &&
-    v.lang.startsWith("en")
-  );
+     v.name.toLowerCase().includes("natural") ||
+     v.name.toLowerCase().includes("siri"))
+  ) || voices.find(v => !isMale(v) && v.lang.startsWith("en"));
+
   if (femaleVoice) utter.voice = femaleVoice;
 
   utter.onstart = () => onStart?.();
@@ -549,9 +560,41 @@ function LiveInterview() {
   // Keep submit ref stable for the silence timer closure
   useEffect(() => { submitRef.current = handleSubmit; }, [handleSubmit]);
 
-  // ── Displayed Question Sync (Fixes text vs voice latency gap) ────────────────
+  // ── Displayed Question Sync (Gemini Word-by-Word Typewriter Sync) ───────────
   const [displayedPreamble, setDisplayedPreamble] = useState("");
   const [displayedQuestion, setDisplayedQuestion] = useState("");
+  const typeStreamRef = useRef(null);
+
+  const startWordSync = useCallback((fullPreamble, fullQuestion) => {
+    if (typeStreamRef.current) {
+      clearInterval(typeStreamRef.current);
+      typeStreamRef.current = null;
+    }
+    setDisplayedPreamble(fullPreamble || "");
+    setDisplayedQuestion("");
+
+    if (!fullQuestion) return;
+    const words = fullQuestion.split(" ");
+    let idx = 0;
+
+    // Stream words at natural speech cadence (~240ms per word)
+    typeStreamRef.current = setInterval(() => {
+      idx++;
+      setDisplayedQuestion(words.slice(0, idx).join(" "));
+      if (idx >= words.length) {
+        clearInterval(typeStreamRef.current);
+        typeStreamRef.current = null;
+      }
+    }, 240);
+  }, []);
+
+  const finishWordSync = useCallback((fullQuestion) => {
+    if (typeStreamRef.current) {
+      clearInterval(typeStreamRef.current);
+      typeStreamRef.current = null;
+    }
+    if (fullQuestion) setDisplayedQuestion(fullQuestion);
+  }, []);
 
   // ── Bootstrap session on first render ─────────────────────────────────────────
   useEffect(() => {
@@ -562,6 +605,7 @@ function LiveInterview() {
     dispatch(startInterview(payload));
 
     return () => {
+      if (typeStreamRef.current) clearInterval(typeStreamRef.current);
       stopAllPrivacyAndAudio();
       clearInterval(timerRef.current);
     };
@@ -594,16 +638,16 @@ function LiveInterview() {
       return;
     }
 
-    // TTS Enabled: Buffering audio first, unveil text when audio starts playing
+    // TTS Enabled: Buffering audio first, start word-by-word streaming when voice starts
     setPhase(PHASE.SPEAKING);
     speakText(msg, {
       baseUrl,
       onStart: () => {
-        setDisplayedPreamble(currentPreamble);
-        setDisplayedQuestion(currentQuestion);
         setPhase(PHASE.SPEAKING);
+        startWordSync(currentPreamble, currentQuestion);
       },
       onEnd: () => {
+        finishWordSync(currentQuestion);
         setPhase(PHASE.LISTENING);
         if (!isMutedRef.current && interactionModeRef.current !== "keyboard") {
           setTimeout(() => startSTTRef.current?.(), 300);

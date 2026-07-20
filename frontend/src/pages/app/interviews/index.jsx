@@ -162,11 +162,6 @@ function InterviewsPage() {
           <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-xl">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary font-mono text-xs">
-                  ✨ Dynamic Decision Tree Engine v2.0
-                </Badge>
-              </div>
               <h1 className="text-xl md:text-2xl font-bold tracking-tight text-zinc-100">
                 Master Technical Interviews with Sara AI
               </h1>
