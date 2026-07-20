@@ -76,19 +76,20 @@ class AIClient:
         # Candidates for dynamic fallback
         candidates = [
             ("groq", "llama-3.3-70b-versatile"),
+            ("groq", "llama-3.1-8b-instant"),
+            ("groq", "gemma2-9b-it"),
+            ("groq", "qwen-2.5-32b"),
             ("openai", "gpt-4o-mini"),
             ("anthropic", "claude-3-5-sonnet-20241022"),
-            ("google", "gemini-2.5-flash"),
             ("deepseek", "deepseek-chat"),
         ]
 
-        # Prevent duplicates (don't add primary or explicit fallback again)
-        already_added = {self.primary.name.lower()}
+        already_added = {(self.primary.name.lower(), getattr(self.primary, "model", ""))}
         if self.fallback:
-            already_added.add(self.fallback.name.lower())
+            already_added.add((self.fallback.name.lower(), getattr(self.fallback, "model", "")))
 
         for provider_name, default_model in candidates:
-            if provider_name in already_added:
+            if (provider_name, default_model) in already_added:
                 continue
             
             # Check if key is in the env
@@ -103,13 +104,17 @@ class AIClient:
                         max_retries=AI_MAX_RETRIES,
                     )
                     chain.append(p)
-                    already_added.add(provider_name)
+                    already_added.add((provider_name, default_model))
                 except Exception as exc:
                     logger.warning(
-                        f"[AIClient] Failed to instantiate dynamic fallback '{provider_name}': {exc}"
+                        f"[AIClient] Failed to instantiate dynamic fallback '{provider_name}/{default_model}': {exc}"
                     )
 
         return chain
+
+    def _provider_key(self, provider: LLMProvider) -> str:
+        model = getattr(provider, "model", "")
+        return f"{provider.name.lower()}:{model}"
 
     async def generate_text(
         self,
@@ -123,21 +128,21 @@ class AIClient:
         errors = []
 
         now = time.time()
-        primary_name = self.primary.name.lower()
+        primary_key = self._provider_key(self.primary)
 
         # 1. Try primary provider (only if not tripped by circuit breaker)
         is_primary_tripped = False
-        if primary_name in _failed_providers:
-            elapsed = now - _failed_providers[primary_name]
+        if primary_key in _failed_providers:
+            elapsed = now - _failed_providers[primary_key]
             if elapsed < CIRCUIT_BREAKER_COOLDOWN_SECONDS:
                 is_primary_tripped = True
                 logger.info(
-                    f"[AIClient] Skipping primary '{self.primary.name}' (Circuit Breaker active: "
+                    f"[AIClient] Skipping primary '{primary_key}' (Circuit Breaker active: "
                     f"failed {int(elapsed)}s ago, cooldown {int(CIRCUIT_BREAKER_COOLDOWN_SECONDS)}s)"
                 )
-                errors.append(f"Primary ({self.primary.name}): Skipped by Circuit Breaker")
+                errors.append(f"Primary ({primary_key}): Skipped by Circuit Breaker")
             else:
-                _failed_providers.pop(primary_name, None)
+                _failed_providers.pop(primary_key, None)
 
         if not is_primary_tripped:
             try:
@@ -146,29 +151,29 @@ class AIClient:
                     user=user,
                     temperature=temperature,
                 )
-                _failed_providers.pop(primary_name, None)
+                _failed_providers.pop(primary_key, None)
                 return res
             except Exception as exc:
                 logger.warning(
-                    f"[AIClient] Primary provider '{self.primary.name}' failed. "
+                    f"[AIClient] Primary provider '{primary_key}' failed. "
                     f"Error: {exc}. Attempting fallback chain..."
                 )
-                _failed_providers[primary_name] = now
-                errors.append(f"Primary ({self.primary.name}): {exc}")
+                _failed_providers[primary_key] = now
+                errors.append(f"Primary ({primary_key}): {exc}")
 
         # 2. Try the fallback chain
         for fallback_provider in self._get_fallback_chain():
-            fallback_name = fallback_provider.name.lower()
-            if fallback_name in _failed_providers:
-                elapsed = now - _failed_providers[fallback_name]
+            fallback_key = self._provider_key(fallback_provider)
+            if fallback_key in _failed_providers:
+                elapsed = now - _failed_providers[fallback_key]
                 if elapsed < CIRCUIT_BREAKER_COOLDOWN_SECONDS:
                     logger.info(
-                        f"[AIClient] Skipping fallback '{fallback_provider.name}' (Circuit Breaker active)"
+                        f"[AIClient] Skipping fallback '{fallback_key}' (Circuit Breaker active)"
                     )
-                    errors.append(f"Fallback ({fallback_provider.name}): Skipped by Circuit Breaker")
+                    errors.append(f"Fallback ({fallback_key}): Skipped by Circuit Breaker")
                     continue
                 else:
-                    _failed_providers.pop(fallback_name, None)
+                    _failed_providers.pop(fallback_key, None)
 
             try:
                 res = await fallback_provider.generate_text(
@@ -177,17 +182,17 @@ class AIClient:
                     temperature=temperature,
                 )
                 logger.info(
-                    f"[AIClient] Fallback to provider '{fallback_provider.name}' succeeded."
+                    f"[AIClient] Fallback to provider '{fallback_key}' succeeded."
                 )
-                _failed_providers.pop(fallback_name, None)
+                _failed_providers.pop(fallback_key, None)
                 return res
             except Exception as exc:
                 logger.warning(
-                    f"[AIClient] Fallback provider '{fallback_provider.name}' failed. "
+                    f"[AIClient] Fallback provider '{fallback_key}' failed. "
                     f"Error: {exc}."
                 )
-                _failed_providers[fallback_name] = now
-                errors.append(f"Fallback ({fallback_provider.name}): {exc}")
+                _failed_providers[fallback_key] = now
+                errors.append(f"Fallback ({fallback_key}): {exc}")
 
         raise RuntimeError(
             f"All AI providers in fallback chain failed. Errors: {'; '.join(errors)}"

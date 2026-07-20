@@ -109,9 +109,23 @@ class LangChainChatProvider:
         user: str,
         temperature: float = 0.2,
     ) -> str:
+        import asyncio
         runnable = self.client.bind(temperature=temperature)
-        response = await runnable.ainvoke([("system", system), ("human", user)])
-        return str(response.content)
+        last_exc = None
+        for attempt in range(3):
+            try:
+                response = await runnable.ainvoke([("system", system), ("human", user)])
+                return str(response.content)
+            except Exception as exc:
+                last_exc = exc
+                err_str = str(exc).lower()
+                # If TPM (tokens per minute) burst rate limit (e.g. "try again in 780ms"), wait 1.2s and retry
+                if ("rate_limit" in err_str or "429" in err_str or "tpm" in err_str) and "tpd" not in err_str and attempt < 2:
+                    await asyncio.sleep(1.2 * (attempt + 1))
+                    continue
+                raise exc
+        if last_exc:
+            raise last_exc
 
     async def stream_text(
         self,

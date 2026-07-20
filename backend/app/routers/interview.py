@@ -61,7 +61,19 @@ def _interviewer_message(state: dict) -> str:
 async def start_interview(payload: dict, user_auth=Depends(UserMiddleware.me)):
     user_doc = user_auth.get("user")
     state = build_initial_state(payload, user_id=user_doc.get("user_id"))
-    state = await run_interview_graph(state)
+    try:
+        state = await run_interview_graph(state)
+    except Exception as exc:
+        import logging
+        logging.getLogger("uvicorn.error").error(f"[Interview Start Error]: {exc}")
+        err_msg = str(exc)
+        if "429" in err_msg or "Rate limit" in err_msg or "quota" in err_msg or "all ai providers" in err_msg.lower():
+            raise HTTPException(
+                status_code=429,
+                detail="AI service is experiencing high traffic or temporary rate limits. Please try again in a few moments."
+            )
+        raise HTTPException(status_code=500, detail=f"Interview AI processing error: {err_msg}")
+
     await SessionService.create_session(state["session_id"], state)
     return {
         "session_id":            state["session_id"],
@@ -102,7 +114,18 @@ async def answer_question(payload: dict):
     state["last_answer"]       = answer
     state["last_answer_topic"] = payload.get("topic", state.get("current_topic", ""))
 
-    state = await run_interview_graph(state)
+    try:
+        state = await run_interview_graph(state)
+    except Exception as exc:
+        import logging
+        logging.getLogger("uvicorn.error").error(f"[Interview Answer Error]: {exc}")
+        err_msg = str(exc)
+        if "429" in err_msg or "Rate limit" in err_msg or "quota" in err_msg or "all ai providers" in err_msg.lower():
+            raise HTTPException(
+                status_code=429,
+                detail="AI service is experiencing high traffic or temporary rate limits. Please try again in a few moments."
+            )
+        raise HTTPException(status_code=500, detail=f"Interview AI processing error: {err_msg}")
 
     report = None
     if state.get("completed"):
