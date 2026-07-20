@@ -36,6 +36,16 @@ class AnswerEvaluationState(TypedDict, total=False):
     summary: str
 
 
+class TreeNodeState(TypedDict, total=False):
+    id: str
+    topic: str
+    difficulty: str
+    status: Literal["unvisited", "probing", "mastered", "weak"]
+    depth_score: float
+    parent_id: str | None
+    category: str
+
+
 class InterviewTurnState(TypedDict, total=False):
     question: str
     answer: str
@@ -60,6 +70,10 @@ class InterviewState(TypedDict, total=False):
     technologies: list[str]
     experience: list[str]
     target_topics: list[str]
+    tree_nodes: list[TreeNodeState]
+    active_node_id: str
+    current_tree_depth: int
+    threshold_score: float
     current_question: str
     current_preamble: str
     current_affect: str

@@ -86,13 +86,23 @@ class OpeningQuestion(BaseModel):
     tone: str = "professional"
 
 
+class TreeNode(BaseModel):
+    id: str
+    topic: str
+    difficulty: Difficulty = Difficulty.EASY
+    status: Literal["unvisited", "probing", "mastered", "weak"] = "unvisited"
+    depth_score: float = Field(default=0.0, ge=0.0, le=10.0)
+    parent_id: str | None = None
+    category: str = "technical"
+
+
 class InterviewStateModel(BaseModel):
     session_id: str
     user_id: str = ""
     role: str
     interview_type: str
     status: InterviewStatus = InterviewStatus.ACTIVE
-    difficulty: Difficulty = Difficulty.MEDIUM
+    difficulty: Difficulty = Difficulty.EASY
     jd: str = ""
     additional_context: str = ""
     candidate_summary: str = ""
@@ -103,6 +113,10 @@ class InterviewStateModel(BaseModel):
     technologies: list[str] = Field(default_factory=list)
     experience: list[str] = Field(default_factory=list)
     target_topics: list[str] = Field(default_factory=list)
+    tree_nodes: list[TreeNode] = Field(default_factory=list)
+    active_node_id: str = ""
+    current_tree_depth: int = 0
+    threshold_score: float = 7.0
     covered_topics: list[str] = Field(default_factory=list)
     remaining_topics: list[str] = Field(default_factory=list)
     weak_topics: list[str] = Field(default_factory=list)
@@ -120,8 +134,8 @@ class InterviewStateModel(BaseModel):
     last_answer: str = ""
     last_answer_topic: str = ""
     last_evaluation: AnswerEvaluation | None = None
-    max_questions: int = 8
-    min_questions: int = 5
+    max_questions: int = 20
+    min_questions: int = 2
     completed: bool = False
     completion_reason: str = ""
     closing_message: str = ""

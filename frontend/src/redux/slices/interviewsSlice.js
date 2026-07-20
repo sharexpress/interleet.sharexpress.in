@@ -89,6 +89,14 @@ const initialState = {
   interviewPhase: "intro",
   coveredTopics: [],
   remainingTopics: [],
+  treeNodes: [],
+  activeNodeId: "",
+  currentTreeDepth: 0,
+  thresholdScore: 7.0,
+  questionsAskedCount: 0,
+  maxQuestions: 20,
+  minQuestions: 2,
+  difficulty: "easy",
   transcript: [], // [{ id, from, text, timestamp, evaluation? }]
   isCompleted: false,
   completionReason: "",
@@ -183,6 +191,14 @@ const interviewsSlice = createSlice({
         state.currentTopic = d.topic || "";
         state.interviewPhase = d.interview_phase || "intro";
         state.isCompleted = d.completed || false;
+        state.treeNodes = d.tree_nodes || [];
+        state.activeNodeId = d.active_node_id || "";
+        state.currentTreeDepth = d.current_tree_depth || 0;
+        state.thresholdScore = d.threshold_score || 7.0;
+        state.questionsAskedCount = d.questions_asked_count || 1;
+        state.maxQuestions = d.max_questions || 20;
+        state.minQuestions = d.min_questions || 2;
+        state.difficulty = d.difficulty || "easy";
 
         // Push first AI message to transcript
         if (d.message) {
@@ -219,6 +235,14 @@ const interviewsSlice = createSlice({
         state.closingMessage = d.closing_message || "";
         state.coveredTopics = d.covered_topics || [];
         state.remainingTopics = d.remaining_topics || [];
+        state.treeNodes = d.tree_nodes || [];
+        state.activeNodeId = d.active_node_id || "";
+        state.currentTreeDepth = d.current_tree_depth || 0;
+        state.thresholdScore = d.threshold_score || 7.0;
+        state.questionsAskedCount = d.questions_asked_count || state.questionsAskedCount + 1;
+        state.maxQuestions = d.max_questions || 20;
+        state.minQuestions = d.min_questions || 2;
+        state.difficulty = d.difficulty || "easy";
 
         if (d.completed) {
           state.currentQuestion = "";

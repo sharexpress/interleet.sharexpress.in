@@ -140,6 +140,12 @@ def _build_question_prompt(state: InterviewState) -> str:
     last_evaluation = state.get("last_evaluation") or {}
     last_score = last_evaluation.get("score")
     follow_up = last_evaluation.get("follow_up_needed", False)
+    threshold = float(state.get("threshold_score", 7.0))
+
+    tree_nodes = state.get("tree_nodes", [])
+    active_id = state.get("active_node_id", "")
+    active_node = next((n for n in tree_nodes if n.get("id") == active_id), None)
+    active_topic = active_node.get("topic") if active_node else state.get("current_topic", "")
 
     # Count consecutive technical turns spent on the current topic
     turns = state.get("turns", [])
@@ -155,53 +161,45 @@ def _build_question_prompt(state: InterviewState) -> str:
     if last_score is not None:
         last_score_val = float(last_score)
         
-        # If the candidate struggled, but we have already follow-up probed twice, force pivot
-        if (last_score_val < 6.0 or follow_up) and probing_count < 2:
+        # High score -> Threshold achieved -> Cross question or deepen
+        if last_score_val >= threshold:
+            adaptive_probing_instruction = f"""
+*** DYNAMIC CROSS-QUESTIONING & THRESHOLD ADVANCEMENT (SCORE: {last_score_val}/10) ***
+The candidate gave a strong answer meeting the threshold ({threshold}/10).
+1. Acknowledge their specific architectural/code choice directly in your preamble.
+2. Ask a probing cross-question (e.g., edge cases, failure modes, scale constraints, or trade-offs) targeting their active stack or project.
+3. Active Tree Branch: "{active_topic}" (Difficulty: {state.get("difficulty", "medium")}).
+"""
+        elif (last_score_val < 5.0 or follow_up) and probing_count < 2:
             reason = last_evaluation.get("follow_up_reason") or last_evaluation.get("summary") or "Answer needs improvement"
             adaptive_probing_instruction = f"""
-*** ADAPTIVE PROBING INSTRUCTION (CRITICAL) ***
-The candidate's last response on the topic "{current_topic}" was weak or incomplete (Score: {last_score_val}/10).
-Reason for concern: {reason}
-
-You MUST:
-1. Stay on the topic "{current_topic}". Do not pivot to a new topic yet.
-2. In your preamble, push back directly on their specific explanation weakness or introduce a realistic failure constraint.
-3. Formulate your question as a follow-up to test if they can clarify their design, solve the bottleneck, or identify the trade-off.
-4. Set the "topic" field in the output JSON to "{current_topic}".
+*** ADAPTIVE RE-PROBING INSTRUCTION (SCORE: {last_score_val}/10) ***
+The candidate's last response on "{current_topic}" was incomplete or weak.
+Reason: {reason}
+Stay on "{current_topic}". Ask a clarifying follow-up or introduce a specific constraint to help them correct course.
 """
-        elif last_score_val < 6.0 and probing_count >= 2:
-            # Probed twice already. Gracefully pivot to a remaining topic.
+        elif last_score_val < 5.0 and probing_count >= 2:
             remaining = state.get("remaining_topics", [])
             adaptive_probing_instruction = f"""
-*** FORCED PIVOT INSTRUCTION (CRITICAL) ***
-The candidate has struggled on "{current_topic}" for multiple turns. To maintain a realistic, professional, and empathetic conversation flow:
-1. You MUST pivot away from "{current_topic}". Do NOT ask any more questions about it.
-2. In your preamble, write a polite, graceful transition acknowledging the shift (e.g., "Let's move past that for now," or "Fair enough, let's shift focus to a different area," max 20 words).
-3. Select a NEW topic from the remaining topics list: {remaining}
-4. Ask a focused question on the new topic.
+*** FORCED PIVOT INSTRUCTION ***
+The candidate has struggled on "{current_topic}". Gracefully pivot away to a remaining topic: {remaining}.
 """
 
     return f"""
 Role: {state.get("role", "")}
 Interview type: {state.get("interview_type", "")}
-Difficulty: {state.get("difficulty", "medium")}
-JD (first 500 chars): {(state.get("jd") or "")[:500]}
-Candidate summary: {state.get("candidate_summary", "")}
-Candidate intro: {state.get("candidate_introduction", "")}
+Current Adaptive Level: {state.get("difficulty", "easy")}
+JD Context: {(state.get("jd") or "")[:500]}
+Candidate Intro: {state.get("candidate_introduction", "")}
 Skills: {state.get("skills", [])}
 Projects: {state.get("projects", [])}
 Technologies: {state.get("technologies", [])}
-Experience: {state.get("experience", [])}
 
-Topics to cover: {state.get("target_topics", [])}
-Already covered: {state.get("covered_topics", [])}
-Remaining: {state.get("remaining_topics", [])}
-Weak topics (revisit if budget allows): {state.get("weak_topics", [])}
+Active Decision Tree Topic: {active_topic}
+Decision Tree Nodes Overview: {[n.get("topic") + " (" + n.get("status", "") + ")" for n in tree_nodes[:8]]}
+Question Count (Dynamic Bounds 2-20): {len(state.get("questions_asked", [])) + 1} of max {state.get("max_questions", 20)}
 
-Question budget remaining: {max(0, int(state.get("max_questions", 8)) - len(state.get("questions_asked", [])))}
-
-Last 3 preamble styles used (do NOT repeat the same style): {recent_preambles}
-
+Last 3 preamble styles used: {recent_preambles}
 Candidate professionalism note: {behavior_summary}
 
 === Full Conversation History ===

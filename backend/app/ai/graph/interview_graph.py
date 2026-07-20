@@ -43,8 +43,8 @@ def build_initial_state(payload: dict[str, Any], user_id: str | None = None) -> 
     )
     experience = _as_list(parsed_resume.get("experience"))
     jd = mock_test.get("jd") or mock_test.get("job_description") or payload.get("jd", "")
-    max_questions = int(mock_test.get("max_questions", payload.get("max_questions", 8)))
-    min_questions = int(mock_test.get("min_questions", payload.get("min_questions", 5)))
+    max_questions = int(mock_test.get("max_questions", payload.get("max_questions", 20)))
+    min_questions = int(mock_test.get("min_questions", payload.get("min_questions", 2)))
     explicit_topics = _as_list(mock_test.get("topics"))
     target_topics = _select_target_topics(
         explicit_topics=explicit_topics,
@@ -56,6 +56,18 @@ def build_initial_state(payload: dict[str, Any], user_id: str | None = None) -> 
 
     if not target_topics:
         target_topics = _default_topics(interview_type)
+
+    initial_tree_nodes = [
+        {
+            "id": "node_0",
+            "topic": "self_introduction",
+            "difficulty": "easy",
+            "status": "unvisited",
+            "depth_score": 0.0,
+            "parent_id": None,
+            "category": "warmup",
+        }
+    ]
 
     model = InterviewStateModel(
         session_id=payload.get("session_id") or str(uuid.uuid4()),
@@ -71,6 +83,10 @@ def build_initial_state(payload: dict[str, Any], user_id: str | None = None) -> 
         technologies=technologies,
         experience=experience,
         target_topics=target_topics,
+        tree_nodes=initial_tree_nodes,
+        active_node_id="node_0",
+        current_tree_depth=0,
+        threshold_score=7.0,
         remaining_topics=target_topics,
         max_questions=max_questions,
         min_questions=min_questions,
@@ -192,7 +208,7 @@ async def _run_manual_graph(state: InterviewState) -> InterviewState:
     for key in [
         "current_question", "current_preamble", "current_affect", 
         "current_answer_guidance", "current_topic", "current_intent", 
-        "current_expected_signal", "difficulty"
+        "current_expected_signal"
     ]:
         if key in question_res:
             final_state[key] = question_res[key]

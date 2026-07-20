@@ -20,19 +20,30 @@ _DIFFICULTY_ORDER = ["easy", "medium", "hard", "staff"]
 
 async def difficulty_node(state: InterviewState):
     evaluation = state.get("last_evaluation") or {}
-    current = state.get("difficulty", "medium")
-    index = _DIFFICULTY_ORDER.index(current) if current in _DIFFICULTY_ORDER else 1
-    score = float(evaluation.get("score", 0))
+    current = state.get("difficulty", "easy")
+    index = _DIFFICULTY_ORDER.index(current) if current in _DIFFICULTY_ORDER else 0
+    score = float(evaluation.get("score", 0.0))
+    threshold = float(state.get("threshold_score", 7.0))
 
-    # Read target difficulty limit from metadata
-    metadata = state.get("metadata") or {}
-    target = metadata.get("target_difficulty", "medium")
-    max_allowed = _DIFFICULTY_ORDER.index(target) if target in _DIFFICULTY_ORDER else 2
+    # Check active tree node recommendation
+    tree_nodes = state.get("tree_nodes", [])
+    active_id = state.get("active_node_id", "")
+    active_node = next((n for n in tree_nodes if n.get("id") == active_id), None)
+    
+    if active_node and active_node.get("difficulty"):
+        rec_diff = active_node["difficulty"].lower()
+        if rec_diff in _DIFFICULTY_ORDER:
+            rec_idx = _DIFFICULTY_ORDER.index(rec_diff)
+            # Use active node difficulty as baseline
+            index = max(index, rec_idx)
 
-    if score >= 8 and index < len(_DIFFICULTY_ORDER) - 1:
-        if index < max_allowed:
-            index += 1
-    elif score < 5 and index > 0:
+    # Adaptive progression based on score vs threshold
+    if score >= threshold + 0.5 and index < len(_DIFFICULTY_ORDER) - 1:
+        index += 1
+    elif score < 4.5 and index > 0:
         index -= 1
 
-    return {"difficulty": _DIFFICULTY_ORDER[index]}
+    return {
+        "difficulty": _DIFFICULTY_ORDER[index],
+        "current_tree_depth": index,
+    }

@@ -221,6 +221,8 @@ function LiveInterview() {
     currentTopic, answerGuidance, interviewPhase, transcript,
     isCompleted, closingMessage, isStarting, isSubmitting,
     sessionError, coveredTopics, remainingTopics,
+    treeNodes, activeNodeId, thresholdScore, questionsAskedCount,
+    maxQuestions, minQuestions, difficulty: currentLevel,
   } = useAppSelector(s => s.interviews);
 
   // ── Voice state machine ──────────────────────────────────────────────────────
@@ -649,12 +651,19 @@ function LiveInterview() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {coveredTopics.length > 0 && (
-            <Badge variant="outline" className="hidden sm:flex text-[10px] border-zinc-800 text-zinc-400 font-mono">
-              {coveredTopics.length}/{coveredTopics.length + remainingTopics.length} topics
+        <div className="flex items-center gap-2 flex-wrap">
+          {treeNodes && treeNodes.length > 0 && (
+            <Badge variant="outline" className="hidden sm:flex text-[10px] border-primary/40 bg-primary/10 text-primary font-mono gap-1">
+              <span>🌿 Tree Node:</span>
+              <span className="font-semibold">{currentTopic || "Self Intro"}</span>
             </Badge>
           )}
+          <Badge variant="outline" className="text-[10px] border-amber-800/40 bg-amber-950/20 text-amber-300 capitalize font-mono">
+            Level: {currentLevel || "easy"}
+          </Badge>
+          <Badge variant="outline" className="hidden md:flex text-[10px] border-zinc-800 text-zinc-400 font-mono">
+            Q{questionsAskedCount || 1} (Bound: {minQuestions || 2}-{maxQuestions || 20})
+          </Badge>
           <Badge variant="outline" className="gap-1.5 text-emerald-400 border-emerald-800/40 bg-emerald-950/20">
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /> Live
           </Badge>

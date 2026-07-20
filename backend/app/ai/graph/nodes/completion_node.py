@@ -25,19 +25,34 @@ from app.ai.graph.state import InterviewState
 
 async def completion_node(state: InterviewState):
     turns = state.get("turns", [])
-    # Only count substantive turns (skip self-intro)
     substantive_turns = [t for t in turns if t.get("topic") != "self_introduction"]
     turn_count = len(substantive_turns)
 
-    max_q = max(1, int(state.get("max_questions", 8)) - 1)
-    min_q = max(1, int(state.get("min_questions", 5)) - 1)
-    remaining = state.get("remaining_topics", [])
+    max_q = max(2, int(state.get("max_questions", 20)))
+    min_q = max(2, int(state.get("min_questions", 2)))
+    tree_nodes = state.get("tree_nodes", [])
+    
+    # ── Early Exit Rule: candidate unresponsive or consistently failing ────────
+    if turn_count >= min_q:
+        recent_evals = [t.get("evaluation", {}) for t in substantive_turns]
+        recent_scores = [float(e.get("score", 5.0)) for e in recent_evals if e]
+        if recent_scores and len(recent_scores) >= 2:
+            avg_recent = sum(recent_scores) / len(recent_scores)
+            if avg_recent < 3.0:
+                return _done(state, "early_exit_low_accuracy")
 
+    # ── Max questions reached (up to 20) ──────────────────────────────────────
     if turn_count >= max_q:
         return _done(state, "max_questions_reached")
 
-    if turn_count >= min_q and not remaining:
-        return _done(state, "topic_coverage_complete")
+    # ── Decision Tree Coverage Check ──────────────────────────────────────────
+    unvisited_nodes = [
+        n for n in tree_nodes 
+        if n.get("status") in ("unvisited", "probing") and n.get("topic") != "self_introduction"
+    ]
+
+    if turn_count >= min_q and not unvisited_nodes:
+        return _done(state, "tree_coverage_complete")
 
     return {
         "completed": False,
