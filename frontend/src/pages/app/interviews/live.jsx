@@ -62,7 +62,7 @@ function speakText(text, { baseUrl, onStart, onEnd } = {}) {
   // Kill any active audio first
   _stopAllAudio();
 
-  const url = `${baseUrl}/interview/tts?text=${encodeURIComponent(text)}&voice=nova`;
+  const url = `${baseUrl}/interview/tts?text=${encodeURIComponent(text)}&voice=shimmer`;
   const audio = new Audio(url);
   _activeAudio = audio;
 
@@ -81,20 +81,25 @@ function _browserSpeak(text, { onStart, onEnd } = {}) {
   window.speechSynthesis.cancel();
 
   const utter = new SpeechSynthesisUtterance(text);
-  _activeUtterance = utter; // Pin to module scope to prevent GC mid-speech
+  _activeUtterance = utter;
 
   utter.rate = 0.95;
   utter.pitch = 1.05;
   utter.volume = 1;
 
-  // Best available English voice
+  // Best available English Female voice for browser synthesis fallback
   const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v =>
-    v.name.toLowerCase().includes("samantha") ||
-    v.name.toLowerCase().includes("google us english") ||
-    (v.lang === "en-US" && !v.name.toLowerCase().includes("microsoft"))
+  const femaleVoice = voices.find(v =>
+    (v.name.toLowerCase().includes("female") ||
+     v.name.toLowerCase().includes("samantha") ||
+     v.name.toLowerCase().includes("zira") ||
+     v.name.toLowerCase().includes("victoria") ||
+     v.name.toLowerCase().includes("karen") ||
+     v.name.toLowerCase().includes("google us english") ||
+     v.name.toLowerCase().includes("natural")) &&
+    v.lang.startsWith("en")
   );
-  if (preferred) utter.voice = preferred;
+  if (femaleVoice) utter.voice = femaleVoice;
 
   utter.onstart = () => onStart?.();
   utter.onend = () => { _activeUtterance = null; onEnd?.(); };
@@ -369,13 +374,10 @@ function LiveInterview() {
     }, DURATION);
   }, [clearSilence]);
 
-  // ── STT lifecycle ─────────────────────────────────────────────────────────────
+  // ── STT lifecycle & Privacy Cleanup ──────────────────────────────────────────
   const stopSTT = useCallback(() => {
-    try { recognitionRef.current?.abort(); } catch (_) { }
-    recognitionRef.current = null;
-    setInterimText("");
-    stopAnalyser();
-  }, [stopAnalyser]);
+    stopAllPrivacyAndAudio();
+  }, [stopAllPrivacyAndAudio]);
 
   // startSTT is defined as a callback that reads voicePhaseRef — the gate ensures
   // it never starts unless the machine says LISTENING or REVIEWING.
@@ -502,6 +504,55 @@ function LiveInterview() {
   // Keep submit ref stable for the silence timer closure
   useEffect(() => { submitRef.current = handleSubmit; }, [handleSubmit]);
 
+  // ── Master Privacy & Audio Cleanup ──────────────────────────────────────────
+  const stopAllPrivacyAndAudio = useCallback(() => {
+    // 1. Stop SpeechRecognition
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    } catch (_) { }
+
+    // 2. Stop microphone media stream tracks (Hardware mic release)
+    try {
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((t) => {
+          t.stop();
+          t.enabled = false;
+        });
+        audioStreamRef.current = null;
+      }
+    } catch (_) { }
+
+    // 3. Close Web AudioContext
+    try {
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => { });
+        audioCtxRef.current = null;
+      }
+    } catch (_) { }
+
+    // 4. Cancel animation frames & stop audio output
+    if (audioAnimRef.current) {
+      cancelAnimationFrame(audioAnimRef.current);
+      audioAnimRef.current = null;
+    }
+    audioAnalyserRef.current = null;
+    _stopAllAudio();
+    clearSilence();
+    setAudioLevels([0, 0, 0, 0, 0]);
+    setInterimText("");
+  }, [clearSilence]);
+
+  // ── Displayed Question Sync (Fixes text vs voice latency gap) ────────────────
+  const [displayedPreamble, setDisplayedPreamble] = useState("");
+  const [displayedQuestion, setDisplayedQuestion] = useState("");
+
   // ── Bootstrap session on first render ─────────────────────────────────────────
   useEffect(() => {
     if (sessionInitRef.current) return;
@@ -511,17 +562,13 @@ function LiveInterview() {
     dispatch(startInterview(payload));
 
     return () => {
-      // Full cleanup on unmount
-      clearSilence();
-      stopSTT();
-      _stopAllAudio();
-      stopAnalyser();
+      stopAllPrivacyAndAudio();
       clearInterval(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── React to new question: TTS → STT chain ────────────────────────────────────
+  // ── React to new question: Synchronized TTS → STT chain ────────────────────
   useEffect(() => {
     if (isCompleted) return;
 
@@ -529,19 +576,17 @@ function LiveInterview() {
       ? `${currentPreamble}. ${currentQuestion}`
       : currentQuestion;
 
-    // Deduplicate: don't re-trigger for the same message
     if (!msg || msg === lastMsgRef.current) return;
     lastMsgRef.current = msg;
 
-    // Reset input/timers for fresh answer
     clearSilence();
     setTextInput("");
     textInputRef.current = "";
     setInterimText("");
-    stopSTT();
 
     if (!ttsEnabledRef.current) {
-      // TTS off → go straight to listening
+      setDisplayedPreamble(currentPreamble);
+      setDisplayedQuestion(currentQuestion);
       setPhase(PHASE.LISTENING);
       if (!isMutedRef.current && interactionModeRef.current !== "keyboard") {
         setTimeout(() => startSTTRef.current?.(), 100);
@@ -549,11 +594,15 @@ function LiveInterview() {
       return;
     }
 
-    // TTS on → speak, then start STT in the onEnd callback
+    // TTS Enabled: Buffering audio first, unveil text when audio starts playing
     setPhase(PHASE.SPEAKING);
     speakText(msg, {
       baseUrl,
-      onStart: () => setPhase(PHASE.SPEAKING),
+      onStart: () => {
+        setDisplayedPreamble(currentPreamble);
+        setDisplayedQuestion(currentQuestion);
+        setPhase(PHASE.SPEAKING);
+      },
       onEnd: () => {
         setPhase(PHASE.LISTENING);
         if (!isMutedRef.current && interactionModeRef.current !== "keyboard") {
@@ -568,14 +617,16 @@ function LiveInterview() {
   useEffect(() => {
     if (!isCompleted || !sessionId) return;
     setPhase(PHASE.COMPLETED);
-    stopSTT();
-    clearSilence();
+    stopAllPrivacyAndAudio();
     clearInterval(timerRef.current);
 
     if (ttsEnabled && closingMessage) {
       speakText(closingMessage, {
         baseUrl,
-        onEnd: () => setTimeout(() => navigate(`/app/interviews/${sessionId}/report`), 1200),
+        onEnd: () => {
+          stopAllPrivacyAndAudio();
+          setTimeout(() => navigate(`/app/interviews/${sessionId}/report`), 1200);
+        },
       });
     } else {
       setTimeout(() => navigate(`/app/interviews/${sessionId}/report`), 2500);
@@ -602,11 +653,9 @@ function LiveInterview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interactionMode]);
 
-  // ── Manual end call ──────────────────────────────────────────────────────────
+  // ── Manual end call (Total Privacy Release) ──────────────────────────────────
   const handleEndCall = async () => {
-    _stopAllAudio();
-    stopSTT();
-    clearSilence();
+    stopAllPrivacyAndAudio();
     clearInterval(timerRef.current);
     if (sessionId) {
       try {
@@ -698,15 +747,15 @@ function LiveInterview() {
                 </div>
               ) : (
                 <>
-                  {currentPreamble && (
+                  {(displayedPreamble || currentPreamble) && (
                     <p className="text-center text-[11px] uppercase tracking-widest text-zinc-500 font-medium">
-                      {currentPreamble}
+                      {displayedPreamble || currentPreamble}
                     </p>
                   )}
                   <div className="rounded-2xl border border-zinc-800/60 bg-zinc-900/50 px-6 py-5 backdrop-blur">
                     <p className="text-[10px] uppercase tracking-wider text-primary font-semibold mb-2">Sara is asking</p>
                     <p className="text-base text-zinc-100 leading-relaxed font-medium">
-                      {currentQuestion || "Waiting for the next question…"}
+                      {displayedQuestion || currentQuestion || "Waiting for the next question…"}
                     </p>
                     {answerGuidance && (
                       <p className="mt-3 text-[11px] text-zinc-500 italic leading-relaxed border-t border-zinc-800 pt-3">
