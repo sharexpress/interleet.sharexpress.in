@@ -58,6 +58,46 @@ const PHASE = {
 
 // ─── TTS helpers ──────────────────────────────────────────────────────────────
 
+// ─── Pre-warm Web Speech API Voices ──────────────────────────────────────────
+let _cachedFemaleVoice = null;
+
+function _loadFemaleVoice() {
+  if (!window.speechSynthesis) return null;
+  const voices = window.speechSynthesis.getVoices() || [];
+  if (voices.length === 0) return _cachedFemaleVoice;
+
+  const isMale = (v) => {
+    const n = (v.name || "").toLowerCase();
+    return (
+      n.includes("male") || n.includes("david") || n.includes("mark") ||
+      n.includes("george") || n.includes("alex") || n.includes("fred") ||
+      n.includes("guy") || n.includes("daniel") || n.includes("thomas") || n.includes("oliver")
+    );
+  };
+
+  const female = voices.find(v =>
+    !isMale(v) && (v.lang || "").startsWith("en") &&
+    (v.name.toLowerCase().includes("female") ||
+     v.name.toLowerCase().includes("samantha") ||
+     v.name.toLowerCase().includes("zira") ||
+     v.name.toLowerCase().includes("victoria") ||
+     v.name.toLowerCase().includes("karen") ||
+     v.name.toLowerCase().includes("google us english") ||
+     v.name.toLowerCase().includes("natural") ||
+     v.name.toLowerCase().includes("siri"))
+  ) || voices.find(v => !isMale(v) && (v.lang || "").startsWith("en"));
+
+  if (female) _cachedFemaleVoice = female;
+  return _cachedFemaleVoice;
+}
+
+if (typeof window !== "undefined" && window.speechSynthesis) {
+  _loadFemaleVoice();
+  window.speechSynthesis.onvoiceschanged = () => {
+    _loadFemaleVoice();
+  };
+}
+
 function speakText(text, { baseUrl, onStart, onEnd } = {}) {
   // Kill any active audio first
   _stopAllAudio();
@@ -84,33 +124,13 @@ function _browserSpeak(text, { onStart, onEnd } = {}) {
   _activeUtterance = utter;
 
   utter.rate = 0.95;
-  utter.pitch = 1.05;
+  utter.pitch = 1.15; // Raised pitch ensures natural female tone even if OS voice fallback occurs
   utter.volume = 1;
 
-  // Filter out any male voice identifiers to guarantee female voice
-  const isMale = (v) => {
-    const n = v.name.toLowerCase();
-    return (
-      n.includes("male") || n.includes("david") || n.includes("mark") ||
-      n.includes("george") || n.includes("alex") || n.includes("fred") ||
-      n.includes("guy") || n.includes("daniel") || n.includes("thomas") || n.includes("oliver")
-    );
-  };
-
-  const voices = window.speechSynthesis.getVoices();
-  const femaleVoice = voices.find(v =>
-    !isMale(v) && v.lang.startsWith("en") &&
-    (v.name.toLowerCase().includes("female") ||
-     v.name.toLowerCase().includes("samantha") ||
-     v.name.toLowerCase().includes("zira") ||
-     v.name.toLowerCase().includes("victoria") ||
-     v.name.toLowerCase().includes("karen") ||
-     v.name.toLowerCase().includes("google us english") ||
-     v.name.toLowerCase().includes("natural") ||
-     v.name.toLowerCase().includes("siri"))
-  ) || voices.find(v => !isMale(v) && v.lang.startsWith("en"));
-
-  if (femaleVoice) utter.voice = femaleVoice;
+  const femaleVoice = _loadFemaleVoice() || _cachedFemaleVoice;
+  if (femaleVoice) {
+    utter.voice = femaleVoice;
+  }
 
   utter.onstart = () => onStart?.();
   utter.onend = () => { _activeUtterance = null; onEnd?.(); };
