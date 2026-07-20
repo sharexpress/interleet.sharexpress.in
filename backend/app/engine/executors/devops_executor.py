@@ -125,12 +125,35 @@ class DevOpsExecutor(BaseExecutor):
             await f.write(code)
         (workspace / self.filename).chmod(0o755)
 
+    @staticmethod
+    def _is_hardcoded_bypass(code: str) -> bool:
+        """Detect if shell script is just echoing PASS or returning exit 0 without running actual system commands."""
+        import re
+        lines = [l.strip() for l in code.splitlines() if l.strip() and not l.strip().startswith("#")]
+        if not lines:
+            return True
+            
+        real_cmd_keywords = {
+            "docker", "find", "grep", "awk", "sed", "tar", "curl", "wget", "systemctl",
+            "service", "chmod", "chown", "mkdir", "rm", "cp", "mv", "ps", "top", "kill",
+            "pkill", "lsof", "netstat", "ip", "ifconfig", "df", "du", "uptime", "free",
+            "crontab", "logrotate", "journalctl", "cat", "tee", "ls", "python", "python3", "node",
+            "git", "jq", "dig", "nslookup", "ping", "openssl", "iptables", "ufw", "nmap", "nc"
+        }
+        
+        for line in lines:
+            words = re.findall(r'[a-zA-Z0-9_\-]+', line)
+            if any(w.lower() in real_cmd_keywords for w in words):
+                return False
+                
+        return True
+
     async def run_batch_testcases(
         self,
         code: str,
         testcases: list[TestCaseSchema],
-        time_limit: float,
-        memory_limit: int,
+        time_limit: float = 5.0,
+        memory_limit: int = 256,
     ) -> list[SandboxResult]:
         """
         Run testcases in completely isolated containers.
@@ -155,6 +178,18 @@ class DevOpsExecutor(BaseExecutor):
                 
                 # Check if there is a verification script
                 verification_script = getattr(tc, "verification_script", None)
+                
+                # Anti-Cheat: Reject dummy hardcoded echo PASS scripts if no verification script exists
+                if not verification_script and self._is_hardcoded_bypass(code):
+                    results.append(SandboxResult(
+                        output="",
+                        error="FAIL: Hardcoded 'PASS' bypass detected. Your solution must execute real shell/system commands (e.g., docker, grep, find, awk, curl, tar) to fulfill challenge requirements.",
+                        exit_code=1,
+                        wall_time_ms=10.0,
+                        peak_memory_mb=0.0
+                    ))
+                    continue
+
                 if verification_script:
                     async with aiofiles.open(workspace / "verify.sh", "w", encoding="utf-8") as f:
                         await f.write(verification_script)
