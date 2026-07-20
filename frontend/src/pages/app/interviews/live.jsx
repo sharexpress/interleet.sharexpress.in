@@ -374,6 +374,51 @@ function LiveInterview() {
     }, DURATION);
   }, [clearSilence]);
 
+  // ── Master Privacy & Audio Cleanup ──────────────────────────────────────────
+  const stopAllPrivacyAndAudio = useCallback(() => {
+    // 1. Stop SpeechRecognition
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    } catch (_) { }
+
+    // 2. Stop microphone media stream tracks (Hardware mic release)
+    try {
+      if (audioStreamRef.current) {
+        audioStreamRef.current.getTracks().forEach((t) => {
+          t.stop();
+          t.enabled = false;
+        });
+        audioStreamRef.current = null;
+      }
+    } catch (_) { }
+
+    // 3. Close Web AudioContext
+    try {
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close().catch(() => { });
+        audioCtxRef.current = null;
+      }
+    } catch (_) { }
+
+    // 4. Cancel animation frames & stop audio output
+    if (audioAnimRef.current) {
+      cancelAnimationFrame(audioAnimRef.current);
+      audioAnimRef.current = null;
+    }
+    audioAnalyserRef.current = null;
+    _stopAllAudio();
+    clearSilence();
+    setAudioLevels([0, 0, 0, 0, 0]);
+    setInterimText("");
+  }, [clearSilence]);
+
   // ── STT lifecycle & Privacy Cleanup ──────────────────────────────────────────
   const stopSTT = useCallback(() => {
     stopAllPrivacyAndAudio();
@@ -503,51 +548,6 @@ function LiveInterview() {
 
   // Keep submit ref stable for the silence timer closure
   useEffect(() => { submitRef.current = handleSubmit; }, [handleSubmit]);
-
-  // ── Master Privacy & Audio Cleanup ──────────────────────────────────────────
-  const stopAllPrivacyAndAudio = useCallback(() => {
-    // 1. Stop SpeechRecognition
-    try {
-      if (recognitionRef.current) {
-        recognitionRef.current.onstart = null;
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.onend = null;
-        recognitionRef.current.abort();
-        recognitionRef.current = null;
-      }
-    } catch (_) { }
-
-    // 2. Stop microphone media stream tracks (Hardware mic release)
-    try {
-      if (audioStreamRef.current) {
-        audioStreamRef.current.getTracks().forEach((t) => {
-          t.stop();
-          t.enabled = false;
-        });
-        audioStreamRef.current = null;
-      }
-    } catch (_) { }
-
-    // 3. Close Web AudioContext
-    try {
-      if (audioCtxRef.current) {
-        audioCtxRef.current.close().catch(() => { });
-        audioCtxRef.current = null;
-      }
-    } catch (_) { }
-
-    // 4. Cancel animation frames & stop audio output
-    if (audioAnimRef.current) {
-      cancelAnimationFrame(audioAnimRef.current);
-      audioAnimRef.current = null;
-    }
-    audioAnalyserRef.current = null;
-    _stopAllAudio();
-    clearSilence();
-    setAudioLevels([0, 0, 0, 0, 0]);
-    setInterimText("");
-  }, [clearSilence]);
 
   // ── Displayed Question Sync (Fixes text vs voice latency gap) ────────────────
   const [displayedPreamble, setDisplayedPreamble] = useState("");
