@@ -25,10 +25,15 @@ echo "🌐 [3/4] Updating /var/www/interleet-frontend..."
 mkdir -p "$FRONTEND_DEST"
 cp -r dist/* "$FRONTEND_DEST/"
 
-echo "🔄 [4/4] Reloading backend services..."
+echo "🔄 [4/5] Reloading backend services..."
 cd "$REPO_DIR/backend"
 if pm2 describe interleet-backend > /dev/null 2>&1; then
   pm2 reload interleet-backend --update-env
+fi
+
+echo "🌱 [5/5] Seeding database curriculum..."
+if [ -f "$REPO_DIR/backend/.venv/bin/python" ]; then
+  "$REPO_DIR/backend/.venv/bin/python" seed_sql_curriculum.py
 fi
 
 echo "=================================================="
