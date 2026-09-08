@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -27,7 +27,6 @@ import {
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { DifficultyPill, DomainTag } from "@/components/domain/Tags";
 import {
@@ -36,13 +35,8 @@ import {
   Clock,
   Sparkles,
   Users,
-  FileCode,
-  Beaker,
   RefreshCw,
   Share2,
-  Code2,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 
 function ChallengeDetail() {
@@ -89,27 +83,18 @@ function ChallengeDetail() {
           <div className="h-7 w-56 rounded bg-zinc-800/40" />
           <div className="h-4.5 w-96 rounded bg-zinc-800/20" />
         </div>
-        <div className="grid gap-6 px-4 py-6 md:grid-cols-3 md:px-8 animate-pulse">
-          <div className="space-y-4 md:col-span-2">
-            <div className="h-[320px] rounded-xl border border-border bg-card/30 p-6 space-y-4">
-              <div className="flex gap-2">
-                <div className="h-5 w-16 rounded bg-zinc-800/40" />
-                <div className="h-5 w-20 rounded bg-zinc-800/40" />
-                <div className="h-5 w-16 rounded bg-zinc-800/20" />
-              </div>
-              <div className="h-6 w-32 rounded bg-zinc-800/40 mt-6" />
-              <div className="space-y-2 pt-2">
-                <div className="h-3.5 w-full rounded bg-zinc-800/20" />
-                <div className="h-3.5 w-full rounded bg-zinc-800/20" />
-                <div className="h-3.5 w-5/6 rounded bg-zinc-800/20" />
-              </div>
+        <div className="max-w-4xl mx-auto px-4 py-8 md:px-8 animate-pulse space-y-4">
+          <div className="h-[380px] rounded-xl border border-border bg-card/30 p-6 space-y-4">
+            <div className="flex gap-2">
+              <div className="h-5 w-16 rounded bg-zinc-800/40" />
+              <div className="h-5 w-20 rounded bg-zinc-800/40" />
+              <div className="h-5 w-16 rounded bg-zinc-800/20" />
             </div>
-          </div>
-          <div className="space-y-4">
-            <div className="h-[220px] rounded-xl border border-border bg-card/30 p-6 space-y-3">
-              <div className="h-4.5 w-24 rounded bg-zinc-800/40" />
-              <div className="h-3 w-full rounded bg-zinc-800/20" />
-              <div className="h-3 w-2/3 rounded bg-zinc-800/20" />
+            <div className="h-6 w-32 rounded bg-zinc-800/40 mt-6" />
+            <div className="space-y-2 pt-2">
+              <div className="h-3.5 w-full rounded bg-zinc-800/20" />
+              <div className="h-3.5 w-full rounded bg-zinc-800/20" />
+              <div className="h-3.5 w-5/6 rounded bg-zinc-800/20" />
             </div>
           </div>
         </div>
@@ -171,243 +156,104 @@ function ChallengeDetail() {
         }
       />
 
-      <div className="grid gap-6 px-4 py-6 md:grid-cols-3 md:px-8">
-        <div className="space-y-4 md:col-span-2">
-          <Card className="border-border bg-card p-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <DifficultyPill d={c.difficulty} />
-              <DomainTag d={c.domain} />
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" /> {c.minutes}m
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Sparkles className="h-3.5 w-3.5" /> {c.xp} XP
-              </span>
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Users className="h-3.5 w-3.5" /> {c.completion}% completion
-              </span>
-            </div>
-            <h2 className="mt-5 text-lg font-semibold">Problem</h2>
-            <div className="prose prose-invert mt-3 max-w-none text-sm text-foreground/85">
-              <p>{c.summary}</p>
-              {c.description ? (
-                <div className="text-muted-foreground mt-3 space-y-2">
-                  {(() => {
-                    const lines = c.description.split('\n');
-                    return lines.map((line, idx) => {
-                      if (line.startsWith('### ')) {
-                        return <h3 key={idx} className="mt-5 mb-2 text-sm font-semibold text-foreground">{line.slice(4)}</h3>;
-                      }
-                      if (line.startsWith('## ')) {
-                        return <h2 key={idx} className="mt-6 mb-3 text-base font-bold text-foreground">{line.slice(3)}</h2>;
-                      }
-                      if (line.startsWith('# ')) {
-                        return <h1 key={idx} className="mt-7 mb-4 text-lg font-extrabold text-foreground">{line.slice(2)}</h1>;
-                      }
-                      if (line.trim().startsWith('- ')) {
-                        return (
-                          <ul key={idx} className="list-disc pl-5 my-1 text-muted-foreground">
-                            <li>{line.trim().slice(2)}</li>
-                          </ul>
-                        );
-                      }
-                      if (line.trim() === '') {
-                        return <div key={idx} className="h-2" />;
-                      }
-                      return <p key={idx} className="my-1.5 leading-relaxed">{line}</p>;
-                    });
-                  })()}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
+      <div className="mx-auto max-w-4xl px-4 py-8 md:px-8 space-y-6">
+        <Card className="border-border bg-card p-6 md:p-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <DifficultyPill d={c.difficulty} />
+            <DomainTag d={c.domain} />
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" /> {c.minutes}m
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Sparkles className="h-3.5 w-3.5" /> {c.xp} XP
+            </span>
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Users className="h-3.5 w-3.5" /> {c.completion}% completion
+            </span>
+          </div>
+
+          <h2 className="mt-6 text-xl font-semibold">Problem</h2>
+          <div className="prose prose-invert mt-3 max-w-none text-sm text-foreground/85">
+            <p className="text-base leading-relaxed text-foreground/90">{c.summary}</p>
+            {c.description ? (
+              <div className="text-muted-foreground mt-4 space-y-2">
+                {(() => {
+                  const lines = c.description.split('\n');
+                  return lines.map((line, idx) => {
+                    if (line.startsWith('### ')) {
+                      return <h3 key={idx} className="mt-5 mb-2 text-sm font-semibold text-foreground">{line.slice(4)}</h3>;
+                    }
+                    if (line.startsWith('## ')) {
+                      return <h2 key={idx} className="mt-6 mb-3 text-base font-bold text-foreground">{line.slice(3)}</h2>;
+                    }
+                    if (line.startsWith('# ')) {
+                      return <h1 key={idx} className="mt-7 mb-4 text-lg font-extrabold text-foreground">{line.slice(2)}</h1>;
+                    }
+                    if (line.trim().startsWith('- ')) {
+                      return (
+                        <ul key={idx} className="list-disc pl-5 my-1 text-muted-foreground">
+                          <li>{line.trim().slice(2)}</li>
+                        </ul>
+                      );
+                    }
+                    if (line.trim() === '') {
+                      return <div key={idx} className="h-2" />;
+                    }
+                    return <p key={idx} className="my-1.5 leading-relaxed">{line}</p>;
+                  });
+                })()}
+              </div>
+            ) : (
+              <>
+                <p className="text-muted-foreground mt-3">
                   You're given a service that needs to behave correctly under realistic production
                   constraints. Read the requirements carefully, propose an approach, and implement
                   it with the provided scaffolding. Your solution will be graded against a hidden
                   test suite plus a rubric for clarity, correctness, and tradeoffs.
                 </p>
-              )}
-              <h3 className="text-base">Requirements</h3>
-              <ul className="text-muted-foreground">
-                <li>Handle the documented happy path with correct behavior under load.</li>
-                <li>Degrade gracefully under partial failure (timeouts, retries).</li>
-                <li>Ship clear, justified code — comments only where intent isn't obvious.</li>
-              </ul>
-              <h3 className="text-base">Constraints</h3>
-              <ul className="text-muted-foreground">
-                <li>p95 latency under 200ms at 1k rps</li>
-                <li>Memory budget: 256MB</li>
-                <li>No external network calls beyond the provided clients</li>
-              </ul>
-            </div>
+                <h3 className="text-base mt-4">Requirements</h3>
+                <ul className="text-muted-foreground list-disc pl-5 my-1">
+                  <li>Handle the documented happy path with correct behavior under load.</li>
+                  <li>Degrade gracefully under partial failure (timeouts, retries).</li>
+                  <li>Ship clear, justified code — comments only where intent isn't obvious.</li>
+                </ul>
+                <h3 className="text-base mt-4">Constraints</h3>
+                <ul className="text-muted-foreground list-disc pl-5 my-1">
+                  <li>p95 latency under 200ms at 1k rps</li>
+                  <li>Memory budget: 256MB</li>
+                  <li>No external network calls beyond the provided clients</li>
+                </ul>
+              </>
+            )}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+            <Button variant="outline" asChild>
+              <Link to="/app/challenges">
+                <ArrowLeft className="mr-1.5 h-4 w-4" />
+                Back to challenges
+              </Link>
+            </Button>
+            <Button asChild size="lg">
+              <Link to={`/app/editor/${c.slug}`}>
+                Solve Challenge <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </Card>
+
+        {c.hints && c.hints.length > 0 && (
+          <Card className="border-border bg-card p-6">
+            <h3 className="text-sm font-semibold">Hints</h3>
+            <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-muted-foreground">
+              {c.hints.map((hint, i) => (
+                <li key={i}>{hint}</li>
+              ))}
+            </ol>
           </Card>
-
-          {/* ── Starter Code Snippet ─────────────────────────────────── */}
-          {c.starter_code && Object.keys(c.starter_code).length > 0 && (
-            <StarterCodeCard starterCode={c.starter_code} />
-          )}
-
-          {c.hints && c.hints.length > 0 && (
-            <Card className="border-border bg-card p-6">
-              <h3 className="text-sm font-semibold">Hints</h3>
-              <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-muted-foreground">
-                {c.hints.map((hint, i) => (
-                  <li key={i}>{hint}</li>
-                ))}
-              </ol>
-            </Card>
-          )}
-
-          {c.test_cases && c.test_cases.filter((t) => !t.hidden).length > 0 && (
-            <Card className="border-border bg-card p-6">
-              <h3 className="text-sm font-semibold">Example tests</h3>
-              <div className="mt-3 space-y-3">
-                {c.test_cases
-                  .filter((t) => !t.hidden)
-                  .map((t) => (
-                    <div
-                      key={t.id}
-                      className="rounded-md border border-border bg-background/60 p-3"
-                    >
-                      <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                        {t.name}
-                      </p>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {t.stdin && (
-                          <div>
-                            <p className="mb-1 text-[10px] text-muted-foreground">Input</p>
-                            <pre className="overflow-x-auto font-mono text-xs text-foreground/85">
-                              {t.stdin}
-                            </pre>
-                          </div>
-                        )}
-                        {t.expected_output && (
-                          <div>
-                            <p className="mb-1 text-[10px] text-muted-foreground">
-                              Expected output
-                            </p>
-                            <pre className="overflow-x-auto font-mono text-xs text-foreground/85">
-                              {t.expected_output}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </Card>
-          )}
-        </div>
-
-        <div className="space-y-4">
-          {c.tags && c.tags.length > 0 && (
-            <Card className="border-border bg-card p-5">
-              <h3 className="text-sm font-semibold">Tags</h3>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {c.tags.map((t) => (
-                  <Badge key={t} variant="outline" className="font-mono text-[10px]">
-                    {t}
-                  </Badge>
-                ))}
-              </div>
-            </Card>
-          )}
-          <Card className="border-border bg-card p-5">
-            <h3 className="text-sm font-semibold">Resources</h3>
-            <ul className="mt-3 space-y-2 text-sm">
-              <li className="flex items-center gap-2 text-foreground/85">
-                <FileCode className="h-4 w-4 text-primary" />
-                Starter scaffold (Node / TS)
-              </li>
-              <li className="flex items-center gap-2 text-foreground/85">
-                <Beaker className="h-4 w-4 text-primary" />
-                Local test runner
-              </li>
-            </ul>
-          </Card>
-          <Card className="border-border bg-card p-5">
-            <h3 className="text-sm font-semibold">Discussion</h3>
-            <p className="mt-2 text-xs text-muted-foreground">
-              328 engineers discussing tradeoffs. Open after you submit.
-            </p>
-          </Card>
-        </div>
+        )}
       </div>
     </AppShell>
-  );
-}
-
-// ── Starter Code Snippet Card ──────────────────────────────────────────────
-const LANG_LABEL_MAP = {
-  ts: "TypeScript", typescript: "TypeScript",
-  js: "JavaScript", javascript: "JavaScript",
-  py: "Python",     python: "Python",
-  go: "Go",
-  java: "Java",
-  cpp: "C++",
-  rust: "Rust",
-  html: "HTML/CSS/JS",
-  multi: "Shell",
-};
-
-function StarterCodeCard({ starterCode }) {
-  const allKeys = Object.keys(starterCode);
-  const [activeKey, setActiveKey] = useState(allKeys[0] || "");
-  const [expanded, setExpanded] = useState(true);
-
-  const snippet = starterCode[activeKey] || "";
-  const langLabel = LANG_LABEL_MAP[activeKey] || activeKey;
-
-  return (
-    <Card className="border-border bg-card p-0 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Code2 className="h-4 w-4 text-primary" />
-          Starter Code
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Language tabs */}
-          {allKeys.length > 1 && (
-            <div className="flex gap-1">
-              {allKeys.map((k) => (
-                <button
-                  key={k}
-                  onClick={() => setActiveKey(k)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono transition-colors ${
-                    k === activeKey
-                      ? "bg-primary/20 text-primary border border-primary/40"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  }`}
-                >
-                  {LANG_LABEL_MAP[k] || k}
-                </button>
-              ))}
-            </div>
-          )}
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title={expanded ? "Collapse" : "Expand"}
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Language badge bar */}
-      <div className="flex items-center gap-2 px-5 pt-3 pb-1">
-        <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-mono border border-primary/20">
-          {langLabel}
-        </span>
-      </div>
-
-      {/* Code block */}
-      {expanded && (
-        <pre className="overflow-x-auto px-5 pb-5 pt-2 font-mono text-xs leading-relaxed text-foreground/85 whitespace-pre">
-          {snippet}
-        </pre>
-      )}
-    </Card>
   );
 }
 

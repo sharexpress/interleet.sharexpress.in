@@ -1195,7 +1195,7 @@ function EditorPage() {
               )}
 
               {!isMultiFileDomain && <EnvironmentInfo domain={c.domain} lang={lang} />}
-              {c.test_cases?.filter((t) => !t.hidden).length > 0 && (
+              {!isDatabaseDomain && c.test_cases?.filter((t) => !t.hidden).length > 0 && (
                 <>
                   <h3 className="mt-5 text-sm font-semibold">Examples</h3>
                   <div className="mt-2 space-y-2">
@@ -1238,21 +1238,6 @@ function EditorPage() {
                       <li key={i}>{h}</li>
                     ))}
                   </ol>
-                </>
-              )}
-              {c.tags?.length > 0 && (
-                <>
-                  <h3 className="mt-5 text-sm font-semibold">Tags</h3>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {c.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded border border-border bg-background/60 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
                 </>
               )}
               {c?.runtime_config && (
