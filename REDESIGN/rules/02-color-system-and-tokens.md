@@ -4,84 +4,82 @@ Interleet employs a strict, semantic design token architecture. Components must 
 
 ---
 
-## 1. Single Accent Rule
+## 1. Signature Brand Palette: Orange & Black
 
-- **Maximum 1 accent color** active on any screen.
-- Accent is strictly reserved for:
-  1. Primary call-to-action buttons (e.g. "Run Code", "Submit", "Start Match")
-  2. Active/selected navigation items or tabs
-  3. Interactive hyperlinks
-  4. Subtle focus rings
-- Everything else is strictly neutral (grays, near-blacks, near-whites).
-- Never mix cyan, purple, blue, and orange accents on the same view.
+Interleet's identity is defined by its signature **Orange & Black** visual signature:
+- **Base Background**: Deep Black (`#000000`)
+- **Primary Brand Accent**: Interleet Orange (`#FF6500`)
+- **Surfaces & Cards**: Elevated `#0A0A0A` and `#141414`
+- **Borders & Dividers**: Crisp `#262626`
+- **Secondary & Accent Tints**: `#1A1A1A`
+
+The redesign is strictly focused on **structure, layout, density, typography, and UX flow** — never altering the core Orange & Black identity.
 
 ---
 
-## 2. Background Elevations (GitHub Layering Model)
+## 2. Background Elevations (Interleet Layering Model)
 
-Surfaces are never pure black (`#000000`). They follow GitHub's layered elevation:
+Surfaces layer smoothly above the pure black canvas:
 
-| Elevation Tier | Token | Dark Theme Target | Purpose |
+| Elevation Tier | Token | Dark Theme Value | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Base** | `--color-bg-base` | `#0d1117` / `#090d12` | App canvas, main background, full viewport |
-| **Surface** | `--color-bg-surface` | `#161b22` / `#12161f` | Navigation bars, sidebars, cards, table headers |
-| **Overlay** | `--color-bg-overlay` | `#21262d` / `#1c2128` | Dropdown menus, modals, tooltips, popovers |
-
-Each level is exactly one step lighter than the layer below it, providing depth without artificial drop shadows.
+| **Base** | `--background` | `#000000` | Viewport canvas, main background |
+| **Surface / Card** | `--card` | `#0A0A0A` | Navigation bars, cards, table frames, left IDE pane |
+| **Panel** | `--panel` | `#141414` | Inner containers, testcase drawers, code boxes |
+| **Overlay / Accent** | `--accent` | `#1A1A1A` | Dropdown menus, tooltips, popovers, hover tints |
 
 ---
 
 ## 3. Borders & Dividers
 
-- Borders are razor-thin: **1px solid**.
-- `--color-border-default`: Used for primary container boundaries, table frames, and Monaco pane dividers.
-- `--color-border-muted`: Used for subtle inner dividers, table row separators, and list boundaries.
-- No glowing border outlines, no gradient borders.
+- Borders are razor-thin: **1px solid `#262626`** (`--border`).
+- No glowing border outlines, no rainbow gradients.
 
 ---
 
-## 4. Semantic Status Colors (Fixed & Theme-Independent)
+## 4. Semantic Status Colors
 
-Status and difficulty colors carry universal meaning and never vary by theme:
+Status and difficulty colors:
 
-| Status / Difficulty | Color Family | Text / Icon Token | Subtle Badge Bg Token |
+| Status / Difficulty | Color Family | Hex Value | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Easy / Solved / Success** | Green | `--color-success` (`#22c55e` / `#2ea043`) | `rgba(34, 197, 94, 0.12)` |
-| **Medium / Warning / In Progress**| Amber/Orange | `--color-warning` (`#f59e0b` / `#d29922`) | `rgba(245, 158, 11, 0.12)` |
-| **Hard / Error / Failed** | Red | `--color-danger` (`#ef4444` / `#f85149`) | `rgba(239, 68, 68, 0.12)` |
-| **Neutral / Unattempted / Todo** | Slate Gray | `--color-text-tertiary` (`#8b949e`) | `rgba(139, 148, 158, 0.12)` |
+| **Easy / Solved / Success** | Emerald Green | `#4FB286` / `#22c55e` | Solved glyphs, success alerts |
+| **Medium / Warning / In Progress** | Interleet Orange | `#FF6500` | Medium difficulty, pending status |
+| **Hard / Error / Failed** | Crimson Red | `#E84A5F` / `#ef4444` | Hard difficulty, test failure |
+| **Neutral / Unattempted** | Muted Gray | `#8b949e` / `#A1A1A1` | Unattempted dash, metadata |
 
 ---
 
 ## 5. Token Variable Definitions
 
-Every UI component must reference these CSS custom properties or mapped Tailwind utility classes:
-
 ```css
-:root {
-  /* Surfaces */
-  --color-bg-base: #0d1117;
-  --color-bg-surface: #161b22;
-  --color-bg-overlay: #21262d;
-
-  /* Borders */
-  --color-border-default: #30363d;
-  --color-border-muted: #21262d;
-
-  /* Typography */
-  --color-text-primary: #f0f6fc;
-  --color-text-secondary: #8b949e;
-  --color-text-tertiary: #6e7681;
-
-  /* Accent */
-  --color-accent: #238636; /* Default refined emerald/green or brand accent */
-  --color-accent-hover: #2ea043;
-  --color-accent-muted: rgba(35, 134, 54, 0.15);
-
-  /* Semantic */
-  --color-success: #238636;
-  --color-warning: #d29922;
-  --color-danger: #f85149;
+:root, .dark {
+  --radius: 0.375rem; /* 6px disciplined radius */
+  --background: #000000;
+  --foreground: #FFFFFF;
+  --card: #0A0A0A;
+  --card-foreground: #FFFFFF;
+  --popover: #0A0A0A;
+  --popover-foreground: #FFFFFF;
+  --panel: #141414;
+  --panel-foreground: #FFFFFF;
+  --primary: #FF6500;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1A1A1A;
+  --secondary-foreground: #FFFFFF;
+  --muted: #0F0F0F;
+  --muted-foreground: #A1A1A1;
+  --accent: #1A1A1A;
+  --accent-foreground: #FFFFFF;
+  --destructive: #E84A5F;
+  --destructive-foreground: #FFFFFF;
+  --success: #4FB286;
+  --success-foreground: #06120A;
+  --warning: #FF6500;
+  --warning-foreground: #FFFFFF;
+  --border: #262626;
+  --input: #141414;
+  --ring: #FF6500;
 }
 ```
 
@@ -90,5 +88,5 @@ Every UI component must reference these CSS custom properties or mapped Tailwind
 ## 6. Contrast & WCAG AA Rule
 
 - All normal text (`< 18px`) must achieve at least **4.5:1** contrast ratio against its surface.
-- Large text (`>= 18px bold` or `>= 24px`) must achieve at least **3:1** contrast ratio.
-- Never use low-opacity text (`opacity-40` or gray-500 on dark gray) that fails WCAG AA checks.
+- High-contrast white `#FFFFFF` text on deep black `#000000` / card `#0A0A0A` delivers **18:1+ contrast**, well exceeding WCAG AAA standards.
+- Never use low-opacity text that fails WCAG AA checks.

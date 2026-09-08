@@ -352,26 +352,27 @@ export function GlobalSearch() {
         <AnimatePresence>
           {isOpen && (
             <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-24 overflow-hidden text-white">
-              {/* Backdrop with high opacity black and beautiful backdrop blur */}
+              {/* Backdrop */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
                 onClick={() => setIsOpen(false)}
-                className="absolute inset-0 bg-black/85 backdrop-blur-[8px]"
+                className="absolute inset-0 bg-black/60"
               />
 
-              {/* Modal Body with glassmorphism, soft border, glow shadow */}
+              {/* Modal Body */}
               <motion.div
-                initial={{ scale: 0.95, opacity: 0, y: -10 }}
+                initial={{ scale: 0.98, opacity: 0, y: -6 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.95, opacity: 0, y: -10 }}
-                transition={{ type: "spring", duration: 0.35, bounce: 0.15 }}
-                className="relative w-full max-w-xl bg-zinc-950/85 backdrop-blur-xl border border-white/[0.08] shadow-[0_0_80px_rgba(255,101,0,0.18)] rounded-xl overflow-hidden flex flex-col z-10 mx-4"
+                exit={{ scale: 0.98, opacity: 0, y: -6 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="relative w-full max-w-xl bg-card border border-border rounded-lg shadow-2xl overflow-hidden flex flex-col z-10 mx-4"
               >
-                {/* Header Input Area using standard HTML input for layout compatibility */}
-                <div className="flex items-center gap-3 px-4 py-4 border-b border-white/[0.05] bg-white/[0.02]">
-                  <Search className="h-5 w-5 text-primary shrink-0 animate-pulse" />
+                {/* Header Input Area */}
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card">
+                  <Search className="h-4 w-4 text-muted-foreground shrink-0" />
                   <input
                     ref={modalInputRef}
                     value={query}

@@ -96,11 +96,11 @@ function NavLinks({ user, orientation = "horizontal", onNavigate }) {
             to={item.to}
             onClick={onNavigate}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+              "flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
               active
-                ? "bg-accent text-foreground"
-                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-              orientation === "vertical" && "px-2.5 py-2",
+                ? "bg-accent/70 text-foreground border border-border/60"
+                : "text-muted-foreground hover:bg-accent/40 hover:text-foreground border border-transparent",
+              orientation === "vertical" && "px-2.5 py-2 text-sm",
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />
@@ -232,7 +232,7 @@ export function AppShell({ children }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur md:px-6">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-card px-4 md:px-6">
         {/* Mobile menu */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
