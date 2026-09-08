@@ -21,24 +21,154 @@ import {
   Mic, Gem, Star, Users, Swords, UserCheck
 } from "lucide-react";
 
+const BADGE_ID_MAP = {
+  first_solve: "badge_first_blood.png",
+  five_solves: "badge_problem_slayer.png",
+  ten_solves: "badge_algorithm_master.png",
+  fullstack_wizard: "badge_fullstack_wizard.png",
+  system_designer: "badge_system_architect.png",
+  streak_3: "badge_on_fire.png",
+  streak_7: "badge_week_warrior.png",
+  streak_100: "badge_centurion.png",
+  contest_winner: "badge_champion.png",
+};
+
 /**
  * Renders a premium 3D PNG badge (from MinIO) or a highly-stylized inline SVG
  * fallback designed to resemble LeetCode's gamified achievement assets.
  */
 export function BadgeIcon({ id, imageUrl, name, className = "w-10 h-10" }) {
-  // If we have a custom S3 MinIO image url, render the PNG with high-performance styling
-  if (imageUrl && !imageUrl.includes("badge_bronze") && !imageUrl.includes("badge_silver") && !imageUrl.includes("badge_gold") && !imageUrl.includes("badge_diamond")) {
+  const [imgError, setImgError] = React.useState(false);
+
+  // Normalize image URL: resolve legacy drive.sharexpress.in URLs or map by badge ID
+  let resolvedUrl = imageUrl;
+  if (resolvedUrl && resolvedUrl.includes("drive.sharexpress.in")) {
+    resolvedUrl = resolvedUrl.replace("https://drive.sharexpress.in/interleet/badges/", "/interleet/badges/");
+  }
+  if (!resolvedUrl && id && BADGE_ID_MAP[id]) {
+    resolvedUrl = `/interleet/badges/${BADGE_ID_MAP[id]}`;
+  }
+
+  // If we have an image url, render the 3D PNG with smooth fallback
+  if (
+    resolvedUrl &&
+    !imgError &&
+    !resolvedUrl.includes("badge_bronze") &&
+    !resolvedUrl.includes("badge_silver") &&
+    !resolvedUrl.includes("badge_gold") &&
+    !resolvedUrl.includes("badge_diamond")
+  ) {
     return (
       <img 
-        src={imageUrl} 
+        src={resolvedUrl} 
         alt={name || "Badge"} 
         className={`${className} object-contain transition-transform duration-300 hover:scale-110`}
+        onError={(e) => {
+          // If MinIO URL failed, try local static /badges/ path before failing over to SVG
+          if (e.currentTarget.src.includes("/interleet/badges/")) {
+            e.currentTarget.src = e.currentTarget.src.replace("/interleet/badges/", "/badges/");
+          } else {
+            setImgError(true);
+          }
+        }}
       />
     );
   }
 
   // Fallback to gorgeous custom vector inline SVGs for the remaining badges to prevent duplicates
   switch (id) {
+    case "first_solve": // First Blood (Crimson Target & Blade)
+      return (
+        <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="blood-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#EF4444" />
+              <stop offset="100%" stopColor="#991B1B" />
+            </linearGradient>
+            <filter id="blood-glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" operator="over" />
+            </filter>
+          </defs>
+          <circle cx="50" cy="50" r="42" fill="#18181B" stroke="url(#blood-grad)" strokeWidth="3" />
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#EF4444" strokeWidth="2" strokeDasharray="4 2" />
+          <circle cx="50" cy="50" r="14" fill="url(#blood-grad)" filter="url(#blood-glow)" />
+          <path d="M50 20 V32 M50 68 V80 M20 50 H32 M68 50 H80" stroke="#EF4444" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      );
+
+    case "five_solves": // Problem Slayer (Crossed Swords & Shield)
+      return (
+        <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="slayer-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#F97316" />
+              <stop offset="100%" stopColor="#C2410C" />
+            </linearGradient>
+          </defs>
+          <path d="M50 8 L85 24 V56 C85 76 50 94 50 94 C50 94 15 76 15 56 V24 L50 8Z" fill="#18181B" stroke="url(#slayer-grad)" strokeWidth="3" />
+          <path d="M32 30 L68 70 M68 30 L32 70" stroke="#EA580C" strokeWidth="4" strokeLinecap="round" />
+          <circle cx="50" cy="50" r="12" fill="#C2410C" />
+          <path d="M50 42 V58 M42 50 H58" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      );
+
+    case "ten_solves": // Algorithm Master (Cybernetic Circuit Brain)
+      return (
+        <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="algo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#38BDF8" />
+              <stop offset="100%" stopColor="#6366F1" />
+            </linearGradient>
+            <filter id="algo-glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" operator="over" />
+            </filter>
+          </defs>
+          <rect x="15" y="15" width="70" height="70" rx="20" fill="#0F172A" stroke="url(#algo-grad)" strokeWidth="3" />
+          <path d="M35 35 Q50 22 65 35 Q75 50 65 65 Q50 78 35 65 Q25 50 35 35 Z" fill="none" stroke="url(#algo-grad)" strokeWidth="3" filter="url(#algo-glow)" />
+          <path d="M50 30 V70 M30 50 H70" stroke="#38BDF8" strokeWidth="2" strokeDasharray="3 3" />
+          <circle cx="50" cy="50" r="6" fill="#38BDF8" />
+        </svg>
+      );
+
+    case "fullstack_wizard": // Fullstack Wizard (Mystic Prism Hat)
+      return (
+        <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="wiz-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#A855F7" />
+              <stop offset="50%" stopColor="#EC4899" />
+              <stop offset="100%" stopColor="#3B82F6" />
+            </linearGradient>
+          </defs>
+          <path d="M50 10 L85 30 V70 L50 90 L15 70 V30 Z" fill="#18181B" stroke="url(#wiz-grad)" strokeWidth="3" />
+          <path d="M50 20 L25 72 H75 Z" fill="none" stroke="url(#wiz-grad)" strokeWidth="3.5" />
+          <circle cx="50" cy="45" r="7" fill="#EC4899" />
+          <path d="M50 18 L53 26 L61 27 L55 33 L57 41 L50 37 L43 41 L45 33 L39 27 L47 26 Z" fill="#FBBF24" />
+        </svg>
+      );
+
+    case "streak_3": // On Fire (Triple Flame)
+      return (
+        <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="fire-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#F59E0B" />
+              <stop offset="50%" stopColor="#FF6500" />
+              <stop offset="100%" stopColor="#DC2626" />
+            </linearGradient>
+            <filter id="fire-glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" operator="over" />
+            </filter>
+          </defs>
+          <circle cx="50" cy="50" r="42" fill="#18181B" stroke="url(#fire-grad)" strokeWidth="3" />
+          <path d="M50 22 C50 22 62 38 62 54 C62 67 54 74 50 74 C46 74 38 67 38 54 C38 38 50 22 50 22 Z" fill="url(#fire-grad)" filter="url(#fire-glow)" />
+          <path d="M50 44 C50 44 56 52 56 60 C56 66 52 70 50 70 C48 70 44 66 44 60 C44 52 50 44 50 44 Z" fill="#FEF08A" />
+        </svg>
+      );
     case "twenty_five_solves": // Code Warrior (Gold Bolt)
       return (
         <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
