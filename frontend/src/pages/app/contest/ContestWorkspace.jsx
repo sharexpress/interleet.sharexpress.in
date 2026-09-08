@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { API } from "@/api/api";
+import MarkdownRenderer from "@/components/common/MarkdownRenderer";
 import { runCode, submitCode, resetExecution, selectChallengeExecution } from "@/redux/slices/challengeExecutionSlice";
 import { DifficultyPill, DomainTag } from "@/components/domain/Tags";
 import {
@@ -653,9 +654,9 @@ function ContestWorkspace() {
                   </div>
                 </div>
 
-                <p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                  {currentChallenge.description || currentChallenge.summary}
-                </p>
+                <div className="text-sm text-zinc-300 leading-relaxed">
+                  <MarkdownRenderer content={currentChallenge.description || currentChallenge.summary} />
+                </div>
 
                 {currentChallenge.test_cases?.filter(t => !t.hidden).length > 0 && (
                   <div className="space-y-2.5 pt-2">

@@ -32,6 +32,7 @@ import {
 } from "recharts";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { fetchReport } from "@/redux/slices/interviewsSlice";
+import { parseInlineMarkdown } from "@/components/common/MarkdownRenderer";
 
 // ─── Score Badge ─────────────────────────────────────────────────────────────
 
@@ -372,7 +373,7 @@ function ReportPage() {
                 {strengths.map((x, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-zinc-200">
                     <Check className="mt-0.5 h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>{typeof x === "string" ? x : x.text || x.description || JSON.stringify(x)}</span>
+                    <span>{parseInlineMarkdown(typeof x === "string" ? x : x.text || x.description || JSON.stringify(x))}</span>
                   </li>
                 ))}
               </ul>
@@ -393,7 +394,7 @@ function ReportPage() {
                 {improvements.map((x, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-zinc-200">
                     <X className="mt-0.5 h-4 w-4 text-red-400 shrink-0" />
-                    <span>{typeof x === "string" ? x : x.text || x.description || JSON.stringify(x)}</span>
+                    <span>{parseInlineMarkdown(typeof x === "string" ? x : x.text || x.description || JSON.stringify(x))}</span>
                   </li>
                 ))}
               </ul>
@@ -414,7 +415,7 @@ function ReportPage() {
                   key={i}
                   className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-200 leading-relaxed"
                 >
-                  {typeof x === "string" ? x : x.text || x.description || JSON.stringify(x)}
+                  {parseInlineMarkdown(typeof x === "string" ? x : x.text || x.description || JSON.stringify(x))}
                 </li>
               ))}
             </ul>
