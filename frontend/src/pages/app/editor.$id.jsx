@@ -109,6 +109,7 @@ function parseItalic(text) {
 }
 
 function parseInlineMarkdown(text) {
+  // Tokenize by backtick code spans first
   const codeRegex = /`([^`]+)`/g;
   let match;
   let lastIndex = 0;
@@ -136,18 +137,33 @@ function parseInlineMarkdown(text) {
     }
     let txt = token.content;
     const subParts = [];
-    const boldRegex = /\*\*([^*]+)\*\*/g;
-    let bMatch;
-    let bLastIndex = 0;
-    while ((bMatch = boldRegex.exec(txt)) !== null) {
-      if (bMatch.index > bLastIndex) {
-        subParts.push(parseItalic(txt.slice(bLastIndex, bMatch.index)));
+    // Handle [text](url) links, **bold**, and italic in one pass
+    const richRegex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*/g;
+    let rMatch;
+    let rLastIndex = 0;
+    while ((rMatch = richRegex.exec(txt)) !== null) {
+      if (rMatch.index > rLastIndex) {
+        subParts.push(txt.slice(rLastIndex, rMatch.index));
       }
-      subParts.push(<strong key={`b-${bMatch.index}`} className="font-semibold text-foreground">{bMatch[1]}</strong>);
-      bLastIndex = boldRegex.lastIndex;
+      if (rMatch[1] !== undefined) {
+        // [text](url) link
+        subParts.push(
+          <a key={`lnk-${tIdx}-${rMatch.index}`} href={rMatch[2]} target="_blank" rel="noopener noreferrer"
+            className="text-primary underline underline-offset-2 hover:opacity-80">
+            {rMatch[1]}
+          </a>
+        );
+      } else if (rMatch[3] !== undefined) {
+        // **bold**
+        subParts.push(<strong key={`b-${tIdx}-${rMatch.index}`} className="font-semibold text-foreground">{rMatch[3]}</strong>);
+      } else if (rMatch[4] !== undefined) {
+        // *italic*
+        subParts.push(<em key={`i-${tIdx}-${rMatch.index}`} className="italic">{rMatch[4]}</em>);
+      }
+      rLastIndex = richRegex.lastIndex;
     }
-    if (bLastIndex < txt.length) {
-      subParts.push(parseItalic(txt.slice(bLastIndex)));
+    if (rLastIndex < txt.length) {
+      subParts.push(txt.slice(rLastIndex));
     }
     return subParts.length > 0 ? subParts : txt;
   });
@@ -156,10 +172,68 @@ function parseInlineMarkdown(text) {
 function renderMarkdown(text) {
   if (!text) return null;
   const lines = text.split('\n');
-  return lines.map((line, idx) => {
+  // Group consecutive table rows into a single <table> block
+  const blocks = [];
+  let tableRows = [];
+  const flushTable = () => {
+    if (tableRows.length === 0) return;
+    const [header, , ...body] = tableRows;
+    blocks.push({ type: 'table', header, body });
+    tableRows = [];
+  };
+  lines.forEach((line, idx) => {
+    if (line.startsWith('|')) {
+      tableRows.push(line);
+    } else {
+      flushTable();
+      blocks.push({ type: 'line', content: line, idx });
+    }
+  });
+  flushTable();
+
+  return blocks.map((block, bIdx) => {
+    if (block.type === 'table') {
+      const parseRow = (row) => row.split('|').slice(1, -1).map(c => c.trim());
+      const headerCells = parseRow(block.header);
+      const bodyRows = (block.body || []).filter(r => !r.includes('---'));
+      return (
+        <div key={`table-${bIdx}`} className="my-3 overflow-x-auto rounded-md border border-border/40">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-card/30">
+                {headerCells.map((cell, cIdx) => (
+                  <th key={cIdx} className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap">
+                    {parseInlineMarkdown(cell)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bodyRows.map((row, rIdx) => (
+                <tr key={rIdx} className="border-t border-border/30 hover:bg-muted/10">
+                  {parseRow(row).map((cell, cIdx) => (
+                    <td key={cIdx} className="px-3 py-2 text-muted-foreground">
+                      {parseInlineMarkdown(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    const { content: line, idx } = block;
+    if (line.startsWith('#### ')) {
+      return (
+        <h4 key={idx} className="mt-4 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {parseInlineMarkdown(line.slice(5))}
+        </h4>
+      );
+    }
     if (line.startsWith('### ')) {
       return (
-        <h3 key={idx} className="mt-5 mb-2 text-sm font-semibold text-foreground flex items-center gap-1.5">
+        <h3 key={idx} className="mt-5 mb-2 text-sm font-semibold text-foreground">
           {parseInlineMarkdown(line.slice(4))}
         </h3>
       );
@@ -183,22 +257,6 @@ function renderMarkdown(text) {
         <ul key={idx} className="list-disc pl-5 my-1 text-muted-foreground">
           <li>{parseInlineMarkdown(line.trim().slice(2))}</li>
         </ul>
-      );
-    }
-    if (line.startsWith('|')) {
-      if (line.includes('---')) {
-        return null;
-      }
-      const cells = line.split('|').slice(1, -1).map(c => c.trim());
-      const isHeader = idx === 0 || (lines[idx - 1] && lines[idx - 1].trim() === '') || idx === 2; // naive check
-      return (
-        <div key={idx} className={`flex border-b border-border/40 py-2 text-xs ${isHeader ? 'font-semibold text-foreground bg-card/25' : 'text-muted-foreground'}`}>
-          {cells.map((cell, cIdx) => (
-            <div key={cIdx} className="flex-1 px-3">
-              {parseInlineMarkdown(cell)}
-            </div>
-          ))}
-        </div>
       );
     }
     if (line.trim() === '') {

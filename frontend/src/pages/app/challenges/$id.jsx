@@ -39,6 +39,129 @@ import {
   Share2,
 } from "lucide-react";
 
+// ── Markdown renderer ────────────────────────────────────────────────────────
+
+function parseInline(text) {
+  const richRegex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*/g;
+  const parts = [];
+  let last = 0;
+  let m;
+  while ((m = richRegex.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[1] !== undefined) {
+      parts.push(
+        <a key={m.index} href={m[2]} target="_blank" rel="noopener noreferrer"
+          className="text-primary underline underline-offset-2 hover:opacity-80">
+          {m[1]}
+        </a>
+      );
+    } else if (m[3] !== undefined) {
+      parts.push(<strong key={m.index} className="font-semibold text-foreground">{m[3]}</strong>);
+    } else if (m[4] !== undefined) {
+      parts.push(
+        <code key={m.index} className="rounded bg-zinc-800/80 px-1.5 py-0.5 font-mono text-[11px] text-amber-500 font-semibold border border-zinc-700/50">
+          {m[4]}
+        </code>
+      );
+    } else if (m[5] !== undefined) {
+      parts.push(<em key={m.index} className="italic">{m[5]}</em>);
+    }
+    last = richRegex.lastIndex;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts.length > 0 ? parts : text;
+}
+
+function renderMarkdown(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+
+  // Pre-pass: group consecutive | lines into table blocks
+  const blocks = [];
+  let tableRows = [];
+  const flushTable = () => {
+    if (tableRows.length === 0) return;
+    const [header, , ...body] = tableRows;
+    blocks.push({ type: 'table', header, body });
+    tableRows = [];
+  };
+  lines.forEach((line, idx) => {
+    if (line.startsWith('|')) {
+      tableRows.push(line);
+    } else {
+      flushTable();
+      blocks.push({ type: 'line', content: line, idx });
+    }
+  });
+  flushTable();
+
+  return blocks.map((block, bIdx) => {
+    if (block.type === 'table') {
+      const parseRow = (row) => row.split('|').slice(1, -1).map(c => c.trim());
+      const headerCells = parseRow(block.header);
+      const bodyRows = (block.body || []).filter(r => !r.includes('---'));
+      return (
+        <div key={`tbl-${bIdx}`} className="my-3 overflow-x-auto rounded-md border border-border/40">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-card/30">
+                {headerCells.map((cell, cIdx) => (
+                  <th key={cIdx} className="px-3 py-2 text-left font-semibold text-foreground whitespace-nowrap">
+                    {parseInline(cell)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bodyRows.map((row, rIdx) => (
+                <tr key={rIdx} className="border-t border-border/30 hover:bg-muted/10">
+                  {parseRow(row).map((cell, cIdx) => (
+                    <td key={cIdx} className="px-3 py-2 text-muted-foreground">
+                      {parseInline(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+
+    const { content: line, idx } = block;
+
+    if (line.startsWith('#### ')) {
+      return <h4 key={idx} className="mt-4 mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{parseInline(line.slice(5))}</h4>;
+    }
+    if (line.startsWith('### ')) {
+      return <h3 key={idx} className="mt-5 mb-2 text-sm font-semibold text-foreground">{parseInline(line.slice(4))}</h3>;
+    }
+    if (line.startsWith('## ')) {
+      return <h2 key={idx} className="mt-6 mb-3 text-base font-bold text-foreground">{parseInline(line.slice(3))}</h2>;
+    }
+    if (line.startsWith('# ')) {
+      return <h1 key={idx} className="mt-7 mb-4 text-lg font-extrabold text-foreground">{parseInline(line.slice(2))}</h1>;
+    }
+    if (line.trim().startsWith('- ')) {
+      return (
+        <ul key={idx} className="list-disc pl-5 my-1 text-muted-foreground">
+          <li>{parseInline(line.trim().slice(2))}</li>
+        </ul>
+      );
+    }
+    if (line.trim() === '') {
+      return <div key={idx} className="h-2" />;
+    }
+    return (
+      <p key={idx} className="my-1.5 leading-relaxed text-muted-foreground">
+        {parseInline(line)}
+      </p>
+    );
+  });
+}
+
+// ── ChallengeDetail ──────────────────────────────────────────────────────────
+
 function ChallengeDetail() {
   const { id: slug } = useParams();
   const dispatch = useDispatch();
@@ -173,35 +296,11 @@ function ChallengeDetail() {
           </div>
 
           <h2 className="mt-6 text-xl font-semibold">Problem</h2>
-          <div className="prose prose-invert mt-3 max-w-none text-sm text-foreground/85">
+          <div className="mt-3 max-w-none text-sm">
             <p className="text-base leading-relaxed text-foreground/90">{c.summary}</p>
             {c.description ? (
-              <div className="text-muted-foreground mt-4 space-y-2">
-                {(() => {
-                  const lines = c.description.split('\n');
-                  return lines.map((line, idx) => {
-                    if (line.startsWith('### ')) {
-                      return <h3 key={idx} className="mt-5 mb-2 text-sm font-semibold text-foreground">{line.slice(4)}</h3>;
-                    }
-                    if (line.startsWith('## ')) {
-                      return <h2 key={idx} className="mt-6 mb-3 text-base font-bold text-foreground">{line.slice(3)}</h2>;
-                    }
-                    if (line.startsWith('# ')) {
-                      return <h1 key={idx} className="mt-7 mb-4 text-lg font-extrabold text-foreground">{line.slice(2)}</h1>;
-                    }
-                    if (line.trim().startsWith('- ')) {
-                      return (
-                        <ul key={idx} className="list-disc pl-5 my-1 text-muted-foreground">
-                          <li>{line.trim().slice(2)}</li>
-                        </ul>
-                      );
-                    }
-                    if (line.trim() === '') {
-                      return <div key={idx} className="h-2" />;
-                    }
-                    return <p key={idx} className="my-1.5 leading-relaxed">{line}</p>;
-                  });
-                })()}
+              <div className="mt-4">
+                {renderMarkdown(c.description)}
               </div>
             ) : (
               <>
