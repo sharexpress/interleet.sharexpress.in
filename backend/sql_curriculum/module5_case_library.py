@@ -47,10 +47,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Use a simple CASE statement to classify inventory as Available or Out of Stock.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Use a simple CASE statement to classify inventory as Available or Out of Stock.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Use a simple CASE statement to classify inventory as Available or Out of Stock.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Use a simple CASE statement to classify inventory as Available or Out of Stock.\n\n"
         },
         "canonical_solution": (
             "SELECT book_id, title, available_copies, "
@@ -127,10 +127,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Assign membership tiers (Gold, Silver, Bronze) based on completed reading volume.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Assign membership tiers (Gold, Silver, Bronze) based on completed reading volume.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Assign membership tiers (Gold, Silver, Bronze) based on completed reading volume.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Assign membership tiers (Gold, Silver, Bronze) based on completed reading volume.\n\n"
         },
         "canonical_solution": (
             "SELECT member_id, name, total_books_read, "
@@ -211,10 +211,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Compute progressive fine charges using conditional mathematical formulas in CASE.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Compute progressive fine charges using conditional mathematical formulas in CASE.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Compute progressive fine charges using conditional mathematical formulas in CASE.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Compute progressive fine charges using conditional mathematical formulas in CASE.\n\n"
         },
         "canonical_solution": (
             "SELECT loan_id, member_id, days_overdue, "
@@ -300,10 +300,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Use SUM(CASE WHEN ...) to count available and checked-out titles across genres.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Use SUM(CASE WHEN ...) to count available and checked-out titles across genres.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Use SUM(CASE WHEN ...) to count available and checked-out titles across genres.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Use SUM(CASE WHEN ...) to count available and checked-out titles across genres.\n\n"
         },
         "canonical_solution": (
             "SELECT genre, COUNT(*) AS total_titles, "
@@ -382,10 +382,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Classify works into Classic, Modern, and Contemporary literary periods.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Classify works into Classic, Modern, and Contemporary literary periods.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Classify works into Classic, Modern, and Contemporary literary periods.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Classify works into Classic, Modern, and Contemporary literary periods.\n\n"
         },
         "canonical_solution": (
             "SELECT book_id, title, published_year, "
@@ -469,10 +469,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Map checkout status (Returned, Overdue, Active) based on return timestamps and deadlines.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Map checkout status (Returned, Overdue, Active) based on return timestamps and deadlines.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Map checkout status (Returned, Overdue, Active) based on return timestamps and deadlines.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Map checkout status (Returned, Overdue, Active) based on return timestamps and deadlines.\n\n"
         },
         "canonical_solution": (
             "SELECT loan_id, book_id, member_id, "
@@ -552,10 +552,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Audit patron circulation standing (Blocked, At Limit, Eligible) using conditional logic.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Audit patron circulation standing (Blocked, At Limit, Eligible) using conditional logic.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Audit patron circulation standing (Blocked, At Limit, Eligible) using conditional logic.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Audit patron circulation standing (Blocked, At Limit, Eligible) using conditional logic.\n\n"
         },
         "canonical_solution": (
             "SELECT member_id, name, "
@@ -637,10 +637,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Compute the percentage of high-rated books (>= 4.50) across each genre.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Compute the percentage of high-rated books (>= 4.50) across each genre.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Compute the percentage of high-rated books (>= 4.50) across each genre.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Compute the percentage of high-rated books (>= 4.50) across each genre.\n\n"
         },
         "canonical_solution": (
             "SELECT genre, COUNT(*) AS total_books, "
@@ -720,10 +720,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Trigger reorder alerts based on remaining shelf copy ratios.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Trigger reorder alerts based on remaining shelf copy ratios.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Trigger reorder alerts based on remaining shelf copy ratios.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Trigger reorder alerts based on remaining shelf copy ratios.\n\n"
         },
         "canonical_solution": (
             "SELECT book_id, title, available_copies, total_copies, "
@@ -805,10 +805,10 @@ MODULE5_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Apply conditional member discounts to calculate adjusted amnesty fines.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Apply conditional member discounts to calculate adjusted amnesty fines.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Apply conditional member discounts to calculate adjusted amnesty fines.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Apply conditional member discounts to calculate adjusted amnesty fines.\n\n"
         },
         "canonical_solution": (
             "SELECT member_id, name, member_type, outstanding_fines, "

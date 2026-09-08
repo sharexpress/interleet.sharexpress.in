@@ -73,10 +73,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Retrieve completed and scheduled trips matched with rider identity.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Retrieve completed and scheduled trips matched with rider identity.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Retrieve completed and scheduled trips matched with rider identity.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Retrieve completed and scheduled trips matched with rider identity.\n\n"
         },
         "canonical_solution": (
             "SELECT t.trip_id, r.name AS rider_name, t.pickup_location, t.dropoff_location, t.fare "
@@ -182,10 +182,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Join trips and drivers for fulfilled rides with distance and vehicle type.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Join trips and drivers for fulfilled rides with distance and vehicle type.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Join trips and drivers for fulfilled rides with distance and vehicle type.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Join trips and drivers for fulfilled rides with distance and vehicle type.\n\n"
         },
         "canonical_solution": (
             "SELECT t.trip_id, d.name AS driver_name, d.vehicle_type, t.fare, t.distance_km "
@@ -283,10 +283,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Produce a comprehensive rider audit including users without any bookings.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Produce a comprehensive rider audit including users without any bookings.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Produce a comprehensive rider audit including users without any bookings.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Produce a comprehensive rider audit including users without any bookings.\n\n"
         },
         "canonical_solution": (
             "SELECT r.rider_id, r.name, t.trip_id, t.fare "
@@ -384,10 +384,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Isolate registered drivers who have not accepted any rides.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Isolate registered drivers who have not accepted any rides.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Isolate registered drivers who have not accepted any rides.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Isolate registered drivers who have not accepted any rides.\n\n"
         },
         "canonical_solution": (
             "SELECT d.driver_id, d.name, d.vehicle_plate "
@@ -503,10 +503,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Join trips, riders, and drivers to compile complete ride manifest.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Join trips, riders, and drivers to compile complete ride manifest.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Join trips, riders, and drivers to compile complete ride manifest.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Join trips, riders, and drivers to compile complete ride manifest.\n\n"
         },
         "canonical_solution": (
             "SELECT t.trip_id, r.name AS rider_name, d.name AS driver_name, d.vehicle_type, t.fare "
@@ -615,10 +615,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Isolate high-friction trips by joining trips with unresolved grievance tickets.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Isolate high-friction trips by joining trips with unresolved grievance tickets.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Isolate high-friction trips by joining trips with unresolved grievance tickets.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Isolate high-friction trips by joining trips with unresolved grievance tickets.\n\n"
         },
         "canonical_solution": (
             "SELECT t.trip_id, t.trip_date, t.fare, c.issue_category, c.severity "
@@ -722,10 +722,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Aggregate ride counts, total revenue, and average distance by vehicle class.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Aggregate ride counts, total revenue, and average distance by vehicle class.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Aggregate ride counts, total revenue, and average distance by vehicle class.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Aggregate ride counts, total revenue, and average distance by vehicle class.\n\n"
         },
         "canonical_solution": (
             "SELECT d.vehicle_type, COUNT(t.trip_id) AS total_trips, "
@@ -826,10 +826,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Generate a full pricing matrix pairing all operational zones with vehicle categories.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Generate a full pricing matrix pairing all operational zones with vehicle categories.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Generate a full pricing matrix pairing all operational zones with vehicle categories.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Generate a full pricing matrix pairing all operational zones with vehicle categories.\n\n"
         },
         "canonical_solution": (
             "SELECT z.zone_name, v.class_name, v.base_fare "
@@ -943,10 +943,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Identify loyal rider and driver pairs who have completed 2 or more trips together.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Identify loyal rider and driver pairs who have completed 2 or more trips together.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Identify loyal rider and driver pairs who have completed 2 or more trips together.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Identify loyal rider and driver pairs who have completed 2 or more trips together.\n\n"
         },
         "canonical_solution": (
             "SELECT r.name AS rider_name, d.name AS driver_name, COUNT(t.trip_id) AS trip_count "
@@ -1050,10 +1050,10 @@ MODULE3_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Perform full outer join to reconcile trips against gateway transactions.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Perform full outer join to reconcile trips against gateway transactions.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Perform full outer join to reconcile trips against gateway transactions.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Perform full outer join to reconcile trips against gateway transactions.\n\n"
         },
         "canonical_solution": (
             "SELECT t.trip_id, t.fare, p.payment_id, p.amount_paid "

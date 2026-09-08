@@ -16,6 +16,19 @@
 
 import React, { useState, memo } from "react";
 import { Check, X, Clock, MemoryStick, ChevronDown, ChevronRight } from "lucide-react";
+import { SqlTableViewer } from "@/pages/app/editor/SqlTableViewer";
+
+function isJsonTable(str) {
+  if (!str || typeof str !== "string") return false;
+  const s = str.trim();
+  if (!s.startsWith("[") || !s.endsWith("]")) return false;
+  try {
+    const parsed = JSON.parse(s);
+    return Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === "object" && parsed[0] !== null;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Single test case result card — LeetCode style.
@@ -76,9 +89,13 @@ const TestCaseResultCard = memo(function TestCaseResultCard({ result, index }) {
           {!result.hidden && result.expected_output !== undefined && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Expected Output</p>
-              <pre className="text-emerald-300 whitespace-pre-wrap break-words text-xs">
-                {result.expected_output || "(empty)"}
-              </pre>
+              {isJsonTable(result.expected_output) ? (
+                <SqlTableViewer data={result.expected_output} title="Expected Table" badgeColor="emerald" />
+              ) : (
+                <pre className="text-emerald-300 whitespace-pre-wrap break-words text-xs">
+                  {result.expected_output || "(empty)"}
+                </pre>
+              )}
             </div>
           )}
 
@@ -86,9 +103,13 @@ const TestCaseResultCard = memo(function TestCaseResultCard({ result, index }) {
           {!result.hidden && result.stdout !== undefined && (
             <div>
               <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-1">Your Output</p>
-              <pre className={`whitespace-pre-wrap break-words text-xs ${passed ? "text-emerald-300" : "text-red-300"}`}>
-                {result.stdout || "(empty)"}
-              </pre>
+              {isJsonTable(result.stdout) ? (
+                <SqlTableViewer data={result.stdout} title="Your Output Table" badgeColor={passed ? "emerald" : "orange"} />
+              ) : (
+                <pre className={`whitespace-pre-wrap break-words text-xs ${passed ? "text-emerald-300" : "text-red-300"}`}>
+                  {result.stdout || "(empty)"}
+                </pre>
+              )}
             </div>
           )}
 

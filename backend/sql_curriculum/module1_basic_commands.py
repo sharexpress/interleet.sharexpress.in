@@ -49,10 +49,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT * FROM products\nORDER BY product_id ASC;\n",
-            "sqlite": "SELECT * FROM products ORDER BY product_id ASC;\n",
-            "mysql": "SELECT * FROM products ORDER BY product_id ASC;\n",
-            "postgresql": "SELECT * FROM products ORDER BY product_id ASC;\n"
+            "sql": "-- Write your SQL query below\n-- Task: Retrieve all rows and columns from the product catalog table.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Retrieve all rows and columns from the product catalog table.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Retrieve all rows and columns from the product catalog table.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Retrieve all rows and columns from the product catalog table.\n\n"
         },
         "canonical_solution": "SELECT * FROM products ORDER BY product_id ASC;",
         "test_cases": [
@@ -128,10 +128,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\n-- Select product_id, product_name, price where price > 100.00\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Filter premium products priced strictly higher than $100.00.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Filter premium products priced strictly higher than $100.00.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Filter premium products priced strictly higher than $100.00.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Filter premium products priced strictly higher than $100.00.\n\n"
         },
         "canonical_solution": "SELECT product_id, product_name, price FROM products WHERE price > 100.00 ORDER BY price DESC, product_id ASC;",
         "test_cases": [
@@ -205,10 +205,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\n-- Return average_salary rounded to 2 decimal places\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Calculate the average employee salary across all corporate divisions.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Calculate the average employee salary across all corporate divisions.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Calculate the average employee salary across all corporate divisions.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Calculate the average employee salary across all corporate divisions.\n\n"
         },
         "canonical_solution": "SELECT ROUND(AVG(salary), 2) AS average_salary FROM employees;",
         "test_cases": [
@@ -279,10 +279,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Locate all citizens residing in the city of Seattle.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Locate all citizens residing in the city of Seattle.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Locate all citizens residing in the city of Seattle.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Locate all citizens residing in the city of Seattle.\n\n"
         },
         "canonical_solution": "SELECT citizen_id, full_name, city FROM citizens WHERE city = 'Seattle' ORDER BY full_name ASC;",
         "test_cases": [
@@ -354,10 +354,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\n-- Return unique company_name in alphabetical order\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: List all unique corporate employers currently offering career openings.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: List all unique corporate employers currently offering career openings.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: List all unique corporate employers currently offering career openings.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: List all unique corporate employers currently offering career openings.\n\n"
         },
         "canonical_solution": "SELECT DISTINCT company_name FROM job_postings ORDER BY company_name ASC;",
         "test_cases": [
@@ -432,10 +432,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Count the total number of literary titles in the Fiction section.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Count the total number of literary titles in the Fiction section.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Count the total number of literary titles in the Fiction section.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Count the total number of literary titles in the Fiction section.\n\n"
         },
         "canonical_solution": "SELECT COUNT(*) AS fiction_books_count FROM books WHERE genre = 'Fiction';",
         "test_cases": [
@@ -506,10 +506,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Sort cinema catalog by critic ratings in descending order.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Sort cinema catalog by critic ratings in descending order.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Sort cinema catalog by critic ratings in descending order.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Sort cinema catalog by critic ratings in descending order.\n\n"
         },
         "canonical_solution": "SELECT title, release_year, rating FROM movies ORDER BY rating DESC, title ASC;",
         "test_cases": [
@@ -583,10 +583,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Sanitize missing shipping tracking identifiers using COALESCE.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Sanitize missing shipping tracking identifiers using COALESCE.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Sanitize missing shipping tracking identifiers using COALESCE.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Sanitize missing shipping tracking identifiers using COALESCE.\n\n"
         },
         "canonical_solution": "SELECT order_id, customer_name, COALESCE(tracking_number, 'Not Assigned') AS shipping_status FROM orders WHERE delivery_address IS NOT NULL ORDER BY order_id ASC;",
         "test_cases": [
@@ -660,10 +660,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Compound boolean filtering for Engineering and Sales department tiers.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Compound boolean filtering for Engineering and Sales department tiers.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Compound boolean filtering for Engineering and Sales department tiers.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Compound boolean filtering for Engineering and Sales department tiers.\n\n"
         },
         "canonical_solution": "SELECT staff_id, name, department, salary FROM staff WHERE (department = 'Engineering' AND salary >= 80000.00) OR (department = 'Sales' AND salary >= 70000.00) ORDER BY salary DESC, staff_id ASC;",
         "test_cases": [
@@ -732,10 +732,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Concatenate names and format uppercase department codes.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Concatenate names and format uppercase department codes.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Concatenate names and format uppercase department codes.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Concatenate names and format uppercase department codes.\n\n"
         },
         "canonical_solution": "SELECT (first_name || ' ' || last_name) AS employee_full_name, UPPER(department_code) AS assigned_department FROM workers ORDER BY employee_full_name ASC;",
         "test_cases": [
@@ -805,10 +805,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Identify content creators who visited their own published articles.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Identify content creators who visited their own published articles.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Identify content creators who visited their own published articles.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Identify content creators who visited their own published articles.\n\n"
         },
         "canonical_solution": "SELECT DISTINCT author_id AS id FROM views WHERE author_id = viewer_id ORDER BY id ASC;",
         "test_cases": [
@@ -885,10 +885,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Query games where basketball athletes scored 25+ points and recorded 5+ assists.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Query games where basketball athletes scored 25+ points and recorded 5+ assists.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Query games where basketball athletes scored 25+ points and recorded 5+ assists.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Query games where basketball athletes scored 25+ points and recorded 5+ assists.\n\n"
         },
         "canonical_solution": "SELECT match_id, player_id, points_scored FROM match_stats WHERE points_scored >= 25 AND assists >= 5 ORDER BY points_scored DESC, match_date ASC;",
         "test_cases": [
@@ -964,10 +964,10 @@ MODULE1_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Search gaming accounts matching specific handle prefix and keyword patterns.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Search gaming accounts matching specific handle prefix and keyword patterns.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Search gaming accounts matching specific handle prefix and keyword patterns.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Search gaming accounts matching specific handle prefix and keyword patterns.\n\n"
         },
         "canonical_solution": "SELECT gamer_id, username, level FROM gamers WHERE username LIKE 'pro_%' OR username LIKE '%_ninja%' ORDER BY level DESC, username ASC;",
         "test_cases": [

@@ -61,6 +61,7 @@ import {
   BookOpen,
   Globe,
   Database,
+  Table,
   RotateCw,
   RotateCcw,
   Lock,
@@ -76,7 +77,7 @@ import ConsoleOutput from "./editor/ConsoleOutput";
 import { DragHandle, VerticalDragHandle } from "./editor/DragHandles";
 import { BrowserPreview } from "./editor/BrowserPreview";
 import { DatabaseSchemaViewer } from "./editor/DatabaseSchemaViewer";
-import { QueryResultTable } from "./editor/QueryResultTable";
+import { SqlQueryOutputViewer } from "./editor/SqlQueryOutputViewer";
 import {
   LANG_TO_MONACO,
   LANG_LABEL,
@@ -327,6 +328,12 @@ function EditorPage() {
     setLiveLogs((prev) => [...prev, entry]);
   }, []);
   const [activeTab, setActiveTab] = useState(() => typeof window !== "undefined" && window.innerWidth < 768 ? "description" : "testcase");
+
+  useEffect(() => {
+    if (isDatabaseDomain && activeTab === "testcase" && typeof window !== "undefined" && window.innerWidth >= 768) {
+      setActiveTab("output");
+    }
+  }, [isDatabaseDomain]);
   const [customTestCases, setCustomTestCases] = useState([]);
   const [selectedTestCaseIdx, setSelectedTestCaseIdx] = useState(0);
 
@@ -838,18 +845,18 @@ function EditorPage() {
   // Run — executes custom test cases or visible sample test cases
   const handleRun = useCallback(() => {
     dispatch(resetExecution());
-    setActiveTab("result");
+    setActiveTab(isDatabaseDomain ? "output" : "result");
     const executionLang = (c?.domain === "APIs" || c?.domain === "Backend") ? lang : (runtimeEditor?.executionLanguage || lang);
     dispatch(runCode({ code, language: executionLang, testCases: customTestCases, executionMode: c?.execution_mode || "cli", runtime: c?.runtime }));
-  }, [code, lang, customTestCases, dispatch, runtimeEditor?.executionLanguage, c?.domain, c?.execution_mode, c?.runtime]);
+  }, [code, lang, customTestCases, dispatch, runtimeEditor?.executionLanguage, c?.domain, c?.execution_mode, c?.runtime, isDatabaseDomain]);
 
   // Submit — runs against all test cases (including hidden) via backend DB
   const handleSubmit = useCallback(() => {
     dispatch(resetExecution());
-    setActiveTab("result");
+    setActiveTab(isDatabaseDomain ? "output" : "result");
     const executionLang = (c?.domain === "APIs" || c?.domain === "Backend") ? lang : (runtimeEditor?.executionLanguage || lang);
     dispatch(submitCode({ code, language: executionLang, slug, userId: user?.user_id, executionMode: c?.execution_mode || "cli", runtime: c?.runtime }));
-  }, [code, lang, slug, dispatch, user, runtimeEditor?.executionLanguage, c?.domain, c?.execution_mode, c?.runtime]);
+  }, [code, lang, slug, dispatch, user, runtimeEditor?.executionLanguage, c?.domain, c?.execution_mode, c?.runtime, isDatabaseDomain]);
 
   // Reset editor to default starter code, dismissing previous submission
   const handleResetToStarter = useCallback(() => {
@@ -1019,6 +1026,10 @@ function EditorPage() {
                     fixtures={c?.fixtures}
                     schemaJson={c?.schema_json}
                     domain={c?.domain}
+                    execState={execState}
+                    onRun={handleRun}
+                    isRunning={isRunning}
+                    isSubmitting={isSubmitting}
                   />
                 ) : (
                   <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} onConsoleLog={onConsoleLog} />
@@ -1322,6 +1333,29 @@ function EditorPage() {
                     <TabsTrigger value="testcase" className="h-7 px-3 text-xs">
                       Testcase
                     </TabsTrigger>
+                    {isDatabaseDomain && (
+                      <TabsTrigger value="output" className="h-7 px-3 text-xs">
+                        <Table className="mr-1 h-3 w-3 text-emerald-400" /> Output
+                        {execState?.runResult && (
+                          <span
+                            className={`ml-1.5 inline-flex h-2 w-2 rounded-full ${
+                              execState.runResult.verdict === "ACCEPTED"
+                                ? "bg-emerald-500 shadow-[0_0_6px_#10b981]"
+                                : "bg-rose-500 shadow-[0_0_6px_#f43f5e]"
+                            }`}
+                          />
+                        )}
+                        {execState?.submitResult && (
+                          <span
+                            className={`ml-1.5 inline-flex h-2 w-2 rounded-full ${
+                              execState.submitResult.verdict === "ACCEPTED"
+                                ? "bg-emerald-500 shadow-[0_0_6px_#10b981]"
+                                : "bg-rose-500 shadow-[0_0_6px_#f43f5e]"
+                            }`}
+                          />
+                        )}
+                      </TabsTrigger>
+                    )}
                     <TabsTrigger value="result" className="h-7 px-3 text-xs">
                       Result
                     </TabsTrigger>
@@ -1525,6 +1559,18 @@ function EditorPage() {
                   )}
                 </TabsContent>
 
+                {/* Database Query Output tab */}
+                {isDatabaseDomain && (
+                  <TabsContent value="output" className="m-0 overflow-auto p-3 space-y-3" style={{ height: "calc(100% - 36px)" }}>
+                    <SqlQueryOutputViewer
+                      execState={execState}
+                      onRun={handleRun}
+                      isRunning={isRunning}
+                      isSubmitting={isSubmitting}
+                    />
+                  </TabsContent>
+                )}
+
                 {/* Test Result tab: shows Run OR Submit results */}
                 <TabsContent value="result" className="m-0 overflow-auto p-3 space-y-3" style={{ height: "calc(100% - 36px)" }}>
                   {/* Run result */}
@@ -1600,6 +1646,10 @@ function EditorPage() {
                 fixtures={c?.fixtures}
                 schemaJson={c?.schema_json}
                 domain={c?.domain}
+                execState={execState}
+                onRun={handleRun}
+                isRunning={isRunning}
+                isSubmitting={isSubmitting}
               />
             ) : (
               <BrowserPreview domain={c.domain} slug={c.slug} title={c.title} code={code} execState={execState} isMultiFileDomain={isMultiFileDomain} onConsoleLog={onConsoleLog} />

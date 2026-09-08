@@ -1,9 +1,20 @@
-import React, { useState } from "react";
-import { Database, Table, Eye, ChevronDown, ChevronRight, Layers, FileJson } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Database, Table, Eye, ChevronDown, ChevronRight, Layers, FileJson, Play } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { SqlQueryOutputViewer } from "./SqlQueryOutputViewer";
 
-export function DatabaseSchemaViewer({ schemaSql, fixtures, schemaJson, domain }) {
+export function DatabaseSchemaViewer({
+  schemaSql,
+  fixtures,
+  schemaJson,
+  domain,
+  execState,
+  onRun,
+  isRunning,
+  isSubmitting
+}) {
+  const [activeView, setActiveView] = useState("schema");
   const [expandedTables, setExpandedTables] = useState(() => {
     // Default expand first table
     if (fixtures && typeof fixtures === "object") {
@@ -13,6 +24,17 @@ export function DatabaseSchemaViewer({ schemaSql, fixtures, schemaJson, domain }
     return {};
   });
 
+  const latestResult = execState?.submitResult || execState?.runResult;
+  const hasRunOrSubmit = !!latestResult;
+  const isAccepted = latestResult?.verdict === "ACCEPTED";
+
+  // Auto-switch to output when run or submit triggered
+  useEffect(() => {
+    if (execState?.runStatus === "loading" || execState?.submitStatus === "loading" || execState?.runResult || execState?.submitResult) {
+      setActiveView("output");
+    }
+  }, [execState?.runStatus, execState?.submitStatus, execState?.runResult, execState?.submitResult]);
+
   const toggleTable = (name) => {
     setExpandedTables((prev) => ({ ...prev, [name]: !prev[name] }));
   };
@@ -21,18 +43,58 @@ export function DatabaseSchemaViewer({ schemaSql, fixtures, schemaJson, domain }
 
   return (
     <div className="flex h-full flex-col bg-zinc-950/80 border-t border-border lg:border-t-0 lg:border-l border-border/60">
-      {/* Header */}
-      <div className="flex h-10 items-center justify-between border-b border-border/60 px-4 bg-card/20">
-        <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
-          <Database className="h-3.5 w-3.5 text-orange-500" />
-          <span>Schema & Fixtures Inspector</span>
+      {/* Header with Schema / Query Output tabs */}
+      <div className="flex h-10 items-center justify-between border-b border-border/60 px-3 bg-card/20 flex-shrink-0">
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setActiveView("schema")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              activeView === "schema"
+                ? "bg-zinc-800 text-white shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            <Database className="h-3.5 w-3.5 text-orange-400" />
+            <span>Schema & Tables</span>
+            <Badge variant="outline" className="ml-1 text-[9px] font-mono border-orange-500/30 text-orange-400 bg-orange-500/10 px-1 py-0 h-4">
+              {tables.length}
+            </Badge>
+          </button>
+
+          <button
+            onClick={() => setActiveView("output")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              activeView === "output"
+                ? "bg-zinc-800 text-white shadow-sm"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            <Table className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Query Output</span>
+            {hasRunOrSubmit && (
+              <span
+                className={`ml-1 h-2 w-2 rounded-full ${
+                  isAccepted
+                    ? "bg-emerald-500 shadow-[0_0_6px_#10b981]"
+                    : "bg-rose-500 shadow-[0_0_6px_#f43f5e]"
+                }`}
+              />
+            )}
+          </button>
         </div>
-        <Badge variant="outline" className="text-[10px] font-mono border-orange-500/30 text-orange-400 bg-orange-500/10">
-          {tables.length} {tables.length === 1 ? "Entity" : "Entities"}
-        </Badge>
       </div>
 
-      {/* Content */}
+      {/* Main Content: Output vs Schema */}
+      {activeView === "output" ? (
+        <div className="flex-1 overflow-auto p-2">
+          <SqlQueryOutputViewer
+            execState={execState}
+            onRun={onRun}
+            isRunning={isRunning}
+            isSubmitting={isSubmitting}
+          />
+        </div>
+      ) : (
       <ScrollArea className="flex-1 p-3">
         {tables.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center text-muted-foreground text-xs">
@@ -119,6 +181,7 @@ export function DatabaseSchemaViewer({ schemaSql, fixtures, schemaJson, domain }
           </div>
         )}
       </ScrollArea>
+      )}
     </div>
   );
 }

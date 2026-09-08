@@ -49,10 +49,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Use a scalar subquery in the WHERE clause to isolate luxury rentals.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Use a scalar subquery in the WHERE clause to isolate luxury rentals.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Use a scalar subquery in the WHERE clause to isolate luxury rentals.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Use a scalar subquery in the WHERE clause to isolate luxury rentals.\n\n"
         },
         "canonical_solution": (
             "SELECT property_id, title, city, price_per_night "
@@ -142,10 +142,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Locate idle inventory using a NOT IN subquery against the bookings table.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Locate idle inventory using a NOT IN subquery against the bookings table.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Locate idle inventory using a NOT IN subquery against the bookings table.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Locate idle inventory using a NOT IN subquery against the bookings table.\n\n"
         },
         "canonical_solution": (
             "SELECT property_id, title, city, price_per_night "
@@ -230,10 +230,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Filter listings located in cities having 2 or more registered properties.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Filter listings located in cities having 2 or more registered properties.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Filter listings located in cities having 2 or more registered properties.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Filter listings located in cities having 2 or more registered properties.\n\n"
         },
         "canonical_solution": (
             "SELECT property_id, title, city, price_per_night "
@@ -314,10 +314,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Implement a correlated subquery to find minimum price listings by city.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Implement a correlated subquery to find minimum price listings by city.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Implement a correlated subquery to find minimum price listings by city.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Implement a correlated subquery to find minimum price listings by city.\n\n"
         },
         "canonical_solution": (
             "SELECT p.property_id, p.title, p.city, p.price_per_night "
@@ -397,10 +397,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Use a derived table subquery in the FROM clause to filter premier hosts.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Use a derived table subquery in the FROM clause to filter premier hosts.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Use a derived table subquery in the FROM clause to filter premier hosts.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Use a derived table subquery in the FROM clause to filter premier hosts.\n\n"
         },
         "canonical_solution": (
             "SELECT owner_id, avg_rating "
@@ -508,10 +508,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Locate high-net-worth guests using an EXISTS subquery on luxury bookings.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Locate high-net-worth guests using an EXISTS subquery on luxury bookings.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Locate high-net-worth guests using an EXISTS subquery on luxury bookings.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Locate high-net-worth guests using an EXISTS subquery on luxury bookings.\n\n"
         },
         "canonical_solution": (
             "SELECT u.user_id, u.name "
@@ -606,10 +606,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nWITH monthly_rev AS (\n  SELECT \n)\nSELECT \n",
-            "sqlite": "WITH monthly_rev AS (\n  SELECT \n)\nSELECT \n",
-            "mysql": "WITH monthly_rev AS (\n  SELECT \n)\nSELECT \n",
-            "postgresql": "WITH monthly_rev AS (\n  SELECT \n)\nSELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Build a CTE to summarize monthly revenue and filter for months generating >= $1000.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Build a CTE to summarize monthly revenue and filter for months generating >= $1000.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Build a CTE to summarize monthly revenue and filter for months generating >= $1000.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Build a CTE to summarize monthly revenue and filter for months generating >= $1000.\n\n"
         },
         "canonical_solution": (
             "WITH monthly_rev AS ("
@@ -720,10 +720,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nWITH user_cities AS (\n  SELECT \n)\nSELECT \n",
-            "sqlite": "WITH user_cities AS (\n  SELECT \n)\nSELECT \n",
-            "mysql": "WITH user_cities AS (\n  SELECT \n)\nSELECT \n",
-            "postgresql": "WITH user_cities AS (\n  SELECT \n)\nSELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Leverage a CTE to find adventurous travelers with bookings across 2 or more cities.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Leverage a CTE to find adventurous travelers with bookings across 2 or more cities.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Leverage a CTE to find adventurous travelers with bookings across 2 or more cities.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Leverage a CTE to find adventurous travelers with bookings across 2 or more cities.\n\n"
         },
         "canonical_solution": (
             "WITH user_cities AS ("
@@ -838,10 +838,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nWITH booking_stats AS (\n  SELECT \n)\nSELECT \n",
-            "sqlite": "WITH booking_stats AS (\n  SELECT \n)\nSELECT \n",
-            "mysql": "WITH booking_stats AS (\n  SELECT \n)\nSELECT \n",
-            "postgresql": "WITH booking_stats AS (\n  SELECT \n)\nSELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Combine CTE and LEFT JOIN with COALESCE to compile occupancy metrics for every listing.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Combine CTE and LEFT JOIN with COALESCE to compile occupancy metrics for every listing.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Combine CTE and LEFT JOIN with COALESCE to compile occupancy metrics for every listing.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Combine CTE and LEFT JOIN with COALESCE to compile occupancy metrics for every listing.\n\n"
         },
         "canonical_solution": (
             "WITH booking_stats AS ("
@@ -927,10 +927,10 @@ MODULE4_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Retrieve the 2nd highest booking value strictly using subqueries without LIMIT/OFFSET.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Retrieve the 2nd highest booking value strictly using subqueries without LIMIT/OFFSET.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Retrieve the 2nd highest booking value strictly using subqueries without LIMIT/OFFSET.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Retrieve the 2nd highest booking value strictly using subqueries without LIMIT/OFFSET.\n\n"
         },
         "canonical_solution": (
             "SELECT MAX(total_amount) AS second_highest_amount "

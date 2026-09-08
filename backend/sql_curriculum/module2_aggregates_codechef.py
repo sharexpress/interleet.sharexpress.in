@@ -53,10 +53,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Extract coder profiles with rating and country affiliations.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Extract coder profiles with rating and country affiliations.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Extract coder profiles with rating and country affiliations.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Extract coder profiles with rating and country affiliations.\n\n"
         },
         "canonical_solution": "SELECT user_id, username, rating, country FROM platform_users ORDER BY user_id ASC;",
         "test_cases": [
@@ -134,10 +134,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Calculate the mean contest rating across all registered competitors.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Calculate the mean contest rating across all registered competitors.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Calculate the mean contest rating across all registered competitors.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Calculate the mean contest rating across all registered competitors.\n\n"
         },
         "canonical_solution": "SELECT ROUND(AVG(rating), 2) AS avg_user_rating FROM platform_users;",
         "test_cases": [
@@ -211,10 +211,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Count competitors in the Candidate Master rating bracket (1600 to 1999).\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Count competitors in the Candidate Master rating bracket (1600 to 1999).\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Count competitors in the Candidate Master rating bracket (1600 to 1999).\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Count competitors in the Candidate Master rating bracket (1600 to 1999).\n\n"
         },
         "canonical_solution": "SELECT COUNT(*) AS candidate_master_count FROM platform_users WHERE rating BETWEEN 1600 AND 1999;",
         "test_cases": [
@@ -288,10 +288,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Retrieve the top-ranked user(s) holding the global peak contest rating.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Retrieve the top-ranked user(s) holding the global peak contest rating.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Retrieve the top-ranked user(s) holding the global peak contest rating.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Retrieve the top-ranked user(s) holding the global peak contest rating.\n\n"
         },
         "canonical_solution": "SELECT user_id, username, rating FROM platform_users WHERE rating = (SELECT MAX(rating) FROM platform_users) ORDER BY user_id ASC;",
         "test_cases": [
@@ -364,10 +364,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: List Grandmaster coders rated above 2199 with country details.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: List Grandmaster coders rated above 2199 with country details.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: List Grandmaster coders rated above 2199 with country details.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: List Grandmaster coders rated above 2199 with country details.\n\n"
         },
         "canonical_solution": "SELECT user_id, username, rating, country FROM platform_users WHERE rating > 2199 ORDER BY rating DESC, username ASC;",
         "test_cases": [
@@ -441,10 +441,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Calculate aggregate rating points generated by Pro premium members.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Calculate aggregate rating points generated by Pro premium members.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Calculate aggregate rating points generated by Pro premium members.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Calculate aggregate rating points generated by Pro premium members.\n\n"
         },
         "canonical_solution": "SELECT SUM(rating) AS total_pro_rating FROM platform_users WHERE is_pro = 1;",
         "test_cases": [
@@ -519,10 +519,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Group active users by team to compute squad member counts.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Group active users by team to compute squad member counts.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Group active users by team to compute squad member counts.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Group active users by team to compute squad member counts.\n\n"
         },
         "canonical_solution": "SELECT team_id, COUNT(*) AS member_count FROM platform_users WHERE team_id IS NOT NULL GROUP BY team_id ORDER BY member_count DESC, team_id ASC;",
         "test_cases": [
@@ -599,10 +599,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Determine the highest contest rating achieved in each participating institution.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Determine the highest contest rating achieved in each participating institution.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Determine the highest contest rating achieved in each participating institution.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Determine the highest contest rating achieved in each participating institution.\n\n"
         },
         "canonical_solution": "SELECT college_id, MAX(rating) AS highest_rating FROM platform_users WHERE college_id IS NOT NULL GROUP BY college_id ORDER BY highest_rating DESC, college_id ASC;",
         "test_cases": [
@@ -680,10 +680,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Multi-tier hierarchical ordering of institutional students.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Multi-tier hierarchical ordering of institutional students.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Multi-tier hierarchical ordering of institutional students.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Multi-tier hierarchical ordering of institutional students.\n\n"
         },
         "canonical_solution": "SELECT college_id, username, rating FROM platform_users WHERE college_id IS NOT NULL ORDER BY college_id ASC, rating DESC, username ASC;",
         "test_cases": [
@@ -763,10 +763,10 @@ MODULE2_CHALLENGES = [
             ]
         },
         "starter_code": {
-            "sql": "-- Write your SQL query below\nSELECT \n",
-            "sqlite": "SELECT \n",
-            "mysql": "SELECT \n",
-            "postgresql": "SELECT \n"
+            "sql": "-- Write your SQL query below\n-- Task: Locate the top-performing squad with minimum roster requirements.\n\n",
+            "sqlite": "-- Write your SQLite query below\n-- Task: Locate the top-performing squad with minimum roster requirements.\n\n",
+            "mysql": "-- Write your MySQL query below\n-- Task: Locate the top-performing squad with minimum roster requirements.\n\n",
+            "postgresql": "-- Write your PostgreSQL query below\n-- Task: Locate the top-performing squad with minimum roster requirements.\n\n"
         },
         "canonical_solution": "SELECT team_id, ROUND(AVG(rating), 2) AS team_avg_rating FROM platform_users WHERE team_id IS NOT NULL GROUP BY team_id HAVING COUNT(*) >= 2 ORDER BY team_avg_rating DESC, team_id ASC LIMIT 1;",
         "test_cases": [
