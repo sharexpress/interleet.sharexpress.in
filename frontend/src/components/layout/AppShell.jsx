@@ -59,6 +59,7 @@ const nav = [
   { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/challenges", label: "Challenges", icon: Code2 },
   { to: "/app/interviews", label: "AI Interviews", icon: Bot },
+  { to: "/app/system-design", label: "System Design", icon: Network },
   { to: "/app/leaderboard", label: "Leaderboard", icon: Trophy },
   { to: "/app/contest", label: "Contest", icon: Swords },
 ];
