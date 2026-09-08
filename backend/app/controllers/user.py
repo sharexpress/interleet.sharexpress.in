@@ -61,6 +61,27 @@ is_prod = PROJECT_ENVIRONMENT == "PRODUCTION"
 db = get_db()
 
 
+async def _auto_follow_owner(new_user_id: str):
+    """Ensure any newly registered user automatically follows the platform owner @santusht_124."""
+    try:
+        owner = await db.users.find_one({"email": "santushtkotai1221@gmail.com"})
+        if not owner or owner.get("user_id") == new_user_id:
+            return
+        owner_id = owner["user_id"]
+        await db.users.update_one(
+            {"user_id": new_user_id},
+            {"$addToSet": {"following": owner_id}}
+        )
+        await db.users.update_one(
+            {"user_id": owner_id},
+            {"$addToSet": {"followers": new_user_id}}
+        )
+        from app.services.badge_service import BadgeService
+        await BadgeService.check_and_award_badges(owner_id)
+    except Exception as e:
+        logger.warning("Failed to auto-follow owner for user %s: %s", new_user_id, e)
+
+
 class UserController:
     @staticmethod
     def _public_user(user: dict):
@@ -152,6 +173,7 @@ class UserController:
                     "last_login": datetime.utcnow(),
                 }
                 await db.users.insert_one(new_user)
+                await _auto_follow_owner(user_id)
                 generate_token(user_id, response)
 
                 if request.cookies.get("guest_session"):
@@ -277,6 +299,7 @@ class UserController:
                     "last_login": datetime.utcnow(),
                 }
                 await db.users.insert_one(new_user)
+                await _auto_follow_owner(user_id)
                 response = RedirectResponse(url=f"{frontend_url}/onboarding")
                 generate_token(user_id, response)
                 return response
@@ -382,6 +405,7 @@ class UserController:
                     "last_login": datetime.utcnow(),
                 }
                 await db.users.insert_one(new_user)
+                await _auto_follow_owner(user_id)
                 redirect_response = RedirectResponse(
                     url=f"{frontend_url}/onboarding"
                 )
