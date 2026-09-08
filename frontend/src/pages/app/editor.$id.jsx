@@ -973,34 +973,30 @@ function EditorPage() {
       {/* Workspace Area: Locked check */}
 
       {false ? (
-        <div className="flex flex-col items-center justify-center h-[calc(100vh-56px-49px)] bg-zinc-950 px-4 text-center">
-          <div className="max-w-md w-full bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-8 space-y-6 shadow-xl relative overflow-hidden">
-            {/* Ambient orange glow */}
-            <div className="absolute -top-12 -left-12 w-24 h-24 bg-[#FF6500]/5 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-12 -right-12 w-24 h-24 bg-[#FF6500]/5 rounded-full blur-2xl pointer-events-none" />
-
+        <div className="flex flex-col items-center justify-center h-[calc(100vh-56px-49px)] bg-background px-4 text-center">
+          <div className="max-w-md w-full bg-card border border-border rounded-xl p-8 space-y-6">
             <div className="flex flex-col items-center space-y-3">
-              <div className="flex items-center justify-center w-14 h-14 rounded-full bg-[#FF6500]/10 border border-[#FF6500]/30 text-[#FF6500]">
-                <Lock className="w-6 h-6 animate-pulse" />
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+                <Lock className="w-5 h-5" />
               </div>
-              <h2 className="text-xl font-bold tracking-tight text-white">
-                Premium Challenge Locked
+              <h2 className="text-xl font-bold tracking-tight text-foreground">
+                Premium challenge locked
               </h2>
-              <p className="text-sm text-zinc-400 leading-relaxed">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 This challenge requires an active Pro Elite subscription. Unlock the complete catalog, interactive test suites, and unlimited AI mock interviews today.
               </p>
             </div>
 
-            <div className="border-t border-b border-zinc-800/60 py-4 my-2 text-left space-y-2.5">
-              <div className="flex items-center gap-2 text-xs text-zinc-300">
+            <div className="border-y border-border py-4 my-2 text-left space-y-2.5">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Full access to all premium/expert challenges</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-zinc-300">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Interactive editor, test cases, and solutions</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-zinc-300">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Check className="w-3.5 h-3.5 text-emerald-400" />
                 <span>Unlimited tailored AI interview feedback reports</span>
               </div>
@@ -1009,7 +1005,7 @@ function EditorPage() {
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 variant="outline"
-                className="flex-1 border-zinc-800 hover:bg-zinc-850 hover:text-white text-zinc-400"
+                className="flex-1"
                 asChild
               >
                 <Link to="/app/challenges">
@@ -1018,8 +1014,8 @@ function EditorPage() {
               </Button>
               <UpgradeModal
                 trigger={
-                  <Button className="flex-1 bg-gradient-to-r from-[#FF6500] to-orange-600 hover:from-[#E05900] hover:to-orange-700 text-white font-bold border-none shadow-lg shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
-                    <Sparkles className="w-4 h-4 mr-1.5 fill-white text-white animate-pulse" />
+                  <Button className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+                    <Sparkles className="w-4 h-4 mr-1.5" />
                     Unlock Pro
                   </Button>
                 }
@@ -1055,72 +1051,74 @@ function EditorPage() {
               </div>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 text-sm leading-relaxed text-foreground/90">
-              <p>{c.summary}</p>
-              
-              {c.function_signature && (
-                <div className="mt-4 space-y-1.5">
-                  <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">Function Signature</p>
-                  <pre className="bg-zinc-950 p-2.5 rounded border border-border font-mono text-[11px] text-emerald-400 overflow-x-auto select-all">
-                    {c.function_signature}
-                  </pre>
-                </div>
-              )}
-
-              {c.description && (
-                <div className="mt-4 space-y-1 text-muted-foreground">
-                  {renderMarkdown(c.description)}
-                </div>
-              )}
-
-              {!isMultiFileDomain && <EnvironmentInfo domain={c.domain} lang={lang} />}
-              {!isDatabaseDomain && c.test_cases?.filter((t) => !t.hidden).length > 0 && (
-                <>
-                  <h3 className="mt-5 text-sm font-semibold">Examples</h3>
-                  <div className="mt-2 space-y-2">
-                    {c.test_cases
-                      .filter((t) => !t.hidden)
-                      .map((t) => (
-                        <div
-                          key={t.id}
-                          className="rounded-md border border-border bg-background/60 p-3"
-                        >
-                          <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                            {t.name}
-                          </p>
-                          {t.stdin && (
-                            <div className="mb-1">
-                              <span className="text-[10px] text-muted-foreground">Input: </span>
-                              <code className="font-mono text-[11px] text-foreground/85">
-                                {t.stdin.trim()}
-                              </code>
-                            </div>
-                          )}
-                          {t.expected_output && (
-                            <div>
-                              <span className="text-[10px] text-muted-foreground">Output: </span>
-                              <code className="font-mono text-[11px] text-foreground/85">
-                                {t.expected_output.trim()}
-                              </code>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+              <div className="mx-auto max-w-[760px] space-y-4">
+                <p>{c.summary}</p>
+                
+                {c.function_signature && (
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] uppercase font-mono tracking-wider text-muted-foreground">Function Signature</p>
+                    <pre className="bg-zinc-950 p-2.5 rounded border border-border font-mono text-[11px] text-emerald-400 overflow-x-auto select-all">
+                      {c.function_signature}
+                    </pre>
                   </div>
-                </>
-              )}
-              {c.hints?.length > 0 && (
-                <>
-                  <h3 className="mt-5 text-sm font-semibold">Hints</h3>
-                  <ol className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
-                    {c.hints.map((h, i) => (
-                      <li key={i}>{parseInlineMarkdown(h)}</li>
-                    ))}
-                  </ol>
-                </>
-              )}
-              {c?.runtime_config && (
-                <EnvironmentCard runtime={c.runtime_config} />
-              )}
+                )}
+
+                {c.description && (
+                  <div className="space-y-1 text-muted-foreground">
+                    {renderMarkdown(c.description)}
+                  </div>
+                )}
+
+                {!isMultiFileDomain && <EnvironmentInfo domain={c.domain} lang={lang} />}
+                {!isDatabaseDomain && c.test_cases?.filter((t) => !t.hidden).length > 0 && (
+                  <div className="pt-2">
+                    <h3 className="text-sm font-semibold">Examples</h3>
+                    <div className="mt-2 space-y-2">
+                      {c.test_cases
+                        .filter((t) => !t.hidden)
+                        .map((t) => (
+                          <div
+                            key={t.id}
+                            className="rounded-md border border-border bg-background/60 p-3"
+                          >
+                            <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                              {t.name}
+                            </p>
+                            {t.stdin && (
+                              <div className="mb-1">
+                                <span className="text-[10px] text-muted-foreground">Input: </span>
+                                <code className="font-mono text-[11px] text-foreground/85">
+                                  {t.stdin.trim()}
+                                </code>
+                              </div>
+                            )}
+                            {t.expected_output && (
+                              <div>
+                                <span className="text-[10px] text-muted-foreground">Output: </span>
+                                <code className="font-mono text-[11px] text-foreground/85">
+                                  {t.expected_output.trim()}
+                                </code>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+                {c.hints?.length > 0 && (
+                  <div className="pt-2">
+                    <h3 className="text-sm font-semibold">Hints</h3>
+                    <ol className="mt-2 list-inside list-decimal space-y-1 text-muted-foreground">
+                      {c.hints.map((h, i) => (
+                        <li key={i}>{parseInlineMarkdown(h)}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+                {c?.runtime_config && (
+                  <EnvironmentCard runtime={c.runtime_config} />
+                )}
+              </div>
             </div>
           </aside>
 
@@ -1194,7 +1192,7 @@ function EditorPage() {
                       Description
                     </TabsTrigger>
                     <TabsTrigger value="testcase" className="h-7 px-3 text-xs">
-                      Testcase
+                      Test cases
                     </TabsTrigger>
                     {isDatabaseDomain && (
                       <TabsTrigger value="output" className="h-7 px-3 text-xs">
@@ -1203,8 +1201,8 @@ function EditorPage() {
                           <span
                             className={`ml-1.5 inline-flex h-2 w-2 rounded-full ${
                               execState.runResult.verdict === "ACCEPTED"
-                                ? "bg-emerald-500 shadow-[0_0_6px_#10b981]"
-                                : "bg-rose-500 shadow-[0_0_6px_#f43f5e]"
+                                ? "bg-emerald-500"
+                                : "bg-rose-500"
                             }`}
                           />
                         )}
@@ -1212,8 +1210,8 @@ function EditorPage() {
                           <span
                             className={`ml-1.5 inline-flex h-2 w-2 rounded-full ${
                               execState.submitResult.verdict === "ACCEPTED"
-                                ? "bg-emerald-500 shadow-[0_0_6px_#10b981]"
-                                : "bg-rose-500 shadow-[0_0_6px_#f43f5e]"
+                                ? "bg-emerald-500"
+                                : "bg-rose-500"
                             }`}
                           />
                         )}
@@ -1259,10 +1257,10 @@ function EditorPage() {
                           <Loader2 className="ml-1.5 h-3 w-3 animate-spin text-muted-foreground" />
                         )}
                         {devopsStatus === "ready" && (
-                          <span className="ml-1.5 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_#10b981]" />
+                          <span className="ml-1.5 h-2 w-2 rounded-full bg-emerald-500" />
                         )}
                         {devopsStatus === "error" && (
-                          <span className="ml-1.5 h-2 w-2 rounded-full bg-destructive shadow-[0_0_4px_#ef4444]" />
+                          <span className="ml-1.5 h-2 w-2 rounded-full bg-destructive" />
                         )}
                       </TabsTrigger>
                     )}

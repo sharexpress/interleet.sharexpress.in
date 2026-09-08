@@ -251,7 +251,7 @@ function Dashboard() {
             accent="text-primary"
           >
             <div className="mt-2">
-              <Progress value={progress} className="h-1.5 bg-zinc-850 animate-pulse" />
+              <Progress value={progress} className="h-1.5 bg-zinc-850" />
               <p className="text-[10px] text-muted-foreground mt-1 font-mono">
                 {1000 - xpInLevel} XP to Level {level + 1}
               </p>
@@ -492,7 +492,7 @@ function Dashboard() {
                   <li 
                     key={q.id} 
                     onClick={() => handleQuestToggle(q.id)}
-                    className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-850 hover:border-zinc-700 transition-all cursor-pointer group animate-fade-in"
+                    className="flex items-center justify-between p-2 rounded bg-zinc-900/60 border border-zinc-850 hover:border-zinc-700 transition-colors duration-150 cursor-pointer group"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       {q.done ? (
@@ -582,7 +582,7 @@ function Dashboard() {
                               {activity.text}
                             </p>
                             {isUnreadNotif && (
-                              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+                              <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-0.5">

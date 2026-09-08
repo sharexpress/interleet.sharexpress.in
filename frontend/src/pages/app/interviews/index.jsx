@@ -255,10 +255,10 @@ function InterviewsPage() {
                 const IconComponent = meta.icon;
 
                 return (
-                  <Card key={r.t} className="group relative border-border bg-card/80 p-5 transition-all duration-300 hover:border-primary/50 hover:shadow-[0_0_25px_rgba(255,101,0,0.12)] hover:-translate-y-0.5">
+                  <Card key={r.t} className="group relative border border-border bg-card p-5 transition-colors duration-150 hover:border-primary/50">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${meta.color} transition-transform group-hover:scale-105`}>
+                        <span className={`flex h-10 w-10 items-center justify-center rounded-xl border ${meta.color}`}>
                           <IconComponent className="h-5 w-5" />
                         </span>
                         <div>
@@ -303,7 +303,7 @@ function InterviewsPage() {
                         onClick={() => {
                           navigate(`/app/interviews/setup?role=${encodeURIComponent(r.t)}&difficulty=Intermediate`);
                         }}
-                        className="inline-flex items-center text-primary hover:text-orange-400 font-semibold cursor-pointer text-xs group-hover:translate-x-0.5 transition-transform"
+                        className="inline-flex items-center text-primary hover:text-orange-400 font-semibold cursor-pointer text-xs transition-colors"
                       >
                         Start Session <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </button>

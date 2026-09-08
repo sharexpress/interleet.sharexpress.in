@@ -178,22 +178,22 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-[460px] bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader className="flex flex-col items-center text-center space-y-2 pb-4">
-          <div className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-2">
-            <Sparkles className="w-5 h-5 animate-pulse" />
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-2">
+            <Sparkles className="w-5 h-5" />
           </div>
-          <DialogTitle className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-200 via-emerald-400 to-teal-500 bg-clip-text text-transparent">
+          <DialogTitle className="text-xl font-bold tracking-tight text-foreground">
             Interleet Pro is 100% Free!
           </DialogTitle>
-          <DialogDescription className="text-zinc-400 text-sm">
+          <DialogDescription className="text-muted-foreground text-xs">
             All engineering challenges, AI mock interviews, and system design tools are unlocked for everyone.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 my-2">
-          <div className="space-y-2.5 bg-zinc-900/40 p-4 rounded-xl border border-zinc-900">
-            <div className="text-xs font-semibold text-emerald-400 mb-2 uppercase tracking-wide">Included for Free:</div>
+          <div className="space-y-2.5 bg-card p-4 rounded-xl border border-border">
+            <div className="text-xs font-semibold text-emerald-400 mb-2 uppercase tracking-wide">Included for free:</div>
             {benefits.map((benefit, idx) => (
-              <div key={idx} className="flex items-start gap-2.5 text-xs text-zinc-300">
+              <div key={idx} className="flex items-start gap-2.5 text-xs text-muted-foreground">
                 <div className="flex-shrink-0 mt-0.5 w-4 h-4 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
                   <Check className="w-2.5 h-2.5" />
                 </div>
@@ -203,7 +203,7 @@ export default function UpgradeModal({ trigger, open: controlledOpen, onOpenChan
           </div>
 
           <Button
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-black font-bold py-5 mt-2 rounded-xl transition-all shadow-lg"
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold py-5 mt-2 rounded-xl transition-colors"
             onClick={() => setIsOpen(false)}
           >
             Start Exploring Now

@@ -555,7 +555,7 @@ function ContestWorkspace() {
 
           {/* Time Countdown clock */}
           <div className="flex items-center gap-2 font-mono text-sm font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-3.5 py-1 rounded-lg">
-            <Clock className="h-4 w-4 text-primary animate-pulse" />
+            <Clock className="h-4 w-4 text-primary" />
             <span>{formatTime(timeLeft)}</span>
           </div>
 
@@ -592,7 +592,7 @@ function ContestWorkspace() {
             </Button>
             <Button
               size="sm"
-              className="h-8 text-xs gap-1.5"
+              className="h-8 text-xs gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
               onClick={handleSubmitCode}
               disabled={isRunning || isSubmitting}
             >
@@ -630,7 +630,8 @@ function ContestWorkspace() {
           </div>
 
           {/* Description Content */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="flex-1 overflow-y-auto p-5">
+            <div className="max-w-[760px] mx-auto space-y-4">
             {currentChallenge && (
               <>
                 <div className="border-b border-zinc-850 pb-3.5 space-y-2">
@@ -706,6 +707,7 @@ function ContestWorkspace() {
                 )}
               </>
             )}
+            </div>
           </div>
         </div>
 
@@ -845,7 +847,7 @@ function ContestWorkspace() {
         </div>
 
         {/* Right Sidebar: Live Standings Leaderboard */}
-        <div className="flex flex-col bg-zinc-900/10 min-h-0 border-l border-zinc-850">
+        <div className="hidden lg:flex flex-col bg-card/20 min-h-0 border-l border-border w-72 shrink-0">
 
           <div className="p-4 border-b border-border flex items-center justify-between bg-zinc-900/40">
             <h3 className="text-xs font-bold text-white flex items-center gap-1.5">

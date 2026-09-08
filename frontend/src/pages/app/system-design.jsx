@@ -1895,19 +1895,19 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-success animate-pulse" /> Easy
+              <span className="h-2 w-2 rounded-full bg-success" /> Easy
             </div>
             <div className="mt-1 text-2xl font-bold text-success font-mono">{stats.easy}</div>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-warning animate-pulse" /> Medium
+              <span className="h-2 w-2 rounded-full bg-warning" /> Medium
             </div>
             <div className="mt-1 text-2xl font-bold text-warning font-mono">{stats.medium}</div>
           </div>
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-destructive animate-pulse" /> Hard
+              <span className="h-2 w-2 rounded-full bg-destructive" /> Hard
             </div>
             <div className="mt-1 text-2xl font-bold text-destructive font-mono">{stats.hard}</div>
           </div>
@@ -2038,7 +2038,7 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
               onClick={() => onPick(featuredChallenge)}
               className="group block cursor-pointer"
             >
-              <Card className="border-border bg-card p-6 transition-all hover:border-primary/40 hover:shadow-md">
+              <Card className="border border-border bg-card p-6 transition-colors duration-150 hover:border-primary/50">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-2 flex-1">
                     <div className="flex items-center gap-2">
@@ -2118,7 +2118,7 @@ function ChallengePicker({ onPick, onPickTemplate, customChallenges = [], custom
                 onClick={() => onPick(ch)}
                 className="group block cursor-pointer"
               >
-                <Card className="h-full border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md flex flex-col justify-between">
+                <Card className="h-full border border-border bg-card p-5 transition-colors duration-150 hover:border-primary/50 flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <span className="rounded-md border border-border bg-muted/40 px-2 py-0.5 font-mono text-[10px] text-muted-foreground uppercase tracking-wider">

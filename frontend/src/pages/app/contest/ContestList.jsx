@@ -138,22 +138,19 @@ function ContestList() {
           {/* Main Area: Contests List */}
           <div className="space-y-8">
             {/* Top banner visual */}
-            <div className="relative overflow-hidden rounded-2xl border border-zinc-800/80 bg-zinc-900/30 p-8 shadow-xl">
-              <div className="absolute -top-12 -left-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-              
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="relative overflow-hidden rounded-xl border border-border bg-card p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="space-y-2">
                   <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-medium text-primary">
-                    <Zap className="h-3 w-3 animate-pulse" /> Multi-Player coding matches
+                    <Zap className="h-3 w-3" /> Multiplayer coding matches
                   </div>
-                  <h2 className="text-2xl font-bold text-white tracking-tight">Prove your skills in real-time</h2>
-                  <p className="text-sm text-zinc-400 max-w-xl">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight">Prove your skills in real time</h2>
+                  <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
                     Compete in strict sandbox environments with anti-cheat checks. Solve challenges from the platform database and climb the ranks.
                   </p>
                 </div>
-                <div className="shrink-0 flex items-center justify-center w-20 h-20 rounded-full bg-zinc-850/50 border border-zinc-800 text-primary">
-                  <Swords className="h-10 w-10 animate-bounce" />
+                <div className="shrink-0 flex items-center justify-center w-16 h-16 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+                  <Swords className="h-8 w-8" />
                 </div>
               </div>
             </div>

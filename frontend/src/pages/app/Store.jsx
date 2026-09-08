@@ -319,19 +319,16 @@ function StorePage() {
       <div className="space-y-6 px-4 py-6 md:px-8 max-w-7xl mx-auto">
         {/* Premium Upgrade Banner for non-premium users */}
         {!user?.is_premium && (
-          <Card className="border-[#FF6500]/40 bg-gradient-to-r from-zinc-950 via-[#FF6500]/10 to-zinc-950 p-8 flex flex-col lg:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden rounded-2xl glow-soft">
-            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#FF6500]/60 to-transparent" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-[400px] bg-[radial-gradient(ellipse_at_right,theme(colors.primary/12),transparent_70%)]" />
-            
+          <Card className="border border-primary/40 bg-card p-8 flex flex-col lg:flex-row items-center justify-between gap-6 relative overflow-hidden rounded-xl">
             <div className="flex flex-col lg:flex-row items-center gap-5 relative z-10 text-center lg:text-left">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#FF6500]/15 border border-[#FF6500]/30 text-[#FF6500] shadow-[0_0_30px_rgba(255,101,0,0.18)]">
-                <Sparkles className="h-8 w-8 animate-pulse" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
+                <Sparkles className="h-7 w-7" />
               </div>
               <div className="space-y-1.5 max-w-xl">
-                <h3 className="text-xl font-extrabold text-white flex items-center gap-2 justify-center lg:justify-start">
+                <h3 className="text-xl font-bold text-foreground flex items-center gap-2 justify-center lg:justify-start">
                   Unlock Pro Elite Access
                 </h3>
-                <p className="text-sm text-zinc-300 leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Upgrade to unlock all premium coding challenges, limitless AI mock interviews, deep analytics, and direct recruiter pipelines.
                 </p>
               </div>
@@ -340,8 +337,8 @@ function StorePage() {
             <div className="relative z-10 shrink-0 w-full lg:w-auto">
               <UpgradeModal
                 trigger={
-                  <Button className="w-full lg:w-auto bg-gradient-to-r from-[#FF6500] to-orange-600 hover:from-[#E05900] hover:to-orange-700 text-white font-black text-sm px-8 py-6 border-none shadow-xl shadow-orange-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] cursor-pointer">
-                    <Sparkles className="mr-1.5 h-4 w-4 fill-white text-white" />
+                  <Button className="w-full lg:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm px-8 py-5 transition-colors cursor-pointer">
+                    <Sparkles className="mr-1.5 h-4 w-4" />
                     Unlock Premium Now
                   </Button>
                 }
@@ -351,16 +348,13 @@ function StorePage() {
         )}
 
         {/* User Balance Overview Card */}
-        <Card className="border-zinc-800 bg-gradient-to-r from-zinc-950 via-[#FF6500]/5 to-zinc-950 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
-          {/* Subtle background glow */}
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-[300px] bg-[radial-gradient(ellipse_at_right,theme(colors.primary/8),transparent_70%)]" />
-          
+        <Card className="border border-border bg-card p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden rounded-xl">
           <div className="flex items-center gap-4 relative z-10 w-full md:w-auto">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FF6500]/10 border border-[#FF6500]/25 text-[#FF6500] shadow-[0_0_20px_rgba(255,101,0,0.12)]">
-              <Coins className="h-7 w-7 animate-pulse" />
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
+              <Coins className="h-6 w-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                 Vault Exchange Balance
               </h3>
               <p className="text-xs text-muted-foreground">
