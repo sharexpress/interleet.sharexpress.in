@@ -78,35 +78,32 @@ export function ChallengeCard({ c }) {
   const isAttempted = !isSolved && ((user?.attempted_problems || []).includes(c.slug) || c.user_status === "attempted");
 
   const cardContent = (
-    <Card className={`relative overflow-hidden h-full flex flex-col justify-between border border-zinc-800 bg-zinc-950/60 backdrop-blur-md p-6 transition-all duration-300 hover:-translate-y-1 ${theme.border} hover:shadow-lg ${theme.glow} group cursor-pointer`}>
-      {/* Background Radial Glow on Hover */}
-      <div className={`absolute -right-16 -top-16 w-32 h-32 rounded-full bg-gradient-to-br ${theme.color} blur-3xl opacity-50 transition-opacity duration-300 group-hover:opacity-100`} />
-      
+    <Card className="relative overflow-hidden h-full flex flex-col justify-between border border-border bg-card rounded-lg p-5 transition-colors duration-150 hover:border-primary/60 group cursor-pointer">
       <div>
         {/* Top Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <span className={`p-1.5 rounded-lg ${theme.text}`}>
-              <DomainIcon className="h-4 w-4" />
+            <span className="p-1 rounded bg-muted/60 text-primary border border-border/60">
+              <DomainIcon className="h-3.5 w-3.5" />
             </span>
-            <span className="font-mono text-xs uppercase tracking-widest text-zinc-400">
+            <span className="font-mono text-xs text-muted-foreground">
               {domain}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {isSolved && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">
-                <Sparkles className="h-2.5 w-2.5 text-emerald-400" /> Solved
+              <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                <Sparkles className="h-2.5 w-2.5" /> Solved
               </span>
             )}
             {isAttempted && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
-                <Clock className="h-2.5 w-2.5 text-amber-400" /> Attempted
+              <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">
+                <Clock className="h-2.5 w-2.5" /> Attempted
               </span>
             )}
             {c.is_premium && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 px-2.5 py-0.5 text-[10px] font-bold text-amber-400 border border-amber-500/30 shadow-sm shadow-orange-500/5">
-                <Lock className="h-2.5 w-2.5" /> PRO
+              <span className="inline-flex items-center gap-1 rounded bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-bold text-amber-400">
+                <Lock className="h-2.5 w-2.5" /> Pro
               </span>
             )}
             <DifficultyPill d={c.difficulty} />
@@ -114,19 +111,19 @@ export function ChallengeCard({ c }) {
         </div>
 
         {/* Title & Summary */}
-        <h3 className="text-lg font-semibold tracking-tight text-zinc-100 group-hover:text-white transition-colors duration-200 line-clamp-1 mb-2">
+        <h3 className="text-sm font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors line-clamp-1 mb-1.5">
           {c.title || "Untitled Challenge"}
         </h3>
-        <p className="line-clamp-2 text-sm text-zinc-400 leading-relaxed mb-4">
+        <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed mb-3">
           {c.summary || "No description provided."}
         </p>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-1.5 mb-6">
+        <div className="flex flex-wrap gap-1 mb-4">
           {(c.tags || []).slice(0, 3).map((t) => (
             <span
               key={t}
-              className="rounded-md border border-zinc-800 bg-zinc-900/50 px-2 py-0.5 font-mono text-[10px] text-zinc-400 group-hover:border-zinc-700 transition-colors"
+              className="rounded border border-border/50 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground"
             >
               #{t}
             </span>
@@ -135,25 +132,25 @@ export function ChallengeCard({ c }) {
       </div>
 
       {/* Footer Info */}
-      <div className="flex items-center justify-between border-t border-zinc-900 pt-4 mt-auto">
-        <div className="flex gap-4 text-xs font-medium text-zinc-500">
-          <span className="flex items-center gap-1 hover:text-zinc-300 transition-colors">
-            <Clock className="h-3.5 w-3.5 text-zinc-600" />
+      <div className="flex items-center justify-between border-t border-border/50 pt-3 mt-auto">
+        <div className="flex gap-3 text-xs font-medium text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
             {c.minutes || c.estimated_time_minutes || 0}m
           </span>
-          <span className="flex items-center gap-1 hover:text-zinc-300 transition-colors">
-            <Sparkles className="h-3.5 w-3.5 text-amber-500/70" />
+          <span className="flex items-center gap-1">
+            <Sparkles className="h-3 w-3 text-primary" />
             {c.xp || c.xp_reward || 0} XP
           </span>
-          <span className="flex items-center gap-1 hover:text-zinc-300 transition-colors">
-            <Users className="h-3.5 w-3.5 text-zinc-600" />
+          <span className="flex items-center gap-1">
+            <Users className="h-3 w-3" />
             {c.completion || 0}%
           </span>
         </div>
-        
-        {/* Play Action Indicator */}
-        <span className={`p-1.5 rounded-full ${theme.text} opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-x-2 group-hover:translate-x-0`}>
-          <ArrowRight className="h-4 w-4" />
+
+        {/* Open Indicator */}
+        <span className="text-muted-foreground group-hover:text-primary transition-colors">
+          <ArrowRight className="h-3.5 w-3.5" />
         </span>
       </div>
     </Card>

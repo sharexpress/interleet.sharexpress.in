@@ -39,7 +39,7 @@ import {
   Share2,
 } from "lucide-react";
 
-import MarkdownRenderer, { renderMarkdown } from "@/components/common/MarkdownRenderer";
+import MarkdownRenderer, { renderMarkdown, parseInlineMarkdown } from "@/components/common/MarkdownRenderer";
 
 // ── ChallengeDetail ──────────────────────────────────────────────────────────
 
@@ -216,7 +216,7 @@ function ChallengeDetail() {
             </Button>
             <Button asChild size="lg">
               <Link to={`/app/editor/${c.slug}`}>
-                Solve Challenge <ArrowRight className="ml-2 h-4 w-4" />
+                Solve challenge <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
           </div>
@@ -227,7 +227,7 @@ function ChallengeDetail() {
             <h3 className="text-sm font-semibold">Hints</h3>
             <ol className="mt-3 list-inside list-decimal space-y-1 text-sm text-muted-foreground">
               {c.hints.map((hint, i) => (
-                <li key={i}>{hint}</li>
+                <li key={i}>{parseInlineMarkdown(hint)}</li>
               ))}
             </ol>
           </Card>
