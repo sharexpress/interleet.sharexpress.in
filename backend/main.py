@@ -125,10 +125,18 @@ app = FastAPI(
 
 # ─── Middleware ────────────────────────────────────────────────────
 
-CORS_ORIGINS = os.environ.get(
-    "BACKEND_CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
-).split(",")
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "BACKEND_CORS_ORIGINS",
+        "https://interleet.sharexpress.in,https://interleet-backend.sharexpress.in,http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000",
+    ).split(",")
+    if origin.strip()
+]
+
+_frontend_env = os.environ.get("FRONTEND_URL")
+if _frontend_env and _frontend_env not in CORS_ORIGINS:
+    CORS_ORIGINS.append(_frontend_env)
 
 app.add_middleware(
     CORSMiddleware,
